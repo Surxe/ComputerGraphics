@@ -1,20 +1,16 @@
 class main {
     constructor() {
         this.consoleSection = document.getElementById("console");
-        console.log("<br>main class is created<br>");
+        this.outputContainer = document.getElementById("output-container");
+        console.log("main class is created");
         this.money = 100;
         this.slotMachines = [];
-        this.numSlotMachines = 1;
+        this.numSlotMachines = 3;
 
         // Add SM's
         for (let i = 0; i < this.numSlotMachines; i++) {
-            this.slotMachines.push(new SlotMachine());
+            this.slotMachines.push(new SlotMachine(0, 6));
         }
-        
-        // Add a <section> for output
-        this.outputSection = document.createElement("section");
-        this.outputSection.innerHTML = "<br>Output Section<br>";
-        this.consoleSection.appendChild(this.outputSection);
     }
     
     playAll() {
@@ -31,43 +27,61 @@ class main {
     }
 
     renderAll() {
+        // Clear existing sections
+        this.outputContainer.innerHTML = "";
         for (let i = 0; i < this.numSlotMachines; i++) {
-            this.outputSection.innerHTML += "<br>Slot Machine " + i + ": " + this.slotMachines[i].slots + "<br>";
+            const section = document.createElement('section');
+            section.id = `section-${i}`;
+            section.innerHTML = `<p>${this.slotMachines[i].getOutput()}.</p>`;
+            this.outputContainer.appendChild(section);
+            console.log("Rendered section " + i);
         }
-        this.consoleSection.appendChild(this.outputSection);
     }
 
     handleClick() {
-        this.consoleSection.innerHTML += "<br>Button is clicked<br>";
+        console.log("Button is clicked");
         this.playAll();
         this.renderAll();
     }
 }
 
 class SlotMachine {
-    constructor() {
+    constructor(min, max) {
         this.consoleSection = document.getElementById("console");
-        this.consoleSection.innerHTML += "<br>SlotMachine class is created<br>";
+        console.log("SlotMachine class is created");
 
         this.lastAmountWon = 0;
         this.numSlots = 3;
         this.slots = [];
 
-        this.slotMinValue = 0;
-        this.slotMaxValue = 6;
+        this.slotMinValue = min;
+        this.slotMaxValue = max;
     }
 
     play() {
-        this.consoleSection.innerHTML += "<br>SlotMachine is played<br>";
+        console.log("SlotMachine is played");
 
         // Generate random values for each slot
         for (let i = 0; i < this.numSlots; i++) {
-            this.slots[i] = Math.floor(Math.random() * (this.slotMaxValue - this.slotMinValue + 1)) + this.slotMinValue;
+            this.slots[i] = new Slot(this.slotMinValue, this.slotMaxValue);
         }
     }
 
-    render() {
-        return this.slots;
+    getOutput() {
+        var slotsString = "";
+        for (let i = 0; i < this.numSlots; i++) {
+            slotsString += "<img src='" + this.slots[i].ImgSrc + "' alt='slot" + i + "'>";
+        }
+        return slotsString + "Won: " + this.lastAmountWon;
+    }
+}
+
+class Slot {
+    constructor(min, max) {
+        this.min = min;
+        this.max = max;
+        this.value = Math.floor(Math.random() * (this.max - this.min + 1)) + this.min;
+        this.ImgSrc = "images/" + this.value + ".png";
     }
 }
 
