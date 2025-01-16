@@ -56,6 +56,17 @@ class SlotMachine {
 
         this.slotMinValue = min;
         this.slotMaxValue = max;
+
+        this.winningPatterns = [
+            (['0', '0', '0'], 14),
+            (['x', 'x', 'x'], 7),
+            (['0', '0', 'x'], 3),
+            (['x', 'x', '-'], 2),
+            (['0', '-', '-'], 1)
+        ]
+        // x: any same non-zero value
+        // 0: 0
+        // -: any value
     }
 
     play() {
@@ -65,6 +76,10 @@ class SlotMachine {
         for (let i = 0; i < this.numSlots; i++) {
             this.slots[i] = new Slot(this.slotMinValue, this.slotMaxValue);
         }
+    }
+
+    processWinnings() {
+
     }
 
     getOutput() {
