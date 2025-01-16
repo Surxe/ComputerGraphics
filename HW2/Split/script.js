@@ -2,6 +2,7 @@ class main {
     constructor() {
         this.consoleSection = document.getElementById("console");
         this.outputContainer = document.getElementById("output-container");
+        this.moneySection = document.getElementById("money");
         console.log("main class is created");
         this.money = 100;
         this.slotMachines = [];
@@ -25,6 +26,10 @@ class main {
             this.consoleSection.innerHTML += "<br>Out of money<br>";
             return;
         }
+        if (this.money < 0) {
+            this.consoleSection.innerHTML += `<br>You owe the bank ${this.money} <br>`;
+            this.money = 0;
+        }
         this.money--;
         this.outputContainer.innerHTML = "";
 
@@ -34,6 +39,8 @@ class main {
             if (matchedPattern) { //winnings
                 this.money += matchedPattern.winnings;
             }
+
+            this.moneySection.innerHTML = "Money Remaining: $" + this.money;
 
             // Update output section
             const section = document.createElement('section');
