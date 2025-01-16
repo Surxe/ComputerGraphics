@@ -7,17 +7,20 @@ class main {
         this.money = 100;
         this.slotMachines = [];
         this.numSlotMachines = 3;
-        this.winningPatterns = [
+        this.winningPatterns = [ //should be in decreasing order of winning magnitude, as order affects which pattern is matched first
             new SlotPattern(['0', '0', '0'], 14),
+            new SlotPattern(['c', 'a', 'c'], 10), //bonus
             new SlotPattern(['x', 'x', 'x'], 7),
             new SlotPattern(['0', '0', 'x'], 3),
             new SlotPattern(['x', 'x', '-'], 2),
             new SlotPattern(['0', '-', '-'], 1)
         ]
+        this.minSlotValue = 0;
+        this.maxSlotValue = 6; // note that local images only have 0-6
 
         // Add SM's
         for (let i = 0; i < this.numSlotMachines; i++) {
-            this.slotMachines.push(new SlotMachine(0, 6, this.winningPatterns));
+            this.slotMachines.push(new SlotMachine(this.minSlotValue, this.maxSlotValue, this.winningPatterns));
         }
     }
     
@@ -134,16 +137,18 @@ class SlotPattern {
     }
 
     getMatchingPattern(patternToTest) {
-        var currentXValue = -1;
+        var currentLetterValues = {}; // dict where the key is a letter and the value is the last value matched by this letter
+        // different keys CAN share the same value, i.e. (x, y) pattern would match for (1, 1)
         for (let i = 0; i < this.pattern.length; i++) {
-            if (this.pattern[i] == 'x') {
-                if (patternToTest[i] == '0') { //x but cannot be 0
+            // Check if its a lowercase letter a-z
+            if (this.pattern[i].charCodeAt(0) >= 97 && this.pattern[i].charCodeAt(0) <= 122) {
+                if (patternToTest[i] == '0') { //value can be anything but 0
                     return false;
                 }
-                else if (currentXValue == -1) {
-                    currentXValue = patternToTest[i]; //first x value of the pattern, allow it and store it for future x values
+                else if (!currentLetterValues[this.pattern[i]]) { //if the letter is not yet in the dictionary
+                    currentLetterValues[this.pattern[i]] = patternToTest[i]; //first letter value of the pattern, allow it and store it for future letter values
                 }
-                else if (currentXValue != patternToTest[i]) {
+                else if (currentLetterValues[this.pattern[i]] != patternToTest[i]) {
                     return false; //x values do not match
                 }
             }
