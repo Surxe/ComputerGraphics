@@ -8,8 +8,16 @@ class main {
         
         const board = new Board(canvas_x, canvas_y, ctx.canvas.width, ctx.canvas.height, 64);
 
-        const player = new Player(5, 5, "images/player.png", 100, 10, 10);
+        const player = new Player(0, 0, "images/player.png", 100, 10, 10);
         player.render();
+
+        const enemies = [];
+        for (let i = 0; i < 3; i++) {
+            const enemy = new Enemy(100, 100*i, `images/enemy${i+1}.png`, 100, 10, 10)
+            enemy.render();
+            enemies.push(enemy);
+        }
+        
     }
     
     classFunction() {
@@ -43,6 +51,8 @@ class Board {
                 this.tiles[i][j] = new Tile(this.x + j * this.tile_size, this.y + i * this.tile_size, this.tile_size);
             }
         }
+
+        console.log("Board created");
     }
 
 }
@@ -64,49 +74,49 @@ class Tile {
 
         // Append border to canvas
         ctx.canvas.parentElement.appendChild(this.border);
+
+        console.log("Tile created");
     }
 }
 
 class Entity {
-    constructor(x, y, img) {
+    constructor(x, y, img_source) {
         this.x = x;
         this.y = y;
         this.img = new Image();
-        this.img.src = img;
+        this.img.src = img_source;
+        console.log("Entity created");
     }
 
     render() {
-        const img = new Image();
-        img.src = this.img;
-        img.onload = () => {
-            ctx.drawImage(img, this.x, this.y);
+        this.img.onload = () => {
+            ctx.drawImage(this.img, this.x, this.y);
         }
     }
 }
 
 class Character extends Entity {
-    constructor(x, y, img, max_health, armor, attack_power) {
-        super(x, y, img);
+    constructor(x, y, img_source, max_health, armor, attack_power) {
+        super(x, y, img_source);
         this.max_health = max_health;
         this.current_health = max_health;
         this.armor = armor;
         this.attack_power = attack_power;
+        console.log("Character created");
     }
 }
 
 class Player extends Character {
-    constructor(x, y, img, max_health, armor, attack_power) {
-        super(x, y, img, max_health, armor, attack_power);
-    }
-
-    render() {
-        super.render();
+    constructor(x, y, img_source, max_health, armor, attack_power) {
+        super(x, y, img_source, max_health, armor, attack_power);
+        console.log("Player created");
     }
 }
 
 class Enemy extends Character {
-    constructor(x, y, img, max_health, armor, attack_power) {
-        super(x, y, img, max_health, armor, attack_power);
+    constructor(x, y, img_source, max_health, armor, attack_power) {
+        super(x, y, img_source, max_health, armor, attack_power);
+        console.log("Enemy created");
     }
 }
 
@@ -114,12 +124,14 @@ class Effect {
     constructor(attribute, value) {
         this.attribute = attribute;
         this.value = value;
+        console.log("Effect created");
     }
 }
 
 class Item extends Entity {
-    constructor(x, y, img, on_pickup_effect) {
-        super(x, y, img);
+    constructor(x, y, img_source, on_pickup_effect) {
+        super(x, y, img_source);
         this.on_pickup_effect = on_pickup_effect;
+        console.log("Item created");
     }
 }
