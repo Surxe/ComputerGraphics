@@ -6,7 +6,10 @@ class main {
         const canvas_x = ctx.canvas.getBoundingClientRect().left;
         const canvas_y = ctx.canvas.getBoundingClientRect().top;
         
-        new Board(canvas_x, canvas_y, ctx.canvas.width, ctx.canvas.height, 64);
+        const board = new Board(canvas_x, canvas_y, ctx.canvas.width, ctx.canvas.height, 64);
+
+        const player = new Player(5, 5, "images/player.png", 100, 10, 10);
+        player.render();
     }
     
     classFunction() {
@@ -68,7 +71,16 @@ class Entity {
     constructor(x, y, img) {
         this.x = x;
         this.y = y;
-        this.img = img;
+        this.img = new Image();
+        this.img.src = img;
+    }
+
+    render() {
+        const img = new Image();
+        img.src = this.img;
+        img.onload = () => {
+            ctx.drawImage(img, this.x, this.y);
+        }
     }
 }
 
@@ -85,6 +97,10 @@ class Character extends Entity {
 class Player extends Character {
     constructor(x, y, img, max_health, armor, attack_power) {
         super(x, y, img, max_health, armor, attack_power);
+    }
+
+    render() {
+        super.render();
     }
 }
 
