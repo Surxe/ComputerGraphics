@@ -67,7 +67,7 @@ class Board {
 
     // Add an entity to the board
     // [0, 64, 128, ... , 512] //increments is width/height, 0 is min, max is 1 increment less than tile size
-    add_entity(entity) {
+    add_entity(entity, attempts_remaining=5) {
         // Randomize entity location
         var x = Math.floor(Math.random() * this.width/this.tile_size) * this.tile_size;
         var y = Math.floor(Math.random() * this.height/this.tile_size) * this.tile_size;
@@ -77,9 +77,13 @@ class Board {
         var tile_y = pixel_to_tile(y);
         var tile = this.tiles[tile_y][tile_x];
 
-        // Tile already occupied, try again
+        // Tile already occupied, try again up to 5 times
         if (tile.entity) {
-            this.add_entity(entity);
+            if (attempts_remaining <= 0) {
+                console.log(`Failed to add entity ${entity.name} after 5 attempts`);
+                return;
+            }
+            this.add_entity(entity, attempts_remaining=attempts_remaining-1);
             return;
         }
 
