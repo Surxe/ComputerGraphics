@@ -11,7 +11,7 @@ class main {
         const board = new Board(canvas_x, canvas_y, ctx.canvas.width, ctx.canvas.height, TILE_SIZE);
 
         // Add player and enemies to board
-        const player = new Player("Player", 0, 0, 64, "images/player.png", 100, 10, 50);
+        const player = new Player("Player", 0, 0, TILE_SIZE, "images/player.png", 100, 10, 50);
         board.add_entity(player);
 
         const enemies = [];
@@ -22,7 +22,7 @@ class main {
             var armor = Math.floor(Math.random() * 10) + 5; // 5-15
             var attack_power = Math.floor(Math.random() * 10) + 5; // 5-15
 
-            const enemy = new Enemy(enemy_name, 0, 0, 64, `images/${enemy_name}.png`, hp, armor, attack_power)
+            const enemy = new Enemy(enemy_name, 0, 0, TILE_SIZE, `images/${enemy_name}.png`, hp, armor, attack_power)
             board.add_entity(enemy);
             enemies.push(enemy);
         }
@@ -31,7 +31,7 @@ class main {
         const obstacles = [];
         for (let i = 0; i < 5; i++) {
             const obstacle_name = `obstacle${i+1}`;
-            const obstacle = new Obstacle(obstacle_name, 0, 0, 64);
+            const obstacle = new Obstacle(obstacle_name, 0, 0, TILE_SIZE);
             board.add_entity(obstacle);
             obstacles.push(obstacle);
         }        
@@ -205,6 +205,8 @@ class Character extends Entity {
         this.attack_power = attack_power;
         this.img = new Image();
         this.img.src = img_source;
+        this.img.width = width_height;
+        this.img.height = width_height;
         console.log("Character created");
     }
 
