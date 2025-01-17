@@ -34,8 +34,7 @@ class main {
             const obstacle = new Obstacle(obstacle_name, 0, 0, 64);
             board.add_entity(obstacle);
             obstacles.push(obstacle);
-        }
-        
+        }        
     }
 
     handleClick() {
@@ -146,23 +145,54 @@ class Entity {
 }
 
 class Obstacle extends Entity {
-    constructor(name, x, y) {
-        super(name, x, y);
-        console.log(`Obstacle ${name} created`);
+    constructor(name, x, y, width_height) {
+        super(name, x, y, width_height);
+        this.obstacle_type = "tree";
+        // 50% chance of being a brick wall instead
+        if (Math.random() < 0.5) {
+            this.obstacle_type = "brick wall";
+        }
+
+        console.log(`Obstacle ${name} with type ${this.obstacle_type} created`);
     }
 
     render() {
-        // New path
-        ctx.beginPath();
-
-        // Draw green triangle
-        ctx.fillStyle = "green";
-        ctx.moveTo(this.x, this.y + this.width_height); //bottom left
-        ctx.lineTo(this.x + this.width_height, this.y + this.width_height); //bottom right
-        ctx.lineTo(this.x + this.width_height/2, this.y) // top center
-        ctx.fill();
+        if (this.obstacle_type === "tree") {
+            this.render_tree();
+        } else if (this.obstacle_type === "brick wall") {
+            this.render_brick_wall();
+        }
 
         console.log(`Obstacle ${this.name} rendered at (${this.x}, ${this.y})`);
+    }
+
+    render_tree() {
+        // Draw green triangle for tree top
+        ctx.beginPath();
+        ctx.fillStyle = "green";
+        ctx.moveTo(this.x, this.y + this.width_height/2); //bottom left
+        ctx.lineTo(this.x + this.width_height, this.y + this.width_height/2); //bottom right
+        ctx.lineTo(this.x + this.width_height/2, this.y) // top center
+        ctx.fill();
+        ctx.closePath();
+        
+        // Move to center bottom to draw brown tree trunk
+        this.trunk_width = this.width_height/7;
+        ctx.beginPath();
+        ctx.fillStyle = "brown";
+        ctx.moveTo(this.x + this.width_height/2 - this.trunk_width/2, this.y + this.width_height/2); //bottom left
+        ctx.lineTo(this.x + this.width_height/2 + this.trunk_width/2, this.y + this.width_height/2); //bottom right
+        ctx.lineTo(this.x + this.width_height/2 + this.trunk_width/2, this.y + this.width_height); //top right
+        ctx.lineTo(this.x + this.width_height/2 - this.trunk_width/2, this.y + this.width_height); //top left
+        ctx.fill();
+        ctx.closePath();
+    }
+
+    render_brick_wall() {
+        // Draw brick wall
+        //reddish brown
+        ctx.fillStyle = "#CD5C5C";
+        ctx.fillRect(this.x, this.y, this.width_height, this.width_height);
     }
 }
 
