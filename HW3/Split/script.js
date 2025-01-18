@@ -205,14 +205,12 @@ class Character extends Entity {
         this.attack_power = attack_power;
         this.img = new Image();
         this.img.src = img_source;
-        this.img.width = width_height;
-        this.img.height = width_height;
         console.log("Character created");
     }
 
     render() {
         this.img.onload = () => {
-            ctx.drawImage(this.img, this.x, this.y);
+            ctx.drawImage(this.img, this.x, this.y, this.width_height, this.width_height);
         }
 
         console.log(`Character ${this.name} rendered at (${this.x}, ${this.y})`);
