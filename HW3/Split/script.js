@@ -21,7 +21,7 @@ class main {
             var enemy_name = `enemy${i+1}`;
             // Randomize health, armor, and attack power
             var hp = Math.floor(Math.random() * 100) + 50; // 50-150
-            var armor = Math.floor(Math.random() * 10) + 5; // 5-15
+            var armor = Math.floor(Math.random() * 5); // 1-5
             var attack_power = Math.floor(Math.random() * 5) + 10; // 11-15
 
             var enemy = new Enemy(enemy_name, 0, 0, this.tile_size, `images/${enemy_name}.png`, hp, armor, attack_power)
@@ -132,7 +132,7 @@ class main {
         
         // Check if player is dead
         if (character.current_health <= 0) {
-            console.log("Player has died");
+            console.log(`Character ${character.name} has died`);
             return false;
         }
         return true;
@@ -381,9 +381,20 @@ class Character extends Entity {
         // Draw new image
         this.img.onload = () => {
             ctx.drawImage(this.img, this.x, this.y, this.width_height, this.width_height);
+            this.render_health_bar();
         }
 
         console.log(`Character ${this.name} rendered at (${this.x}, ${this.y})`);
+    }
+
+    render_health_bar() {
+        // Draw health bar
+        ctx.beginPath();
+        ctx.fillStyle = "red";
+        ctx.fillRect(this.x, this.y+1, this.width_height, 5);
+        ctx.fillStyle = "green";
+        ctx.fillRect(this.x, this.y+1, this.width_height * (this.current_health / this.max_health), 5);
+        ctx.closePath();
     }
 }
 
