@@ -22,7 +22,7 @@ class main {
             // Randomize health, armor, and attack power
             var hp = Math.floor(Math.random() * 100) + 50; // 50-150
             var armor = Math.floor(Math.random() * 10) + 5; // 5-15
-            var attack_power = Math.floor(Math.random() * 10) + 5; // 5-15
+            var attack_power = Math.floor(Math.random() * 5) + 10; // 11-15
 
             var enemy = new Enemy(enemy_name, 0, 0, this.tile_size, `images/${enemy_name}.png`, hp, armor, attack_power)
             this.board.add_entity(enemy);
@@ -37,18 +37,22 @@ class main {
             this.board.add_entity(obstacle);
             this.obstacles.push(obstacle);
         }  
-    }
 
-    // Determine the direction the player should move before ticking gamestate
-    move_player(direction_string) {
         // Map the direction to x and y increments
-        const shifts = {
+        this.shifts = {
             "Up": [0, -this.tile_size],
             "Down": [0, this.tile_size],
             "Left": [-this.tile_size, 0],
             "Right": [this.tile_size, 0]
         }
-        this.tick(shifts[direction_string][0], shifts[direction_string][1]);
+    }
+
+    // Determine the direction the player should move before ticking gamestate
+    move_player(direction_string) {
+        var continue_game = this.tick(this.shifts[direction_string][0], this.shifts[direction_string][1]);
+        if (!continue_game) {
+            this.consoleSection.innerHTML = "Game Over";
+        }
     }
 
     log_board_state() {
@@ -61,40 +65,77 @@ class main {
         var new_x = this.player.x + player_x_shift;
         var new_y = this.player.y + player_y_shift;
 
+        // Move character
+        var char_is_alive = this.attempt_move(this.player, new_x, new_y);
+        if (!char_is_alive && this.player.current_health <= 0) {
+            return false;
+        }
+
+        // Move enemies
+        for (let i = 0; i < this.enemies.length; i++) {
+            // Randomize enemy movement (up, down, left, right)
+            var rand = Math.floor(Math.random() * 4);
+            var new_x = this.enemies[i].x + this.shifts[Object.keys(this.shifts)[rand]][0];
+            var new_y = this.enemies[i].y + this.shifts[Object.keys(this.shifts)[rand]][1];
+
+            this.attempt_move(this.enemies[i], new_x, new_y);
+        }
+
+        this.log_board_state();
+
+        return true;
+    }
+
+    attempt_move(character, new_x, new_y) {
         // Check if the new location is within the canvas
         if (new_x < 0 || new_x >= ctx.canvas.width || new_y < 0 || new_y >= ctx.canvas.height) {
             console.log("Player cannot move out of bounds");
             return;
         }
 
+        var current_tile_x = pixel_to_tile(character.x);
+        var current_tile_y = pixel_to_tile(character.y);
+        var new_tile_x = pixel_to_tile(new_x);
+        var new_tile_y = pixel_to_tile(new_y);
+
         // Check if the new location is occupied
-        var current_entity = this.board.tiles[pixel_to_tile(new_y)][pixel_to_tile(new_x)].entity;
-        if (current_entity instanceof Obstacle) {
-            console.log("Obstacle occupied at new location: ", current_entity);
-        }
-        else if (current_entity instanceof Enemy) {
-            console.log("Enemy occupied at new location: ", current_entity);
-        }
-        else if (current_entity instanceof Item) {
-            console.log("Item occupied at new location: ", current_entity);
-        }
-        // Ensure all possible entities are handled
-        else if (current_entity) {
-            console.log("Entity occupied at new location of unhandled instance: ", current_entity);
-        }
-        // Not occupied
-        else {
-            // Move player to new location
-            console.log("Moving player to new unoccupied location");
-            var current_tile_x = pixel_to_tile(this.player.x);
-            var current_tile_y = pixel_to_tile(this.player.y);
-            var new_tile_x = pixel_to_tile(new_x);
-            var new_tile_y = pixel_to_tile(new_y);
-            console.log(`Player moving from [${current_tile_x}, ${current_tile_y}] to [${new_tile_x}, ${new_tile_y}]`);
-            this.board.move_entity(current_tile_x, current_tile_y, new_tile_x, new_tile_y);
+        var existing_entity = this.board.tiles[pixel_to_tile(new_y)][pixel_to_tile(new_x)].entity;
+        if (existing_entity instanceof Obstacle) {
+            console.log("Obstacle occupied at new location: ", existing_entity);
         }
 
-        this.log_board_state();
+        // if player moves onto an enemy or vice versa, damage them
+        else if (((existing_entity instanceof Player) && (character instanceof Enemy)) || ((existing_entity instanceof Enemy) && (character instanceof Player))) {
+            console.log(`${character.name} is damaging ${existing_entity.name} at: (${new_x}, ${new_y})`);
+            var char_remains = existing_entity.damaged_by(character);
+            if (char_remains) { //is still alive
+                console.log(`${existing_entity.name} has ${existing_entity.current_health} health remaining`);
+            }
+            else { //has died
+                this.board.tiles[pixel_to_tile(new_y)][pixel_to_tile(new_x)].entity = null;
+            }
+        }
+        else if (existing_entity instanceof Item) {
+            console.log("Item occupied at new location: ", existing_entity);
+        }
+        // Ensure all possible entities are handled
+        else if (existing_entity) {
+            console.log("Entity occupied at new location of unhandled instance: ", existing_entity);
+            return
+        }
+
+        // Not occupied
+        // Move character to new location
+        console.log("Moving player to new unoccupied location");
+        console.log(`Player moving from [${current_tile_x}, ${current_tile_y}] to [${new_tile_x}, ${new_tile_y}]`);
+        this.board.move_entity(current_tile_x, current_tile_y, new_tile_x, new_tile_y);
+        
+        // Check if player is dead
+        if (character.current_health <= 0) {
+            console.log("Player has died");
+            return false;
+        }
+        return true;
     }
 }
 
@@ -315,6 +356,24 @@ class Character extends Entity {
         this.img_src = img_source;
         this.img.src = this.img_src;
         console.log("Character created");
+    }
+
+    damaged_by(attacking_character) {
+        // Calculate damage
+        var damage = (attacking_character.attack_power - this.armor) * Math.random() * 5+1;
+        if (damage < 0) {
+            damage = 1;
+        }
+
+        // Apply damage
+        this.current_health -= damage;
+        console.log(`${this.name} took ${damage} damage from ${attacking_character.name}`);
+        if (this.current_health <= 0) {
+            console.log(`${this.name} has died`);
+            this.erase();
+            return false; //dead
+        }
+        return true; //alive
     }
 
     render() {
