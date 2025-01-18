@@ -49,10 +49,8 @@ class main {
 
     // Determine the direction the player should move before ticking gamestate
     move_player(direction_string) {
-        var continue_game = this.tick(this.shifts[direction_string][0], this.shifts[direction_string][1]);
-        if (!continue_game) {
-            this.consoleSection.innerHTML = "Game Over";
-        }
+        var tick_results = this.tick(this.shifts[direction_string][0], this.shifts[direction_string][1]);
+        this.consoleSection.innerHTML = tick_results;
     }
 
     log_board_state() {
@@ -66,30 +64,41 @@ class main {
         var new_y = this.player.y + player_y_shift;
 
         // Move character
-        var char_is_alive = this.attempt_move(this.player, new_x, new_y);
-        if (!char_is_alive && this.player.current_health <= 0) {
-            return false;
+        this.attempt_move(this.player, new_x, new_y);
+        if (this.player.current_health <= 0) {
+            return "Game Over!";
         }
 
         // Move enemies
+        var num_dead_enemies = 0;
         for (let i = 0; i < this.enemies.length; i++) {
             // Randomize enemy movement (up, down, left, right)
             var rand = Math.floor(Math.random() * 4);
-            var new_x = this.enemies[i].x + this.shifts[Object.keys(this.shifts)[rand]][0];
-            var new_y = this.enemies[i].y + this.shifts[Object.keys(this.shifts)[rand]][1];
+            var enemy = this.enemies[i]
+            if (enemy.current_health <= 0) {
+                num_dead_enemies++;
+                continue;
+            }
 
-            this.attempt_move(this.enemies[i], new_x, new_y);
+            var new_x = enemy.x + this.shifts[Object.keys(this.shifts)[rand]][0];
+            var new_y = enemy.y + this.shifts[Object.keys(this.shifts)[rand]][1];
+
+            this.attempt_move(enemy, new_x, new_y);
         }
 
         this.log_board_state();
 
-        return true;
+        if (num_dead_enemies === this.enemies.length) {
+            return "You Win!";
+        }
+
+        return "";
     }
 
     attempt_move(character, new_x, new_y) {
         // Check if the new location is within the canvas
         if (new_x < 0 || new_x >= ctx.canvas.width || new_y < 0 || new_y >= ctx.canvas.height) {
-            console.log("Player cannot move out of bounds");
+            console.log("Character cannot move out of bounds");
             return;
         }
 
@@ -102,6 +111,7 @@ class main {
         var existing_entity = this.board.tiles[pixel_to_tile(new_y)][pixel_to_tile(new_x)].entity;
         if (existing_entity instanceof Obstacle) {
             console.log("Obstacle occupied at new location: ", existing_entity);
+            return
         }
 
         // if player moves onto an enemy or vice versa, damage them
@@ -126,16 +136,8 @@ class main {
 
         // Not occupied
         // Move character to new location
-        console.log("Moving player to new unoccupied location");
-        console.log(`Player moving from [${current_tile_x}, ${current_tile_y}] to [${new_tile_x}, ${new_tile_y}]`);
+        console.log("Moving character to new unoccupied location");
         this.board.move_entity(current_tile_x, current_tile_y, new_tile_x, new_tile_y);
-        
-        // Check if player is dead
-        if (character.current_health <= 0) {
-            console.log(`Character ${character.name} has died`);
-            return false;
-        }
-        return true;
     }
 }
 
