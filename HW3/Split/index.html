@@ -5,13 +5,19 @@
         <script src="script.js"></script>
     </head>
 
-    <body onclick="onClick();">
+    <body>
         <header>
             <h1>Main Title</h1>
         </header>
         <CANVAS id="myCanvas" width="640" height="640">
 			Your browser does not support canvas.
 		</CANVAS>
+        <!--Buttons for movement-->
+        <br>
+        <button id="up" onclick="move_up();">Up</button><br>
+        <button id="left" onclick="move_left();">Left</button>
+        <button id="right" onclick="move_right();">Right</button><br>
+        <button id="down" onclick="move_down();">Down</button>
         <section id="console">
             <p>Section Title</p>
         </section>

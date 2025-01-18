@@ -1,4 +1,4 @@
-TILE_SIZE = 64; //only global for debugging purposes, used in main's board creation and global.pixel_to_tile() for debugging
+TILE_SIZE = 128; //only global for debugging purposes, used in main's board creation and global.pixel_to_tile() for debugging
 
 class main {
     constructor() {
@@ -7,45 +7,109 @@ class main {
         // Get location of canvas
         const canvas_x = ctx.canvas.getBoundingClientRect().left;
         const canvas_y = ctx.canvas.getBoundingClientRect().top;
+
+        this.tile_size = TILE_SIZE;
         
-        const board = new Board(canvas_x, canvas_y, ctx.canvas.width, ctx.canvas.height, TILE_SIZE);
+        this.board = new Board(canvas_x, canvas_y, ctx.canvas.width, ctx.canvas.height, this.tile_size);
 
         // Add player and enemies to board
-        const player = new Player("Player", 0, 0, TILE_SIZE, "images/player.png", 100, 10, 50);
-        board.add_entity(player);
+        this.player = new Player("player", 0, 0, this.tile_size, "images/player.png", 100, 10, 50);
+        this.board.add_entity(this.player);
 
-        const enemies = [];
+        this.enemies = [];
         for (let i = 0; i < 3; i++) {
-            const enemy_name = `enemy${i+1}`;
+            var enemy_name = `enemy${i+1}`;
             // Randomize health, armor, and attack power
             var hp = Math.floor(Math.random() * 100) + 50; // 50-150
             var armor = Math.floor(Math.random() * 10) + 5; // 5-15
             var attack_power = Math.floor(Math.random() * 10) + 5; // 5-15
 
-            const enemy = new Enemy(enemy_name, 0, 0, TILE_SIZE, `images/${enemy_name}.png`, hp, armor, attack_power)
-            board.add_entity(enemy);
-            enemies.push(enemy);
+            var enemy = new Enemy(enemy_name, 0, 0, this.tile_size, `images/${enemy_name}.png`, hp, armor, attack_power)
+            this.board.add_entity(enemy);
+            this.enemies.push(enemy);
         }
 
         // Add obstacles to board
-        const obstacles = [];
+        this.obstacles = [];
         for (let i = 0; i < 5; i++) {
-            const obstacle_name = `obstacle${i+1}`;
-            const obstacle = new Obstacle(obstacle_name, 0, 0, TILE_SIZE);
-            board.add_entity(obstacle);
-            obstacles.push(obstacle);
-        }        
+            var obstacle_name = `obstacle${i+1}`;
+            var obstacle = new Obstacle(obstacle_name, 0, 0, this.tile_size);
+            this.board.add_entity(obstacle);
+            this.obstacles.push(obstacle);
+        }  
     }
 
-    handleClick() {
-        this.consoleSection.innerHTML += "<br>Button is clicked<br>";
-        console.log("Button is clicked");
-        
+    // Determine the direction the player should move before ticking gamestate
+    move_player(direction_string) {
+        // Map the direction to x and y increments
+        const shifts = {
+            "Up": [0, -this.tile_size],
+            "Down": [0, this.tile_size],
+            "Left": [-this.tile_size, 0],
+            "Right": [this.tile_size, 0]
+        }
+        this.tick(shifts[direction_string][0], shifts[direction_string][1]);
+    }
+
+    log_board_state() {
+        console.log(this.board.get_board_state());
+    }
+
+    // Tick the game state and move the player in the determined direction
+    tick(player_x_shift, player_y_shift) {
+        // Determine players would-be new location
+        var new_x = this.player.x + player_x_shift;
+        var new_y = this.player.y + player_y_shift;
+
+        // Check if the new location is within the canvas
+        if (new_x < 0 || new_x >= ctx.canvas.width || new_y < 0 || new_y >= ctx.canvas.height) {
+            console.log("Player cannot move out of bounds");
+            return;
+        }
+
+        // Check if the new location is occupied
+        var current_entity = this.board.tiles[pixel_to_tile(new_y)][pixel_to_tile(new_x)].entity;
+        if (current_entity instanceof Obstacle) {
+            console.log("Obstacle occupied at new location: ", current_entity);
+        }
+        else if (current_entity instanceof Enemy) {
+            console.log("Enemy occupied at new location: ", current_entity);
+        }
+        else if (current_entity instanceof Item) {
+            console.log("Item occupied at new location: ", current_entity);
+        }
+        // Ensure all possible entities are handled
+        else if (current_entity) {
+            console.log("Entity occupied at new location of unhandled instance: ", current_entity);
+        }
+        // Not occupied
+        else {
+            // Move player to new location
+            console.log("Moving player to new unoccupied location");
+            var current_tile_x = pixel_to_tile(this.player.x);
+            var current_tile_y = pixel_to_tile(this.player.y);
+            var new_tile_x = pixel_to_tile(new_x);
+            var new_tile_y = pixel_to_tile(new_y);
+            this.board.move(current_tile_x, current_tile_y, new_tile_x, new_tile_y);
+        }
+
+        this.log_board_state();
     }
 }
 
-function onClick() {
-    myMain.handleClick();
+
+
+function move_up() {
+    myMain.move_player("Up");
+}
+function move_left() {
+    myMain.move_player("Left");
+}
+function move_right() {
+    myMain.move_player("Right");
+}
+function move_down() {
+    myMain.move_player("Down");
 }
 
 // Translate pixel location to tile location, for debugging, though this could debatebly go in a utility class
@@ -96,11 +160,48 @@ class Board {
         }
 
         //Occupy, move, and render
+        // Since its an initial location, move() function is not called
         tile.entity = entity;
         entity.move(x, y);
         entity.render();
 
         console.log(`Entity ${entity.name} added at (${tile_x}, ${tile_y})`);
+    }
+
+    move(current_tile_x, current_tile_y, new_tile_x, new_tile_y) {
+        // Move entity from current tile to new tile
+        var current_tile = this.tiles[current_tile_y][current_tile_x];
+        var new_tile = this.tiles[new_tile_y][new_tile_x];
+
+        // Check if new tile is occupied
+        if (new_tile.entity) {
+            console.log("New tile is still occupied");
+            return;
+        }
+
+        // Move entity
+        new_tile.entity = current_tile.entity;
+        current_tile.entity = null;
+        new_tile.entity.move(new_tile.x, new_tile.y);
+        new_tile.entity.render();
+    }
+
+    // Return a string representation of the board's tiles state
+    get_board_state() {
+        var ret = "";
+        for (let i = 0; i < this.tiles.length; i++) {
+            for (let j = 0; j < this.tiles[i].length; j++) {
+                const entity = this.tiles[i][j].entity;
+                if (entity) {
+                    ret += entity.name[0];
+                } else {
+                    ret += " ";
+                }
+            }
+            ret += "\n";
+        }
+
+        return ret;
     }
 }
 
