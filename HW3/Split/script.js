@@ -1,4 +1,4 @@
-TILE_SIZE = 128; //only global for debugging purposes, used in main's board creation and global.pixel_to_tile() for debugging
+TILE_SIZE = 64; //only global for debugging purposes, used in main's board creation and global.pixel_to_tile() for debugging
 
 class main {
     constructor() {
@@ -90,7 +90,8 @@ class main {
             var current_tile_y = pixel_to_tile(this.player.y);
             var new_tile_x = pixel_to_tile(new_x);
             var new_tile_y = pixel_to_tile(new_y);
-            this.board.move(current_tile_x, current_tile_y, new_tile_x, new_tile_y);
+            console.log(`Player moving from [${current_tile_x}, ${current_tile_y}] to [${new_tile_x}, ${new_tile_y}]`);
+            this.board.move_entity(current_tile_x, current_tile_y, new_tile_x, new_tile_y);
         }
 
         this.log_board_state();
@@ -168,7 +169,7 @@ class Board {
         console.log(`Entity ${entity.name} added at (${tile_x}, ${tile_y})`);
     }
 
-    move(current_tile_x, current_tile_y, new_tile_x, new_tile_y) {
+    move_entity(current_tile_x, current_tile_y, new_tile_x, new_tile_y) {
         // Move entity from current tile to new tile
         var current_tile = this.tiles[current_tile_y][current_tile_x];
         var new_tile = this.tiles[new_tile_y][new_tile_x];
@@ -182,7 +183,7 @@ class Board {
         // Move entity
         new_tile.entity = current_tile.entity;
         current_tile.entity = null;
-        new_tile.entity.move(new_tile.x, new_tile.y);
+        new_tile.entity.move(new_tile_x*TILE_SIZE, new_tile_y*TILE_SIZE);
         new_tile.entity.render();
     }
 
@@ -239,9 +240,15 @@ class Entity {
     }
 
     move(x, y) {
-        console.log(`Entity ${this.name} moved from (${pixel_to_tile(this.x)}, ${pixel_to_tile(this.y)}) to (${pixel_to_tile(x)}, ${pixel_to_tile(y)})`);
+        this.erase();
+        
+        console.log(`Entity ${this.name} moved from [${this.x}, ${this.y}](${pixel_to_tile(this.x)}, ${pixel_to_tile(this.y)}) to [${x}, ${y}](${pixel_to_tile(x)}, ${pixel_to_tile(y)})`);
         this.x = x;
         this.y = y;
+    }
+
+    erase() {
+        ctx.clearRect(this.x, this.y, this.width_height, this.width_height);
     }
 }
 
@@ -305,11 +312,14 @@ class Character extends Entity {
         this.armor = armor;
         this.attack_power = attack_power;
         this.img = new Image();
-        this.img.src = img_source;
+        this.img_src = img_source;
+        this.img.src = this.img_src;
         console.log("Character created");
     }
 
     render() {
+        this.img.src = this.img_src;
+        // Draw new image
         this.img.onload = () => {
             ctx.drawImage(this.img, this.x, this.y, this.width_height, this.width_height);
         }
