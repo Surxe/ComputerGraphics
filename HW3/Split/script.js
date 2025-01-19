@@ -12,10 +12,11 @@ class main {
         
         this.board = new Board(canvas_x, canvas_y, ctx.canvas.width, ctx.canvas.height, this.tile_size);
 
-        // Add player and enemies to board
-        this.player = new Player("player", 0, 0, this.tile_size, "images/player.png", 100, 10, 50);
+        // Add player
+        this.player = new Player("player", 0, 0, this.tile_size, "images/player.png", 100, 10, 20);
         this.board.add_entity(this.player);
 
+        // Add enemies to board
         this.enemies = [];
         for (let i = 0; i < 3; i++) {
             var enemy_name = `enemy${i+1}`;
@@ -37,6 +38,16 @@ class main {
             this.board.add_entity(obstacle);
             this.obstacles.push(obstacle);
         }  
+
+        // Add items
+        this.items = [];
+        for (let i = 0; i < 2; i++) {
+            var item = "health_potion";
+            var item_effect = new Effect("current_health", 20);
+            var health_potion = new Item(item, 0, 0, this.tile_size, "images/potion.png", item_effect);
+            // Randomize location
+            this.board.add_entity(health_potion);
+        }
 
         // Map the direction to x and y increments
         this.shifts = {
@@ -127,6 +138,15 @@ class main {
         }
         else if (existing_entity instanceof Item) {
             console.log("Item occupied at new location: ", existing_entity);
+
+            // Apply item effect
+            var effect = existing_entity.on_pickup_effect;
+            character[effect.attribute] += effect.value;
+            console.log(`${character.name} picked up ${existing_entity.name} and gained ${effect.value} ${effect.attribute}`);
+
+            // Remove item from board
+            this.board.tiles[pixel_to_tile(new_y)][pixel_to_tile(new_x)].entity = null;
+            existing_entity.erase();
         }
         // Ensure all possible entities are handled
         else if (existing_entity) {
@@ -273,11 +293,16 @@ class Tile {
 }
 
 class Entity {
-    constructor(name, x, y, width_height) {
+    constructor(name, x, y, width_height, img_source) {
         this.name = name;
         this.x = x;
         this.y = y;
         this.width_height = width_height;
+        if (img_source != "") {
+            this.img = new Image();
+            this.img_src = img_source;
+            this.img.src = this.img_src;
+        }
         
         console.log(`Entity ${name} created`);
     }
@@ -293,11 +318,22 @@ class Entity {
     erase() {
         ctx.clearRect(this.x, this.y, this.width_height, this.width_height);
     }
+
+    render() {
+        this.img.src = this.img_src;
+        // Draw new image
+        this.img.onload = () => {
+            ctx.drawImage(this.img, this.x, this.y, this.width_height, this.width_height);
+            this.render_health_bar(); // ASK PROF
+        }
+
+        console.log(`Character ${this.name} rendered at (${this.x}, ${this.y})`);
+    }
 }
 
 class Obstacle extends Entity {
     constructor(name, x, y, width_height) {
-        super(name, x, y, width_height);
+        super(name, x, y, width_height, "");
         this.obstacle_type = "tree";
         // 50% chance of being a brick wall instead
         if (Math.random() < 0.5) {
@@ -349,14 +385,11 @@ class Obstacle extends Entity {
 
 class Character extends Entity {
     constructor(name, x, y, width_height, img_source, max_health, armor, attack_power) {
-        super(name, x, y, width_height);
+        super(name, x, y, width_height, img_source);
         this.max_health = max_health;
         this.current_health = max_health;
         this.armor = armor;
         this.attack_power = attack_power;
-        this.img = new Image();
-        this.img_src = img_source;
-        this.img.src = this.img_src;
         console.log("Character created");
     }
 
@@ -379,23 +412,30 @@ class Character extends Entity {
     }
 
     render() {
-        this.img.src = this.img_src;
-        // Draw new image
-        this.img.onload = () => {
-            ctx.drawImage(this.img, this.x, this.y, this.width_height, this.width_height);
-            this.render_health_bar();
-        }
-
-        console.log(`Character ${this.name} rendered at (${this.x}, ${this.y})`);
+        super.render();
+        this.render_health_bar();
     }
 
     render_health_bar() {
         // Draw health bar
         ctx.beginPath();
-        ctx.fillStyle = "red";
-        ctx.fillRect(this.x, this.y+1, this.width_height, 5);
+
+        if (this.current_health > this.max_health) {
+            var red_scalar = 0;
+            var green_scalar = this.max_health / this.current_health;
+            var orange_scalar = 1 - green_scalar;
+        }
+        else {
+            var red_scalar = 1;
+            var green_scalar = this.current_health / this.max_health;
+            var orange_scalar = 0;
+        }
+        ctx.fillStyle = "red"; 
+        ctx.fillRect(this.x, this.y+1, this.width_height * red_scalar, 5);
         ctx.fillStyle = "green";
-        ctx.fillRect(this.x, this.y+1, this.width_height * (this.current_health / this.max_health), 5);
+        ctx.fillRect(this.x, this.y+1, this.width_height * green_scalar, 5); //current health, up to 100%
+        ctx.fillStyle = "orange"; 
+        ctx.fillRect(this.x + this.width_height * green_scalar, this.y+1, this.width_height * orange_scalar, 5); //current health thats above 100%
         ctx.closePath();
     }
 }
@@ -405,8 +445,6 @@ class Player extends Character {
         super(name, x, y, width_height, img_source, max_health, armor, attack_power);
         console.log("Player created");
     }
-
-
 }
 
 class Enemy extends Character {
