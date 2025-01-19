@@ -420,15 +420,18 @@ class Character extends Entity {
         // Draw health bar
         ctx.beginPath();
 
+        var red_scalar;
+        var green_scalar;
+        var orange_scalar;
         if (this.current_health > this.max_health) {
-            var red_scalar = 0;
-            var green_scalar = this.max_health / this.current_health;
-            var orange_scalar = 1 - green_scalar;
+            red_scalar = 0;
+            green_scalar = this.max_health / this.current_health;
+            orange_scalar = 1 - green_scalar;
         }
         else {
-            var red_scalar = 1;
-            var green_scalar = this.current_health / this.max_health;
-            var orange_scalar = 0;
+            red_scalar = 1;
+            green_scalar = this.current_health / this.max_health;
+            orange_scalar = 0;
         }
         ctx.fillStyle = "red"; 
         ctx.fillRect(this.x, this.y+1, this.width_height * red_scalar, 5);
