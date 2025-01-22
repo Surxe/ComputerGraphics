@@ -324,10 +324,14 @@ class Entity {
         // Draw new image
         this.img.onload = () => {
             ctx.drawImage(this.img, this.x, this.y, this.width_height, this.width_height);
-            this.render_health_bar(); // ASK PROF
+            this.on_image_load();
         }
 
         console.log(`Character ${this.name} rendered at (${this.x}, ${this.y})`);
+    }
+
+    on_image_load() {
+        
     }
 }
 
@@ -413,6 +417,9 @@ class Character extends Entity {
 
     render() {
         super.render();
+    }
+
+    on_image_load() {
         this.render_health_bar();
     }
 
