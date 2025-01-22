@@ -10,14 +10,13 @@ class main {
 
         this.tile_size = TILE_SIZE;
         
-        this.board = new Board(canvas_x, canvas_y, ctx.canvas.width, ctx.canvas.height, this.tile_size);
+        var board = new Board(canvas_x, canvas_y, ctx.canvas.width, ctx.canvas.height, this.tile_size);
 
         // Add player
-        this.player = new Player("player", 0, 0, this.tile_size, "images/player.png", 100, 10, 20);
-        this.board.add_entity(this.player);
+        var player = new Player("player", 0, 0, this.tile_size, "images/player.png", 100, 10, 20);
+        this.game = new Game(board, player, this.tile_size);
 
         // Add enemies to board
-        this.enemies = [];
         for (let i = 0; i < 3; i++) {
             var enemy_name = `enemy${i+1}`;
             // Randomize health, armor, and attack power
@@ -26,28 +25,62 @@ class main {
             var attack_power = Math.floor(Math.random() * 5) + 10; // 11-15
 
             var enemy = new Enemy(enemy_name, 0, 0, this.tile_size, `images/${enemy_name}.png`, hp, armor, attack_power)
-            this.board.add_entity(enemy);
-            this.enemies.push(enemy);
+            this.game.add_enemy(enemy);
         }
 
         // Add obstacles to board
-        this.obstacles = [];
         for (let i = 0; i < 5; i++) {
             var obstacle_name = `obstacle${i+1}`;
             var obstacle = new Obstacle(obstacle_name, 0, 0, this.tile_size);
-            this.board.add_entity(obstacle);
-            this.obstacles.push(obstacle);
+            this.game.add_obstacle(obstacle);
         }  
 
         // Add items
-        this.items = [];
         for (let i = 0; i < 2; i++) {
             var item = "health_potion";
             var item_effect = new Effect("current_health", 20);
             var health_potion = new Item(item, 0, 0, this.tile_size, "images/potion.png", item_effect);
             // Randomize location
-            this.board.add_entity(health_potion);
+            this.game.add_item(health_potion);
         }
+    }
+
+    // Determine the direction the player should move before ticking gamestate
+    move_player(direction_string) {
+        var tick_results = this.game.tick(direction_string);
+        this.consoleSection.innerHTML = tick_results;
+    }
+}
+
+
+
+function move_up() {
+    myMain.move_player("Up");
+}
+function move_left() {
+    myMain.move_player("Left");
+}
+function move_right() {
+    myMain.move_player("Right");
+}
+function move_down() {
+    myMain.move_player("Down");
+}
+
+// Translate pixel location to tile location, for debugging, though this could debatebly go in a utility class
+function pixel_to_tile(pixel) {
+    return Math.floor(pixel / TILE_SIZE);
+}
+
+class Game {
+    constructor(board, player, tile_size) {
+        board.add_entity(player);
+        this.board = board;
+        this.player = player;
+        this.enemies = [];
+        this.obstacles = [];
+        this.items = [];
+        this.tile_size = tile_size;
 
         // Map the direction to x and y increments
         this.shifts = {
@@ -58,18 +91,27 @@ class main {
         }
     }
 
-    // Determine the direction the player should move before ticking gamestate
-    move_player(direction_string) {
-        var tick_results = this.tick(this.shifts[direction_string][0], this.shifts[direction_string][1]);
-        this.consoleSection.innerHTML = tick_results;
+    add_enemy(enemy) {
+        this.board.add_entity(enemy);
+        this.enemies.push(enemy);
     }
 
-    log_board_state() {
-        console.log(this.board.get_board_state());
+    add_obstacle(obstacle) {
+        this.board.add_entity(obstacle);
+        this.obstacles.push(obstacle);
+    }
+
+    add_item(item) {
+        this.board.add_entity(item);
+        this.items.push(item);
     }
 
     // Tick the game state and move the player in the determined direction
-    tick(player_x_shift, player_y_shift) {
+    tick(direction_string) {
+        var player_x_shift = this.shifts[direction_string][0];
+        var player_y_shift = this.shifts[direction_string][1];
+        console.log(`Player shifts: ${player_x_shift}, ${player_y_shift}`);
+
         // Determine players would-be new location
         var new_x = this.player.x + player_x_shift;
         var new_y = this.player.y + player_y_shift;
@@ -84,20 +126,23 @@ class main {
         var num_dead_enemies = 0;
         for (let i = 0; i < this.enemies.length; i++) {
             // Randomize enemy movement (up, down, left, right)
-            var rand = Math.floor(Math.random() * 4);
+            var rand = Math.floor(Math.random() * 4); //[0,3]
             var enemy = this.enemies[i]
             if (enemy.current_health <= 0) {
                 num_dead_enemies++;
                 continue;
             }
 
+            var x_shift = this.shifts[Object.keys(this.shifts)[rand]][0];
+            var y_shift = this.shifts[Object.keys(this.shifts)[rand]][1];
+            console.log(`Enemy shifts: ${x_shift}, ${y_shift}`);
             var new_x = enemy.x + this.shifts[Object.keys(this.shifts)[rand]][0];
             var new_y = enemy.y + this.shifts[Object.keys(this.shifts)[rand]][1];
 
             this.attempt_move(enemy, new_x, new_y);
         }
 
-        this.log_board_state();
+        console.log(this.board.get_board_state());
 
         if (num_dead_enemies === this.enemies.length) {
             return "You Win!";
@@ -119,6 +164,10 @@ class main {
         var new_tile_y = pixel_to_tile(new_y);
 
         // Check if the new location is occupied
+        console.log(`Checking new location: (${new_x}, ${new_y})`);
+        console.log(`Current tile: (${current_tile_x}, ${current_tile_y})`);
+        console.log(`New tile: (${new_tile_x}, ${new_tile_y})`);
+        
         var existing_entity = this.board.tiles[pixel_to_tile(new_y)][pixel_to_tile(new_x)].entity;
         if (existing_entity instanceof Obstacle) {
             console.log("Obstacle occupied at new location: ", existing_entity);
@@ -159,26 +208,6 @@ class main {
         console.log("Moving character to new unoccupied location");
         this.board.move_entity(current_tile_x, current_tile_y, new_tile_x, new_tile_y);
     }
-}
-
-
-
-function move_up() {
-    myMain.move_player("Up");
-}
-function move_left() {
-    myMain.move_player("Left");
-}
-function move_right() {
-    myMain.move_player("Right");
-}
-function move_down() {
-    myMain.move_player("Down");
-}
-
-// Translate pixel location to tile location, for debugging, though this could debatebly go in a utility class
-function pixel_to_tile(pixel) {
-    return Math.floor(pixel / TILE_SIZE);
 }
 
 class Board {
