@@ -1,6 +1,17 @@
 class Shape {
-    constructor(positions) {
-        this.positions = positions;
+    constructor(location_x, location_y, scale, vertices) {
+        this.positions = vertices;
+        //For each vertex, 
+        for (var i = 0; i < this.positions.length; i += 3) {
+            // scale the x, y, and z coordinates
+            this.positions[i]     *= scale;
+            this.positions[i + 1] *= scale;
+            this.positions[i + 2] *= scale;
+
+            //add the location to the x and y coordinates
+            this.positions[i]     += location_x;
+            this.positions[i + 1] += location_y;
+        }
 
         this.positionBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);

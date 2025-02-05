@@ -33,7 +33,7 @@ class main {
             1,      0.5,    0,     0, 1, 0,
             0.5,    1,      0,     0, 0, 1,
         ];
-        this.shape = new Shape(letter_1_positions);
+        this.shape = new Shape(-1, 0, .5, letter_1_positions);
 
         // Render the scene
         this.renderScene();
