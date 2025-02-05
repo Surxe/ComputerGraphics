@@ -2,9 +2,12 @@ class Shape {
     constructor() {
         var positions = [
             // X    Y       Z      R  G  B
-            0,      0,      0,     1, 0, 0,
-            0,      0.5,    0,     0, 1, 0,
-            0.7,    0,      0,     0, 0, 1,
+            0,      0.5,    0,     1, 0, 0,
+            1,      0.5,    0,     0, 1, 0,
+            0.5,    1,      0,     0, 0, 1,
+            0.5,    0,      0,     0, 0, 1,
+            0,      -1,     0,     0, 0, 1,
+            -0.5,   0,      0,     0, 0, 1,
         ];
 
         this.positionBuffer = gl.createBuffer();
@@ -30,6 +33,6 @@ class Shape {
         gl.vertexAttribPointer(positionAttributeLocation, size, type, normalize, stride, offset);
         gl.vertexAttribPointer(colorAttributeLocation, size, type, normalize, stride, stride);
 
-        gl.drawArrays(gl.TRIANGLES, 0, 3);
+        gl.drawArrays(gl.TRIANGLE_FAN, 0, 3);
     }
 }
