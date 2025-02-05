@@ -67,7 +67,7 @@ class main {
         this.letter2 = new Shape(first_letter_x + letter_spacing, first_letter_y-.5, .5, 1, letter_j_positions);
         this.letter3 = new Shape(first_letter_x + letter_spacing*2, first_letter_y, .5, .5, letter_e_positions);
 
-
+        this.letters = [this.letter1, this.letter2, this.letter3];
 
         // Render the scene
         this.renderScene();
@@ -76,8 +76,9 @@ class main {
     renderScene() {
         gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
         this.axis.render(this.program);
-        this.letter1.render(this.program);
-        this.letter2.render(this.program);
-        this.letter3.render(this.program);
+        //this.axis.render(this.program);
+        for (var i = 0; i < this.letters.length; i++) {
+            this.letters[i].render(this.program);
+        }
     }
 }
