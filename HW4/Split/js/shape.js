@@ -16,18 +16,19 @@ class Shape {
         gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
 
         var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
-        gl.enableVertexAttribArray(positionAttributeLocation);
+        var colorAttributeLocation = gl.getAttribLocation(program, "a_color");
 
         var size = 3;
         var type = gl.FLOAT;
         var normalize = false;
         var stride = 6 * Float32Array.BYTES_PER_ELEMENT;
         var offset = 0;
-        gl.vertexAttribPointer(positionAttributeLocation, size, type, normalize, stride, offset);
 
-        var colorAttributeLocation = gl.getAttribLocation(program, "a_color");
+        gl.enableVertexAttribArray(positionAttributeLocation);
         gl.enableVertexAttribArray(colorAttributeLocation);
-        gl.vertexAttribPointer(colorAttributeLocation, size, type, normalize, stride, 3 * Float32Array.BYTES_PER_ELEMENT);
+
+        gl.vertexAttribPointer(positionAttributeLocation, size, type, normalize, stride, offset);
+        gl.vertexAttribPointer(colorAttributeLocation, size, type, normalize, stride, stride);
 
         gl.drawArrays(gl.TRIANGLES, 0, 3);
     }
