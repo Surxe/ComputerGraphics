@@ -75,7 +75,6 @@ class main {
 
     renderScene() {
         gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
-        this.axis.render(this.program);
         //this.axis.render(this.program);
         for (var i = 0; i < this.letters.length; i++) {
             this.letters[i].render(this.program);
