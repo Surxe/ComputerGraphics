@@ -23,10 +23,23 @@ class main {
         gl.useProgram(this.program);
 
         // Create and render objects
-        var axis = new Axis();
-        axis.render(this.program);
+        this.axis = new Axis();
+        this.shape = new Shape();
 
-        var shape = new Shape();
-        shape.render(this.program);
+        // Event listener for draw mode
+        document.getElementById("drawMode").addEventListener("change", (event) => {
+            this.shape.setDrawMode(parseInt(event.target.value));
+            this.renderScene();
+            console.log("Draw mode is changed to: " + event.target.value);
+        });
+
+        // Render the scene
+        this.renderScene();
+    }
+
+    renderScene() {
+        gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+        this.axis.render(this.program);
+        this.shape.render(this.program);
     }
 }
