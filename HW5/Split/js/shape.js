@@ -1,12 +1,11 @@
 class Shape {
-    constructor(location_x, location_y, scale, vertices) {
-        this.positions = vertices;
+    constructor(location_x, location_y, scale_x, scale_y, vertices) {
+        this.positions = [...vertices];
         //For each vertex, 
         for (var i = 0; i < this.positions.length; i += 3) {
-            // scale the x, y, and z coordinates
-            this.positions[i]     *= scale;
-            this.positions[i + 1] *= scale;
-            this.positions[i + 2] *= scale;
+            // scale the x and y coordinates
+            this.positions[i]     *= scale_x;
+            this.positions[i + 1] *= scale_y;
 
             //add the location to the x and y coordinates
             this.positions[i]     += location_x;
@@ -36,6 +35,6 @@ class Shape {
         gl.vertexAttribPointer(positionAttributeLocation, size, type, normalize, stride, offset);
         gl.vertexAttribPointer(colorAttributeLocation, size, type, normalize, stride, stride);
 
-        gl.drawArrays(gl.TRIANGLES, 0, this.positions.length/6); // div 6 as there are 3 coordinates and 3 colors per vertex
+        gl.drawArrays(gl.LINE_LOOP, 0, this.positions.length/6); // div 6 as there are 3 coordinates and 3 colors per vertex
     }
 }
