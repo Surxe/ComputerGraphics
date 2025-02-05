@@ -22,131 +22,113 @@
             }
         </script>
         <script id="2DFragmentShader" type="notjs">
-            //Fragment shaders do not have precision so we have to set it.
             precision mediump float;
             varying vec3 v_color;
             void main()
             {
-            gl_FragColor = vec4(v_color, 1.0); //between 0 and 1
+            gl_FragColor = vec4(v_color, 1.0);
             }
         </script>
         <script>
-            class idk
-            {
-            
-            }
-            class main
-            {
-            constructor()
-            {
-            // Add gl to canvas
-            var canvas = document.createElement("canvas");
-            document.body.appendChild(canvas);
-            var gl = canvas.getContext("webgl");
-            if (!gl) {
-                console.error("WebGL not supported.");
-            }
+            var gl; // Declare gl as a global variable
 
-            this.webGL = new InitWebGLProgram(gl);
-            var vertexShaderSource = document.getElementById("2DVertexShader").text;
-            var fragmentShaderSource = document.getElementById("2DFragmentShader").text;
-            var vertexShader = this.webGL.createShader(gl.VERTEX_SHADER, vertexShaderSource);
+            class idk {}
 
+            class main {
+                constructor() {
+                    // Create and append canvas
+                    var canvas = document.createElement("canvas");
+                    document.body.appendChild(canvas);
 
-            var fragmentShader = this.webGL.createShader(gl.FRAGMENT_SHADER, fragmentShaderSource)
-            //specifies what program to use
-            gl.useProgram(this.program)
-            var temp = new Shape()
-            temp.render(this.program)
-            }
+                    // Initialize global WebGL context
+                    gl = canvas.getContext("webgl");
+                    if (!gl) {
+                        console.error("WebGL not supported.");
+                    }
+
+                    this.webGL = new InitWebGLProgram();
+                    var vertexShaderSource = document.getElementById("2DVertexShader").text;
+                    var fragmentShaderSource = document.getElementById("2DFragmentShader").text;
+                    var vertexShader = this.webGL.createShader(gl.VERTEX_SHADER, vertexShaderSource);
+                    var fragmentShader = this.webGL.createShader(gl.FRAGMENT_SHADER, fragmentShaderSource);
+
+                    // Create and use the shader program
+                    this.program = this.webGL.createProgram(vertexShader, fragmentShader);
+                    gl.useProgram(this.program);
+
+                    var temp = new Shape();
+                    temp.render(this.program);
+                }
             }
         </script>
         <script>
-            class InitWebGLProgram
-            {
-            constructor(gl)
-            {
-            this.gl = gl;
-            gl.viewport(0,0, gl.canvas.width, gl.canvas.height);
-            //you can have more than one viewport on a canvas
-            gl.clearColor(1,1,1,1);
-            gl.clear(gl.COLOR_BUFFER_BIT);
-            
+            class InitWebGLProgram {
+                constructor() {
+                    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+                    gl.clearColor(1, 1, 1, 1);
+                    gl.clear(gl.COLOR_BUFFER_BIT);
+                }
+
+                createShader(type, source) {
+                    var shader = gl.createShader(type);
+                    gl.shaderSource(shader, source);
+                    gl.compileShader(shader);
+                    if (gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                        return shader;
+                    }
+                    console.error(gl.getShaderInfoLog(shader));
+                    gl.deleteShader(shader);
+                }
+
+                createProgram(vs, fs) {
+                    var program = gl.createProgram();
+                    gl.attachShader(program, vs);
+                    gl.attachShader(program, fs);
+                    gl.linkProgram(program);
+                    if (gl.getProgramParameter(program, gl.LINK_STATUS)) {
+                        return program;
+                    }
+                    console.error(gl.getProgramInfoLog(program));
+                    gl.deleteProgram(program);
+                }
             }
-            createShader(type, source)
-            {
-            var shader = gl.createShader(type);
-            gl.shaderSource(shader,source);
-            gl.compileShader(shader);
-            var success = gl.getShaderParameter(shader,gl.COMPILE_STATUS);
-            if(success)
-            {
-            return shader;
+
+            class Shape {
+                constructor() {
+                    var positions = [
+                        // X    Y   Z     R  G  B
+                        0,   0,   0,     1, 0, 0,
+                        0,   0.5, 0,     0, 1, 0,
+                        0.7, 0,   0,     0, 0, 1,
+                    ];
+
+                    this.positionBuffer = gl.createBuffer();
+                    gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
+                    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+                }
+
+                render(program) {
+                    gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
+
+                    var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
+                    gl.enableVertexAttribArray(positionAttributeLocation);
+
+                    var size = 3;
+                    var type = gl.FLOAT;
+                    var normalize = false;
+                    var stride = 6 * Float32Array.BYTES_PER_ELEMENT;
+                    var offset = 0;
+                    gl.vertexAttribPointer(positionAttributeLocation, size, type, normalize, stride, offset);
+
+                    var colorAttributeLocation = gl.getAttribLocation(program, "a_color");
+                    gl.enableVertexAttribArray(colorAttributeLocation);
+                    gl.vertexAttribPointer(colorAttributeLocation, size, type, normalize, stride, 3 * Float32Array.BYTES_PER_ELEMENT);
+
+                    gl.drawArrays(gl.TRIANGLES, 0, 3);
+                }
             }
-            //Else it didn't work
-            console.error(gl.getShaderInfoLog(shader));
-            gl.deleteShader(shader)
-            }
-            createProgram(vs,fs)
-            {
-            var program = gl.createProgram()
-            gl.attachShader(program,vs)
-            gl.attachShader(program,fs)
-            gl.linkProgram(program)
-            var success = gl.getProgramParameter(program,gl.LINK_STATUS)
-            if(success)
-            {
-            return program
-            }
-            console.error(gl.getProgramInfoLog(program))
-            gl.deleteProgram(program)
-            }
-            }
-            class Shape
-            {
-            constructor()
-            {
-            var positions = [
-            //X    Y  z-index   R, G, B
-             0,   0,  0,       1, 0, 0,
-             0,  0.5, 0,       0, 1, 0,
-            0.7,   0,  0,       0, 0, 1,
-            ]
-            //create a pos buffer;
-            this.positionBuffer = gl.createBuffer();
-            //bind array biffer type to the positionBuffer
-            gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer)
-            //load the points
-            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions),gl.STATIC_DRAW);
-            }
-            render(program)
-            {
-            gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
-            //we have to find he attribute position in the program ----
-            //think of this as a pointe
-            var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
-            //specify how to read our verticies
-            gl.enableVertexAttribArray(positionAttributeLocation);
-            //this will represent a shape. we only want
-            //to use buffer data once per shape
-            //2d points
-            var size = 3; // 2 components per iteration
-            var type = gl.FLOAT; //the data is 32bit floats
-            var normalize = false //don't normalize data
-            var stride = 6*Float32Array.BYTES_PER_ELEMENT; // 0 = move forward size * sizeOf(type) each iteration to get to the value
-            var offset = 0; // start at the beginning of the buffer
-            //order of parameters is important for test
-            gl.vertexAttribPointer(positionAttributeLocation, size, type, normalize, stride, offset)
-            var colorAttributeLocation = gl.getAttribLocation(program, "a_color");
-            //specify how to read our verticies
-            gl.enableVertexAttribArray(colorAttributeLocation);
-            gl.vertexAttribPointer(colorAttributeLocation, size, type, normalize, stride, 3*Float32Array.BYTES_PER_ELEMENT)
-            var primitiveType = gl.TRIANGLES;
-            var offset = 0;
-            var count = 3;
-            gl.drawArrays(primitiveType, offset, count)
-            }
-            }
+
+            new main(); // Start WebGL rendering
         </script>
     </body>
 </html>
