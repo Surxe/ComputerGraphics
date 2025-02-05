@@ -22,7 +22,11 @@ class main {
         this.program = this.webGL.createProgram(vertexShader, fragmentShader);
         gl.useProgram(this.program);
 
-        var temp = new Shape();
-        temp.render(this.program);
+        // Create and render objects
+        var axis = new Axis();
+        axis.render(this.program);
+
+        var shape = new Shape();
+        shape.render(this.program);
     }
 }
