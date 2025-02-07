@@ -2,7 +2,7 @@ class Shape {
     constructor(location_x, location_y, scale_x, scale_y, vertices) {
         this.positions = [...vertices];
         //For each vertex, 
-        for (var i = 0; i < this.positions.length; i += 3) {
+        for (var i = 0; i < this.positions.length; i += 6) {
             // scale the x and y coordinates
             this.positions[i]     *= scale_x;
             this.positions[i + 1] *= scale_y;
