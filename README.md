@@ -18,6 +18,12 @@ Roll slot machines and reward points against a configured award system.
 Tiled top-down game where the player needs to attack monsters by moving onto them while hoping the monsters don't damage the player back.
 
 
+## HW4
+**Triangle Trouble**
+
+Draw triangles with `GL.TRIANGLE`, `GL.TRIANGLE_STRIP`, and `GL.TRIANGLE_FAN`
+
+
 ## HW5
 **WebGL Initials**
 
