@@ -17,3 +17,8 @@ Roll slot machines and reward points against a configured award system.
 
 Tiled top-down game where the player needs to attack monsters by moving onto them while hoping the monsters don't damage the player back.
 
+
+## HW5
+**WebGL Initials**
+
+Use WebGL shaders to create your initials with vertices and a different color for each initial
