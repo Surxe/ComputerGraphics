@@ -1,5 +1,5 @@
 class Shape {
-    constructor(location_x, location_y, scale_x, scale_y, vertices) {
+    constructor(location_x, location_y, scale_x, scale_y, red_scalar, vertices) {
         this.positions = [...vertices];
         //For each vertex, 
         for (var i = 0; i < this.positions.length; i += 6) {
@@ -10,6 +10,9 @@ class Shape {
             //add the location to the x and y coordinates
             this.positions[i]     += location_x;
             this.positions[i + 1] += location_y;
+
+            //scale the R by the red_scalar
+            this.positions[i + 3] *= red_scalar;
         }
 
         this.positionBuffer = gl.createBuffer();
@@ -27,13 +30,12 @@ class Shape {
         var type = gl.FLOAT;
         var normalize = false;
         var stride = 6 * Float32Array.BYTES_PER_ELEMENT;
-        var offset = 0;
 
         gl.enableVertexAttribArray(positionAttributeLocation);
         gl.enableVertexAttribArray(colorAttributeLocation);
 
-        gl.vertexAttribPointer(positionAttributeLocation, size, type, normalize, stride, offset);
-        gl.vertexAttribPointer(colorAttributeLocation, size, type, normalize, stride, stride);
+        gl.vertexAttribPointer(positionAttributeLocation, size, type, normalize, stride, 0);
+        gl.vertexAttribPointer(colorAttributeLocation,    size, type, normalize, stride, stride/2);
 
         gl.drawArrays(gl.LINE_LOOP, 0, this.positions.length/6); // div 6 as there are 3 coordinates and 3 colors per vertex
     }
