@@ -34,7 +34,9 @@ class main {
             const rect = canvas.getBoundingClientRect();
             const x = event.clientX - rect.left;
             const y = event.clientY - rect.top;
-            console.log(`Clicked at: (${x}, ${y})`);
+            const cx = -1 +  2*x/canvas.width
+            const cy = -1 + 2*(1-y/canvas.height)
+            console.log(`Clicked at: (x${x}, y${y}) (cx${cx}, cy${cy})`);
         });
 
         // Render the scene
