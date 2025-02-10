@@ -27,6 +27,13 @@
                 gl_FragColor = vec4(v_color, 1.0);
             }
         </script>
+        <section id="section_color_picker">
+            <label for="colorPicker">Select a color:</label>
+            <input type="color" id="color_picker" value="#ff0000">
+            <p>Selected Color: <span id="color_value">#ff0000</span></p>
+        </section>
+        
+        <script src="js/utilities.js"></script>
         <script src="js/main.js"></script>
         <script src="js/paint_program.js"></script>
         <script src="js/init_web_gl.js"></script>

@@ -7,8 +7,8 @@ class PaintProgram {
         this.args_per_vertex = 6; // 3 for position, 3 for color
     }
 
-    add_point(x, y) {
-        this.vertices.push(x, y, 0, 1, 0, 0);
+    add_point(x, y, r, g, b) {
+        this.vertices.push(x, y, 0, 30, 255, 0);
 
         var draw_mode;
         var num_vertices_current_shape = this.vertices.length/this.args_per_vertex % 3
