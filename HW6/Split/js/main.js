@@ -30,11 +30,35 @@ class main {
 
         this.paint_program = new PaintProgram(this.program);
 
-        //Color listener
+        // Shape listener
+        const shape_picker = document.getElementById("shape_picker");
+        var shape_type
+        shape_picker.addEventListener("change", () => {
+            shape_type = shape_picker.value;
+            console.log("Shape changed to: " + shape_type);
+        });
+
+        // Color listener
         const color_picker = document.getElementById("color_picker");
         const color_value = document.getElementById("color_value");
         color_picker.addEventListener("input", () => {
             color_value.textContent = color_picker.value; // Updates the displayed color code
+            console.log("Color changed to: " + color_picker.value);
+        });
+
+        // Fill outline listener
+        const fill_outline = document.getElementById("fill_outline");
+        var fill_outline_value
+        fill_outline.addEventListener("change", () => {
+            fill_outline_value = fill_outline.checked;
+            console.log("Fill/outline type changed to: " + fill_outline_value);
+        });
+
+        // Clear canvas listener
+        const clear_canvas = document.getElementById("clear_canvas");
+        clear_canvas.addEventListener("click", () => {
+            this.paint_program.clear();
+            console.log("Canvas cleared.");
         });
 
         // Click listener
@@ -46,7 +70,7 @@ class main {
             const cy = -1 + 2*(1-y/canvas.height)
             let [r, g, b] = hex_to_rgb(color_value.textContent);
             this.paint_program.add_point(cx, cy, r, g, b);
-            console.log(`Clicked at: (x${x}, y${y}) (cx${cx}, cy${cy}), color: rgb(${r}, ${g}, ${b})`);
+            console.log(`Clicked at: (x${x}, y${y}) (cx${cx}, cy${cy})`);
         });
 
         // Render the scene
