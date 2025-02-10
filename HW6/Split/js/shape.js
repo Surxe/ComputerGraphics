@@ -1,20 +1,6 @@
 class Shape {
-    constructor(location_x, location_y, scale_x, scale_y, red_scalar, vertices) {
+    constructor(vertices) {
         this.positions = [...vertices];
-        //For each vertex, 
-        for (var i = 0; i < this.positions.length; i += 6) {
-            // scale the x and y coordinates
-            this.positions[i]     *= scale_x;
-            this.positions[i + 1] *= scale_y;
-
-            //add the location to the x and y coordinates
-            this.positions[i]     += location_x;
-            this.positions[i + 1] += location_y;
-
-            //scale the R by the red_scalar
-            this.positions[i + 3] *= red_scalar;
-        }
-
         this.positionBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.positions), gl.STATIC_DRAW);

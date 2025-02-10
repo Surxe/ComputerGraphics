@@ -28,7 +28,7 @@ class main {
         // Create and render objects
         this.axis = new Axis();
 
-        this.shapes = [];
+        this.paint_program = new PaintProgram(this.program);
 
         canvas.addEventListener('click', (event) => {
             const rect = canvas.getBoundingClientRect();
@@ -36,6 +36,7 @@ class main {
             const y = event.clientY - rect.top;
             const cx = -1 +  2*x/canvas.width
             const cy = -1 + 2*(1-y/canvas.height)
+            this.paint_program.add_point(cx, cy);
             console.log(`Clicked at: (x${x}, y${y}) (cx${cx}, cy${cy})`);
         });
 
@@ -45,11 +46,7 @@ class main {
 
     renderScene() {
         gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
-        //this.axis.render(this.program);
-        for (var i = 0; i < this.shapes.length; i++) {
-            this.shapes[i].render(this.program);
-        }
-
+        this.paint_program.render();
         this.axis.render(this.program);
     }
 }
