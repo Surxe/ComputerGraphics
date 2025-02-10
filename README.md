@@ -28,3 +28,9 @@ Draw triangles with `GL.TRIANGLE`, `GL.TRIANGLE_STRIP`, and `GL.TRIANGLE_FAN`
 **WebGL Initials**
 
 Use WebGL shaders to create your initials with vertices and a different color for each initial
+
+
+## HW6
+**Painful Paint**
+
+Create a paint program that can draw lines, triangles, polygons, and free draw.
