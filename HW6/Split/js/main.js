@@ -64,8 +64,17 @@ class main {
             const cx = -1 +  2*x/canvas.width
             const cy = -1 + 2*(1-y/canvas.height)
             this.paint_program.add_point(cx, cy, r, g, b);
+            console.log(this.paint_program);
             console.log(`Clicked at: (x${x}, y${y}) (cx${cx}, cy${cy}) rgb(${r}, ${g}, ${b})`);
         });
+
+        // Right click listener
+        canvas.addEventListener("contextmenu", (event) => {
+            event.preventDefault(); // prevent the default context menu
+            this.paint_program.del_current_shape();
+            console.log("Right-click detected on canvas");
+        });
+
 
         // Render the scene
         this.renderScene();

@@ -7,11 +7,15 @@ class PaintProgram {
         this.args_per_vertex = 6; // 3 for position, 3 for color
     }
 
+    get_num_vertices_current_shape() {
+        return this.vertices.length/this.args_per_vertex % 3
+    }
+
     add_point(x, y, r, g, b) {
         this.vertices.push(x, y, 0, 30, 255, 0);
 
         var draw_mode;
-        var num_vertices_current_shape = this.vertices.length/this.args_per_vertex % 3
+        var num_vertices_current_shape = this.get_num_vertices_current_shape()
         if (num_vertices_current_shape == 0) { // every 3rd vertex creates a new triangle
             draw_mode = gl.TRIANGLES
         }
@@ -29,6 +33,14 @@ class PaintProgram {
         if (num_vertices_current_shape == 0) {
             this.vertices = []; // clear the vertices after a triangle is drawn
         }
+    }
+
+    del_current_shape() {
+        var num_vertices_current_shape = this.get_num_vertices_current_shape()
+        if (num_vertices_current_shape > 0) {
+            this.vertices = [];
+        }
+        this.render();
     }
 
     render() {
