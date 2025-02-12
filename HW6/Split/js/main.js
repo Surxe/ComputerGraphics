@@ -47,18 +47,9 @@ class main {
         });
 
         // Fill outline listener
-        const fill_outline = document.getElementById("fill_outline");
-        var fill_outline_value
-        fill_outline.addEventListener("change", () => {
-            fill_outline_value = fill_outline.checked;
-            console.log("Fill/outline type changed to: " + fill_outline_value);
-        });
-
-        // Clear canvas listener
-        const clear_canvas = document.getElementById("clear_canvas");
-        clear_canvas.addEventListener("click", () => {
-            this.paint_program.clear();
-            console.log("Canvas cleared.");
+        var should_fill = false;
+        document.getElementById('fill_outline_picker').addEventListener('change', (event) => {
+            should_fill = event.target.checked;
         });
 
         // Click listener
