@@ -41,9 +41,13 @@ class main {
         // Color listener
         const color_picker = document.getElementById("color_picker");
         const color_value = document.getElementById("color_value");
+        var r, g, b;
+        var color_str;
         color_picker.addEventListener("input", () => {
-            color_value.textContent = color_picker.value; // Updates the displayed color code
-            console.log("Color changed to: " + color_picker.value);
+            [r, g, b] = hex_to_rgb(color_picker.value);
+            color_str = `${color_picker.value} rgb(${r}, ${g}, ${b})`
+            color_value.textContent = color_str; // Updates the displayed color code
+            console.log(`Color changed to: ${color_str}`);
         });
 
         // Fill outline listener
@@ -59,9 +63,8 @@ class main {
             const y = event.clientY - rect.top;
             const cx = -1 +  2*x/canvas.width
             const cy = -1 + 2*(1-y/canvas.height)
-            let [r, g, b] = hex_to_rgb(color_value.textContent);
             this.paint_program.add_point(cx, cy, r, g, b);
-            console.log(`Clicked at: (x${x}, y${y}) (cx${cx}, cy${cy})`);
+            console.log(`Clicked at: (x${x}, y${y}) (cx${cx}, cy${cy}) rgb(${r}, ${g}, ${b})`);
         });
 
         // Render the scene
