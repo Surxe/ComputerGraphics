@@ -13,17 +13,16 @@ class Shape {
         var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
         var colorAttributeLocation = gl.getAttribLocation(program, "a_color");
 
-        var size = 3;
         var type = gl.FLOAT;
         var normalize = false;
-        var stride = 6 * Float32Array.BYTES_PER_ELEMENT;
+        var stride = 5 * Float32Array.BYTES_PER_ELEMENT;
 
         gl.enableVertexAttribArray(positionAttributeLocation);
         gl.enableVertexAttribArray(colorAttributeLocation);
 
-        gl.vertexAttribPointer(positionAttributeLocation, size, type, normalize, stride, 0);
-        gl.vertexAttribPointer(colorAttributeLocation,    size, type, normalize, stride, stride/2);
+        gl.vertexAttribPointer(positionAttributeLocation, 2, type, normalize, stride, 0);
+        gl.vertexAttribPointer(colorAttributeLocation,    3, type, normalize, stride, stride*2/5);
 
-        gl.drawArrays(this.draw_mode, 0, this.vertices.length/6); // div 6 as there are 3 coordinates and 3 colors per vertex
+        gl.drawArrays(this.draw_mode, 0, this.vertices.length/5); // div 6 as there are 3 coordinates and 3 colors per vertex
     }
 }

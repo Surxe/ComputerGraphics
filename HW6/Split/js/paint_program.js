@@ -4,7 +4,7 @@ class PaintProgram {
         this.draw_mode = "triangle";
         this.shapes = [];
         this.vertices = [];
-        this.args_per_vertex = 6; // 3 for position, 3 for color
+        this.args_per_vertex = 5; // 3 for position, 3 for color
     }
 
     get_num_vertices_current_shape() {
@@ -12,7 +12,7 @@ class PaintProgram {
     }
 
     add_point(x, y, r, g, b) {
-        this.vertices.push(x, y, 0, 30, 255, 0);
+        this.vertices.push(x, y, r, g, b);
 
         var draw_mode;
         var num_vertices_current_shape = this.get_num_vertices_current_shape()
