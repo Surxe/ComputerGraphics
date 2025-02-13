@@ -1,0 +1,235 @@
+<html lang="en">
+    <head>
+        <title>Browser Tab Name</title>
+        <meta charset="utf-8">
+    </head>
+
+    <body>
+        <header>
+            <h1>Main Title</h1>
+        </header>
+        <section id="console">
+            <p>Section Title</p>
+        </section>
+        <script id="2DVertexShader" type="notjs">
+            attribute vec4 a_position;
+            attribute vec3 a_color;
+            varying vec3 v_color;
+            void main() {
+                v_color = a_color;
+                gl_Position = a_position;
+            }
+        </script>
+        <script id="2DFragmentShader" type="notjs">
+            precision mediump float;
+            varying vec3 v_color;
+            void main() {
+                gl_FragColor = vec4(v_color, 1.0);
+            }
+        </script>
+        <script>
+            var gl; // global
+
+            class main {
+                constructor() {
+                    // Create and append canvas
+                    var canvas = document.createElement("canvas");
+                    canvas.width = 800;
+                    canvas.height = 800;
+                    document.body.appendChild(canvas);
+
+                    // Initialize global WebGL context
+                    gl = canvas.getContext("webgl");
+                    if (!gl) {
+                        console.error("WebGL not supported.");
+                    }
+
+                    this.webGL = new InitWebGLProgram();
+                    var vertexShaderSource = document.getElementById("2DVertexShader").text;
+                    var fragmentShaderSource = document.getElementById("2DFragmentShader").text;
+                    var vertexShader = this.webGL.createShader(gl.VERTEX_SHADER, vertexShaderSource);
+                    var fragmentShader = this.webGL.createShader(gl.FRAGMENT_SHADER, fragmentShaderSource);
+
+                    // Create and use the shader program
+                    this.program = this.webGL.createProgram(vertexShader, fragmentShader);
+                    gl.useProgram(this.program);
+
+                    // Create and render objects
+                    this.axis = new Axis();
+
+                    var letter_e_positions = [
+                        // X    Y           Z  R  G  B
+                        0,      0,          0, 1, 0, 1,
+                        0,      1,          0, 1, 0, 1,
+                        0.5,    1,          0, 1, 0, 1,
+                        0.5,    1-.1,       0, 1, 0, 1,
+                        0+.1,   1-.1,       0, 1, 0, 1,
+                        0+.1,   0+.1/2,     0, 1, 0, 1,
+                        0.5,    0+.1/2,     0, 1, 0, 1,
+                        0.5,    0-.1/2,     0, 1, 0, 1,
+                        0+.1,   0-.1/2,     0, 1, 0, 1,
+                        0+.1,   -1+.1,      0, 1, 0, 1,
+                        .5,     -1+.1,      0, 1, 0, 1,
+                        .5,     -1,         0, 1, 0, 1,
+                        0,      -1,         0, 1, 0, 1,
+                    ];
+                    var first_letter_x = -1;
+                    var first_letter_y = 0;
+                    var letter_spacing = .5;
+                    this.letter1 = new Shape(first_letter_x, first_letter_y, .5, .5, 1, letter_e_positions);
+
+                    var letter_j_positions = [
+                        // X    Y       Z  R  G  B
+                        0,      0,      0, 0, 0, 1,
+                        .5,     0,      0, 0, 0, 1,
+                        .5,     1-.2,   0, 0, 0, 1,
+                        .5+.1,  1-.2,   0, 0, 0, 1,
+                        .5+.1,  1,      0, 0, 0, 1,
+                        .3,     1,      0, 0, 0, 1,
+                        .3,     1-.2,   0, 0, 0, 1,
+                        .3+.1,  1-.2,   0, 0, 0, 1,
+                        .3+.1,  .1,    0,  0, 0, 1,
+                        .2,     .1,    0,  0, 0, 1,
+                        .2,     .2,    0,  0, 0, 1,
+                        0,      .2,    0,  0, 0, 1,
+                    ]
+                    this.letter2 = new Shape(first_letter_x + letter_spacing, first_letter_y-.5, .5, 1, 1, letter_j_positions);
+                    this.letter3 = new Shape(first_letter_x + letter_spacing*2, first_letter_y, .5, .5, 0.5, letter_e_positions);
+
+                    this.letters = [this.letter1, this.letter2, this.letter3];
+
+                    // Render the scene
+                    this.renderScene();
+                }
+
+                renderScene() {
+                    gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+                    //this.axis.render(this.program);
+                    for (var i = 0; i < this.letters.length; i++) {
+                        this.letters[i].render(this.program);
+                    }
+                }
+            }
+        </script>
+        <script>
+            class InitWebGLProgram {
+                constructor() {
+                    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+                    gl.clearColor(1, 1, 1, 1);
+                    gl.clear(gl.COLOR_BUFFER_BIT);
+                }
+
+                createShader(type, source) {
+                    var shader = gl.createShader(type);
+                    gl.shaderSource(shader, source);
+                    gl.compileShader(shader);
+                    if (gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                        return shader;
+                    }
+                    console.error(gl.getShaderInfoLog(shader));
+                    gl.deleteShader(shader);
+                }
+
+                createProgram(vs, fs) {
+                    var program = gl.createProgram();
+                    gl.attachShader(program, vs);
+                    gl.attachShader(program, fs);
+                    gl.linkProgram(program);
+                    if (gl.getProgramParameter(program, gl.LINK_STATUS)) {
+                        return program;
+                    }
+                    console.error(gl.getProgramInfoLog(program));
+                    gl.deleteProgram(program);
+                }
+            }
+        </script>
+        <script>
+            class Shape {
+                constructor(location_x, location_y, scale_x, scale_y, red_scalar, vertices) {
+                    this.positions = [...vertices];
+                    //For each vertex, 
+                    for (var i = 0; i < this.positions.length; i += 6) {
+                        // scale the x and y coordinates
+                        this.positions[i]     *= scale_x;
+                        this.positions[i + 1] *= scale_y;
+
+                        //add the location to the x and y coordinates
+                        this.positions[i]     += location_x;
+                        this.positions[i + 1] += location_y;
+
+                        //scale the R by the red_scalar
+                        this.positions[i + 3] *= red_scalar;
+                    }
+
+                    this.positionBuffer = gl.createBuffer();
+                    gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
+                    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.positions), gl.STATIC_DRAW);
+                }
+
+                render(program) {
+                    gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
+
+                    var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
+                    var colorAttributeLocation = gl.getAttribLocation(program, "a_color");
+
+                    var size = 3;
+                    var type = gl.FLOAT;
+                    var normalize = false;
+                    var stride = 6 * Float32Array.BYTES_PER_ELEMENT;
+
+                    gl.enableVertexAttribArray(positionAttributeLocation);
+                    gl.enableVertexAttribArray(colorAttributeLocation);
+
+                    gl.vertexAttribPointer(positionAttributeLocation, size, type, normalize, stride, 0);
+                    gl.vertexAttribPointer(colorAttributeLocation,    size, type, normalize, stride, stride/2);
+
+                    gl.drawArrays(gl.LINE_LOOP, 0, this.positions.length/6); // div 6 as there are 3 coordinates and 3 colors per vertex
+                }
+            }
+        </script>
+        <script>
+            class Axis {
+                constructor() {
+                    var axisVertices = [
+                        // X    Y    Z      R  G  B
+                        -1,    0,   0,     1, 0, 0,  // X-Axis (Red)
+                        1,    0,   0,     1, 0, 0,  
+
+                        0,   -1,   0,     0, 1, 0,  // Y-Axis (Green)
+                        0,    1,   0,     0, 1, 0   
+                    ];
+
+                    this.axisBuffer = gl.createBuffer();
+                    gl.bindBuffer(gl.ARRAY_BUFFER, this.axisBuffer);
+                    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(axisVertices), gl.STATIC_DRAW);
+                }
+
+                render(program) {
+                    gl.bindBuffer(gl.ARRAY_BUFFER, this.axisBuffer);
+
+                    var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
+                    var colorAttributeLocation = gl.getAttribLocation(program, "a_color");
+
+                    var size = 3;
+                    var type = gl.FLOAT;
+                    var normalize = false;
+                    var stride = 6 * Float32Array.BYTES_PER_ELEMENT;
+                    var offset = 0;
+
+                    gl.enableVertexAttribArray(positionAttributeLocation);
+                    gl.enableVertexAttribArray(colorAttributeLocation);
+
+                    gl.vertexAttribPointer(positionAttributeLocation, size, type, normalize, stride, offset);
+                    gl.vertexAttribPointer(colorAttributeLocation, size, type, normalize, stride, stride);
+
+                    // Render as lines
+                    gl.drawArrays(gl.LINES, 0, 4);
+                }
+            }
+        </script>
+        
+        <script>
+            new main();
+        </script>
+    </body>
+</html>
