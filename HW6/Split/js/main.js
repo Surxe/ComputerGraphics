@@ -59,14 +59,14 @@ class main {
         // Click listener
         canvas.addEventListener('click', (event) => {
             var [cx, cy] = mouse_event_to_gl_coords(event, canvas);
-            this.paint_program.add_point(cx, cy, r, g, b);
-            console.log(this.paint_program);
+            this.paint_program.add_point(cx, cy, r, g, b, true);
             console.log(`Clicked at: (cx${cx}, cy${cy}) rgb(${r}, ${g}, ${b})`);
         });
 
         // Mouse move listener
         canvas.addEventListener('mousemove', (event) => {
             var [cx, cy] = mouse_event_to_gl_coords(event, canvas);
+            this.paint_program.add_point(cx, cy, r, g, b, false);
             console.log(`Mouse moved to: (cx${cx}, cy${cy})`);
         });
 

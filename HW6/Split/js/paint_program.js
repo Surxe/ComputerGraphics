@@ -4,14 +4,14 @@ class PaintProgram {
         this.draw_mode = "triangle";
         this.shapes = [];
         this.vertices = [];
-        this.args_per_vertex = 5; // 3 for position, 3 for color
+        this.args_per_vertex = 5; // 2 for position, 3 for color
     }
 
     get_num_vertices_current_shape() {
         return this.vertices.length/this.args_per_vertex % 3
     }
 
-    add_point(x, y, r, g, b) {
+    add_point(x, y, r, g, b, push=true) {
         this.vertices.push(x, y, r, g, b);
 
         var draw_mode;
@@ -23,6 +23,9 @@ class PaintProgram {
             draw_mode = gl.LINE_LOOP
         }
         else if (num_vertices_current_shape == 1) {
+            if (!push) {
+                this.remove_last_vertex();
+            }
             return;
         }
 
@@ -30,19 +33,24 @@ class PaintProgram {
         this.shapes.push(shape);
         //shape.render(this.program);
         this.render();
-        if (num_vertices_current_shape == 0) {
-            this.vertices = []; // clear the vertices after a triangle is drawn
+        if (!push) {
+            this.remove_last_vertex();
+            // Remove the last shape
+            this.shapes.pop();
+            return
         }
+        if (num_vertices_current_shape == 0) {
+            this.vertices = []; // clear the vertices after a triangle is drawn and pushed
+        }   
     }
 
-    line_to(x, y, r, g, b) {
-        // Draw temporary line
-        var num_vertices_current_shape = this.get_num_vertices_current_shape()
-        if (num_vertices_current_shape == 0) {
-            return;
+    remove_last_vertex() {
+        if (this.vertices.length > 0) {
+            this.vertices = this.vertices.slice(0, -this.args_per_vertex);
         }
-        this.current_vertices.push(x, y, r, g, b);
-        this.render();
+        else {
+            throw Exception("No vertices to remove")
+        }
     }
 
     del_current_shape() {
