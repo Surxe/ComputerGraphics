@@ -1,7 +1,6 @@
 class PaintProgram {
     constructor(program) {
         this.program = program
-        this.draw_mode = "triangle";
         this.shapes = [];
         this.next_vertices = [];
         this.next_shape;
@@ -15,19 +14,19 @@ class PaintProgram {
     add_point(x, y, r, g, b, push=true) {
         this.next_vertices.push(x, y, r, g, b);
 
-        var draw_mode;
+        var shape_class;
         var num_vertices_current_shape = this.get_num_vertices_current_shape()
         if (num_vertices_current_shape == 0) { // every 3rd vertex creates a new triangle
-            draw_mode = gl.TRIANGLES
+            shape_class = Triangle;
         }
         else if (num_vertices_current_shape == 2) { //
-            draw_mode = gl.LINE_LOOP
+            shape_class = Line;
         }
         else if (num_vertices_current_shape == 1) {
-            draw_mode = gl.POINTS
+            shape_class = Polygon;
         }
 
-        this.next_shape = new Shape(this.next_vertices, draw_mode);
+        this.next_shape = new Triangle(this.next_vertices, true);
         
         this.render();
 
