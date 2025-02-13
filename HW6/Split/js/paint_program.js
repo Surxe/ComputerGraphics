@@ -35,6 +35,16 @@ class PaintProgram {
         }
     }
 
+    line_to(x, y, r, g, b) {
+        // Draw temporary line
+        var num_vertices_current_shape = this.get_num_vertices_current_shape()
+        if (num_vertices_current_shape == 0) {
+            return;
+        }
+        this.current_vertices.push(x, y, r, g, b);
+        this.render();
+    }
+
     del_current_shape() {
         var num_vertices_current_shape = this.get_num_vertices_current_shape()
         if (num_vertices_current_shape > 0) {

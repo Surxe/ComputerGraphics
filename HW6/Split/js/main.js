@@ -58,14 +58,16 @@ class main {
 
         // Click listener
         canvas.addEventListener('click', (event) => {
-            const rect = canvas.getBoundingClientRect();
-            const x = event.clientX - rect.left;
-            const y = event.clientY - rect.top;
-            const cx = -1 +  2*x/canvas.width
-            const cy = -1 + 2*(1-y/canvas.height)
+            var [cx, cy] = mouse_event_to_gl_coords(event, canvas);
             this.paint_program.add_point(cx, cy, r, g, b);
             console.log(this.paint_program);
-            console.log(`Clicked at: (x${x}, y${y}) (cx${cx}, cy${cy}) rgb(${r}, ${g}, ${b})`);
+            console.log(`Clicked at: (cx${cx}, cy${cy}) rgb(${r}, ${g}, ${b})`);
+        });
+
+        // Mouse move listener
+        canvas.addEventListener('mousemove', (event) => {
+            var [cx, cy] = mouse_event_to_gl_coords(event, canvas);
+            console.log(`Mouse moved to: (cx${cx}, cy${cy})`);
         });
 
         // Right click listener
