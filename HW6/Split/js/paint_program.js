@@ -176,7 +176,7 @@ class PaintProgram {
 
     undo() {
         if (this.get_num_vertices_current_shape() > 0) {
-            this.remove_last_vertex(this.shape_class, true);
+            this.remove_last_vertex(1, true);
             this.render();
         }
     }
