@@ -51,7 +51,7 @@ class main {
         });
 
         // Fill outline listener
-        var should_fill = false;
+        var should_fill = true;
         document.getElementById('fill_outline_picker').addEventListener('change', (event) => {
             should_fill = event.target.checked;
         });
@@ -59,14 +59,14 @@ class main {
         // Click listener
         canvas.addEventListener('click', (event) => {
             var [cx, cy] = mouse_event_to_gl_coords(event, canvas);
-            this.paint_program.add_point(cx, cy, r, g, b, true);
+            this.paint_program.add_point(cx, cy, r, g, b, should_fill, true);
             console.log(`Clicked at: (cx${cx}, cy${cy}) rgb(${r}, ${g}, ${b})`);
         });
 
         // Mouse move listener
         canvas.addEventListener('mousemove', (event) => {
             var [cx, cy] = mouse_event_to_gl_coords(event, canvas);
-            this.paint_program.add_point(cx, cy, r, g, b, false);
+            this.paint_program.add_point(cx, cy, r, g, b, should_fill, false);
             console.log(`Mouse moved to: (cx${cx}, cy${cy})`);
         });
 

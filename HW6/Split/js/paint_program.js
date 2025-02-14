@@ -11,7 +11,7 @@ class PaintProgram {
         return this.next_vertices.length/this.args_per_vertex % 3
     }
 
-    add_point(x, y, r, g, b, push=true) {
+    add_point(x, y, r, g, b, should_fill=true, push=true) {
         this.next_vertices.push(x, y, r, g, b);
 
         var shape_class;
@@ -23,10 +23,10 @@ class PaintProgram {
             shape_class = Line;
         }
         else if (num_vertices_current_shape == 1) {
-            shape_class = Polygon;
+            shape_class = Point;
         }
 
-        this.next_shape = new shape_class(this.next_vertices, true);
+        this.next_shape = new shape_class(this.next_vertices, should_fill);
         console.log(this.next_shape);
         
         this.render();

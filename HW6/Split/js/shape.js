@@ -33,7 +33,7 @@ class Shape {
 
 class Triangle extends Shape {
     constructor(vertices, should_fill) {
-        super(vertices, gl.TRIANGLES, gl.TRIANGLES, should_fill);
+        super(vertices, gl.LINE_LOOP, gl.TRIANGLES, should_fill);
     }
 }
 
