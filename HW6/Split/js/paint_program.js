@@ -12,10 +12,13 @@ class PaintProgram {
         return this.next_vertices.length/this.args_per_vertex
     }
 
-    add_point(x, y, r, g, b, shape_type="Triangle", should_fill=true, push=true) {
+    add_point(x, y, r, g, b, shape_type="triangle", should_fill=true, push=true) {
+        if (this.next_vertices.length > 0) {
+            var [x1, y1] = this.get_previous_vertex_xy(); //store the prev x and y for if a rect is chosen
+        }
         this.next_vertices.push(x, y, r, g, b);
 
-        var shape_class;
+        this.shape_class;
         var num_vertices_current_shape = this.get_num_vertices_current_shape()
         if (num_vertices_current_shape == 0) { //no vertices drawn yet
             return;
@@ -24,57 +27,67 @@ class PaintProgram {
         var shape_complete = false;
         if (shape_type == "triangle") {
             if (num_vertices_current_shape == 3) { // every 3rd vertex creates a new triangle
-                shape_class = Triangle;
+                this.shape_class = Triangle;
                 shape_complete = true;
             }
             else if (num_vertices_current_shape == 2) {
-                shape_class = Line;
+                this.shape_class = Line;
             }
             else if (num_vertices_current_shape == 1) {
-                shape_class = Point;
+                this.shape_class = Point;
             }
         }
         else if (shape_type == "line") {
             if (num_vertices_current_shape == 2) {
-                shape_class = Line;
+                this.shape_class = Line;
                 shape_complete = true;
             }
             else if (num_vertices_current_shape == 1) {
-                shape_class = Point;
+                this.shape_class = Point;
             }
         }
         else if (shape_type == "polygon") {
             if (num_vertices_current_shape >= 3) {
-                shape_class = Polygon;
+                this.shape_class = Polygon;
             }
             else if (num_vertices_current_shape == 2) {
-                shape_class = Line;
+                this.shape_class = Line;
             }
             else if (num_vertices_current_shape == 1) {
-                shape_class = Point;
+                this.shape_class = Point;
             }
         }
         else if (shape_type == "rectangle") {
             if (num_vertices_current_shape == 2) {
-                shape_class = Rectangle;
+                this.shape_class = Rectangle;
+                
+                // Remove last vertex
+                this.remove_last_vertex(1, false);
+                this.next_vertices.push(x1, y, r, g, b);
+                this.next_vertices.push(x, y, r, g, b); //add back to the end
+                this.next_vertices.push(x, y1, r, g, b);
+
                 shape_complete = true;
             }
             else if (num_vertices_current_shape == 1) {
-                shape_class = Point;
+                this.shape_class = Point;
             }
         }
         else {
             throw Exception(`Invalid shape type: ${shape_type}`)
         }
 
-
-
-        this.next_shape = new shape_class(this.next_vertices, should_fill);
+        if (this.shape_class == Rectangle) {
+            console.log(`Rectangle vertices: ${this.next_vertices}`)
+        }
+        this.next_shape = new this.shape_class(this.next_vertices, should_fill);
         
         this.render();
 
         if (!push) { //after previewing the shape, remove the last vertex
-            this.remove_last_vertex(false);
+            const num_verts_to_remove = this.shape_class == Rectangle ? 3 : 1 //rectangle remove 3 vertices for preview, rest remove 1
+            console.log(`Removing ${num_verts_to_remove} vertices`)
+            this.remove_last_vertex(num_verts_to_remove, false);
         }
         else if (shape_complete) { // if shape is complete
             this.shapes.push(this.next_shape);
@@ -82,7 +95,7 @@ class PaintProgram {
         }
     }
 
-    remove_last_vertex(store_last_vertex=true) {
+    remove_last_vertex(num_vertices=1, store_last_vertex=true) {
         if (this.next_vertices.length > 0) {
             if (store_last_vertex) {
                 // Get last vertex
@@ -101,6 +114,21 @@ class PaintProgram {
         else {
             throw Exception("No vertices to remove")
         }
+
+        // Call it again if needed
+        num_vertices--;
+        if (num_vertices > 0) {
+            this.remove_last_vertex(num_vertices, store_last_vertex);
+        }
+    }
+
+    get_previous_vertex_xy() {
+        if (this.next_vertices.length > 0) {
+            return this.next_vertices.slice(-this.args_per_vertex, -this.args_per_vertex+2);
+        }
+        else {
+            return null;
+        }
     }
 
     mark_shape_complete() {
@@ -118,7 +146,7 @@ class PaintProgram {
 
     undo() {
         if (this.get_num_vertices_current_shape() > 0) {
-            this.remove_last_vertex(true);
+            this.remove_last_vertex(this.shape_class, true);
             this.render();
         }
     }
