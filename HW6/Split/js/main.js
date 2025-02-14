@@ -32,7 +32,7 @@ class main {
 
         // Shape listener
         const shape_picker = document.getElementById("shape_picker");
-        var shape_type
+        var shape_type = shape_picker.value;
         shape_picker.addEventListener("change", () => {
             shape_type = shape_picker.value;
             console.log("Shape changed to: " + shape_type);
@@ -59,14 +59,14 @@ class main {
         // Click listener
         canvas.addEventListener('click', (event) => {
             var [cx, cy] = mouse_event_to_gl_coords(event, canvas);
-            this.paint_program.add_point(cx, cy, r, g, b, should_fill, true);
+            this.paint_program.add_point(cx, cy, r, g, b, shape_type, should_fill, true);
             console.log(`Clicked at: (cx${cx}, cy${cy}) rgb(${r}, ${g}, ${b})`);
         });
 
         // Mouse move listener
         canvas.addEventListener('mousemove', (event) => {
             var [cx, cy] = mouse_event_to_gl_coords(event, canvas);
-            this.paint_program.add_point(cx, cy, r, g, b, should_fill, false);
+            this.paint_program.add_point(cx, cy, r, g, b, shape_type, should_fill, false);
             console.log(`Mouse moved to: (cx${cx}, cy${cy})`);
         });
 
@@ -77,6 +77,29 @@ class main {
             console.log("Right-click detected on canvas");
         });
 
+        // 'z' key listener
+        window.addEventListener('keydown', (event) => {
+            if (event.key === 'z') {
+                this.paint_program.undo();
+                console.log("Undoing last vertex");
+            }
+        });
+
+        // 'y' key listener
+        window.addEventListener('keydown', (event) => {
+            if (event.key === 'y') {
+                this.paint_program.redo();
+                console.log("Redoing last vertex");
+            }
+        });
+
+        // 'c' key listener
+        window.addEventListener('keydown', (event) => {
+            if (event.key === 'c') {
+                this.paint_program.clear_shape();
+                console.log("Removing current shape (if any)");
+            }
+        });
 
         // Render the scene
         this.renderScene();
