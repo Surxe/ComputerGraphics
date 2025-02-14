@@ -25,7 +25,9 @@ class Shape {
         gl.vertexAttribPointer(positionAttributeLocation, 2, type, normalize, 5*unit_stride, 0);
         gl.vertexAttribPointer(colorAttributeLocation,    3, type, normalize, 5*unit_stride, 2*unit_stride);
 
-        gl.drawArrays(this.gl_draw_mode, 0, this.vertices.length/5); // div 6 as there are 3 coordinates and 3 colors per vertex
+        var gl_draw_mode = this.should_fill ? this.fill_gl_draw_mode : this.outline_gl_draw_mode;
+
+        gl.drawArrays(gl_draw_mode, 0, this.vertices.length/5); // div 6 as there are 3 coordinates and 3 colors per vertex
     }
 }
 
@@ -43,12 +45,18 @@ class Rectangle extends Shape {
 
 class Line extends Shape {
     constructor(vertices, should_fill) {
-        super(vertices, gl.LINES, gl.LINES, should_fill);
+        super(vertices, gl.LINE_LOOP, gl.LINES, should_fill);
     }
 }
 
 class Polygon extends Shape {
     constructor(vertices, should_fill) {
         super(vertices, gl.LINE_LOOP, gl.TRIANGLE_FAN, should_fill);
+    }
+}
+
+class Point extends Shape {
+    constructor(vertices, should_fill) {
+        super(vertices, gl.POINTS, gl.POINTS, should_fill);
     }
 }

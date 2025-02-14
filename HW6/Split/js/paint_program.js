@@ -26,7 +26,8 @@ class PaintProgram {
             shape_class = Polygon;
         }
 
-        this.next_shape = new Triangle(this.next_vertices, true);
+        this.next_shape = new shape_class(this.next_vertices, true);
+        console.log(this.next_shape);
         
         this.render();
 
