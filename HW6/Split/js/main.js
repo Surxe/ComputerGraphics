@@ -16,13 +16,13 @@ class main {
         }
 
         this.webGL = new InitWebGLProgram();
-        var vertexShaderSource = document.getElementById("2DVertexShader").text;
-        var fragmentShaderSource = document.getElementById("2DFragmentShader").text;
-        var vertexShader = this.webGL.createShader(gl.VERTEX_SHADER, vertexShaderSource);
-        var fragmentShader = this.webGL.createShader(gl.FRAGMENT_SHADER, fragmentShaderSource);
+        var vertex_shader_source = document.getElementById("2DVertexShader").text;
+        var fragment_shader_source = document.getElementById("2DFragmentShader").text;
+        var vertex_shader = this.webGL.createShader(gl.VERTEX_SHADER, vertex_shader_source);
+        var fragment_shader = this.webGL.createShader(gl.FRAGMENT_SHADER, fragment_shader_source);
 
         // Create and use the shader program
-        this.program = this.webGL.createProgram(vertexShader, fragmentShader);
+        this.program = this.webGL.createProgram(vertex_shader, fragment_shader);
         gl.useProgram(this.program);
 
         // Create and render objects
