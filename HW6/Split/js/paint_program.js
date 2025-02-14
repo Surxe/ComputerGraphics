@@ -25,6 +25,7 @@ class PaintProgram {
         }
         console.log(`num_vertices_current_shape: ${num_vertices_current_shape} shape_type: ${shape_type}`)
         var shape_complete = false;
+        var num_verts_to_remove = 1;
         if (shape_type == "triangle") {
             if (num_vertices_current_shape == 3) { // every 3rd vertex creates a new triangle
                 this.shape_class = Triangle;
@@ -60,6 +61,7 @@ class PaintProgram {
         else if (shape_type == "rectangle") {
             if (num_vertices_current_shape == 2) {
                 this.shape_class = Rectangle;
+                num_verts_to_remove = 3;
                 
                 // Remove last vertex
                 this.remove_last_vertex(1, false);
@@ -73,21 +75,49 @@ class PaintProgram {
                 this.shape_class = Point;
             }
         }
+        else if (shape_type == "circle") {
+            if (num_vertices_current_shape == 2) {
+                this.shape_class = Circle;
+
+                // Calc radius from center point
+                var radius = Math.sqrt((x-x1)**2 + (y-y1)**2);
+
+                // Remove the first edge point
+                this.remove_last_vertex(1, false);
+
+                // Remove center point
+                this.remove_last_vertex(1, false);
+
+                // Add vertices for circle
+                const num_segments = 30;
+                num_verts_to_remove = num_segments
+                for (var i = 0; i < num_segments; i++) {
+                    var angle = i * 2 * Math.PI / num_segments;
+                    var x2 = x1 + radius * Math.cos(angle);
+                    var y2 = y1 + radius * Math.sin(angle);
+                    this.next_vertices.push(x2, y2, r, g, b);
+                }
+
+                shape_complete = true;
+            }
+            else if (num_vertices_current_shape == 1) {
+                this.shape_class = Point;
+            }
+        }
         else {
             throw Exception(`Invalid shape type: ${shape_type}`)
         }
 
-        if (this.shape_class == Rectangle) {
-            console.log(`Rectangle vertices: ${this.next_vertices}`)
-        }
         this.next_shape = new this.shape_class(this.next_vertices, should_fill);
         
         this.render();
 
         if (!push) { //after previewing the shape, remove the last vertex
-            const num_verts_to_remove = this.shape_class == Rectangle ? 3 : 1 //rectangle remove 3 vertices for preview, rest remove 1
             console.log(`Removing ${num_verts_to_remove} vertices`)
             this.remove_last_vertex(num_verts_to_remove, false);
+            if (num_verts_to_remove == 30) {
+                this.next_vertices.push(x1, y1, r, g, b); //add back to the end
+            }
         }
         else if (shape_complete) { // if shape is complete
             this.shapes.push(this.next_shape);

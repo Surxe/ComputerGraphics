@@ -22,12 +22,12 @@ class Shape {
         gl.enableVertexAttribArray(pos_attr_loc);
         gl.enableVertexAttribArray(color_attr_loc);
 
-        gl.vertexAttribPointer(pos_attr_loc, 2, type, normalize, 5*unit_stride, 0);
-        gl.vertexAttribPointer(color_attr_loc,    3, type, normalize, 5*unit_stride, 2*unit_stride);
+        gl.vertexAttribPointer(pos_attr_loc, 2, type, normalize, 5*unit_stride, 0); //x and y
+        gl.vertexAttribPointer(color_attr_loc,    3, type, normalize, 5*unit_stride, 2*unit_stride); //r, g, b starts 2 pos over
 
         var gl_draw_mode = this.should_fill ? this.fill_gl_draw_mode : this.outline_gl_draw_mode;
 
-        gl.drawArrays(gl_draw_mode, 0, this.vertices.length/5); // div 6 as there are 3 coordinates and 3 colors per vertex
+        gl.drawArrays(gl_draw_mode, 0, this.vertices.length/5); // div 5 as there are 2 coordinates and 3 colors per vertex
     }
 }
 
@@ -50,6 +50,12 @@ class Line extends Shape {
 }
 
 class Polygon extends Shape {
+    constructor(vertices, should_fill) {
+        super(vertices, gl.LINE_LOOP, gl.TRIANGLE_FAN, should_fill);
+    }
+}
+
+class Circle extends Shape {
     constructor(vertices, should_fill) {
         super(vertices, gl.LINE_LOOP, gl.TRIANGLE_FAN, should_fill);
     }
