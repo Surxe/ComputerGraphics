@@ -4,26 +4,26 @@ class Shape {
         this.outline_gl_draw_mode = outline_gl_draw_mode;
         this.fill_gl_draw_mode = fill_gl_draw_mode;
         this.should_fill = should_fill;
-        this.positionBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
+        this.pos_buffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.pos_buffer);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.vertices), gl.STATIC_DRAW);
     }
 
     render(program) {
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.pos_buffer);
 
-        var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
-        var colorAttributeLocation = gl.getAttribLocation(program, "a_color");
+        var pos_attr_loc = gl.getAttribLocation(program, "a_position");
+        var color_attr_loc = gl.getAttribLocation(program, "a_color");
 
         var type = gl.FLOAT;
         var normalize = false;
         var unit_stride = Float32Array.BYTES_PER_ELEMENT;
 
-        gl.enableVertexAttribArray(positionAttributeLocation);
-        gl.enableVertexAttribArray(colorAttributeLocation);
+        gl.enableVertexAttribArray(pos_attr_loc);
+        gl.enableVertexAttribArray(color_attr_loc);
 
-        gl.vertexAttribPointer(positionAttributeLocation, 2, type, normalize, 5*unit_stride, 0);
-        gl.vertexAttribPointer(colorAttributeLocation,    3, type, normalize, 5*unit_stride, 2*unit_stride);
+        gl.vertexAttribPointer(pos_attr_loc, 2, type, normalize, 5*unit_stride, 0);
+        gl.vertexAttribPointer(color_attr_loc,    3, type, normalize, 5*unit_stride, 2*unit_stride);
 
         var gl_draw_mode = this.should_fill ? this.fill_gl_draw_mode : this.outline_gl_draw_mode;
 
