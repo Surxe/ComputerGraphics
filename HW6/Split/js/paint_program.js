@@ -46,7 +46,6 @@ class PaintProgram {
         else if (shape_type == "polygon") {
             if (num_vertices_current_shape >= 3) {
                 shape_class = Polygon;
-                shape_complete = true;
             }
             else if (num_vertices_current_shape == 2) {
                 shape_class = Line;
@@ -109,11 +108,9 @@ class PaintProgram {
         this.next_vertices = [];
     }
 
-    del_current_shape() {
+    complete_current_shape() {
         var num_vertices_current_shape = this.get_num_vertices_current_shape()
         if (num_vertices_current_shape > 0) {
-            //this.next_vertices = []; //wipe the shape completely
-            //this.remove_last_vertex(); // undo latest vertex
             this.mark_shape_complete(); // complete the shape
         }
         this.render();

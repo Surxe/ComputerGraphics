@@ -73,7 +73,7 @@ class main {
         // Right click listener
         canvas.addEventListener("contextmenu", (event) => {
             event.preventDefault(); // prevent the default context menu
-            this.paint_program.del_current_shape();
+            this.paint_program.complete_current_shape();
             console.log("Right-click detected on canvas");
         });
 
