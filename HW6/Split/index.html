@@ -1,0 +1,70 @@
+<html lang="en">
+    <head>
+        <title>Browser Tab Name</title>
+        <meta charset="utf-8">
+    </head>
+
+    <body>
+        <header>
+            <h1>Main Title</h1>
+        </header>
+        <section id="console">
+            <p>Section Title</p>
+        </section>
+        <script id="2DVertexShader" type="notjs">
+            attribute vec4 a_position;
+            attribute vec3 a_color;
+            varying vec3 v_color;
+            void main() {
+                v_color = a_color;
+                gl_Position = a_position;
+            }
+        </script>
+        <script id="2DFragmentShader" type="notjs">
+            precision mediump float;
+            varying vec3 v_color;
+            void main() {
+                gl_FragColor = vec4(v_color, 1.0);
+            }
+        </script>
+        <section id="section_color_picker">
+            <label for="colorPicker">Select a color:</label>
+            <input type="color" id="color_picker" value="#000000">
+            <p>Selected Color: <span id="color_value">#000000 rgb(0, 0, 0)</span></p>
+        </section>
+        <section id="section_shape_picker">
+            <label for="shape_picker">Select a shape:</label>
+            <select id="shape_picker">
+                <option value="triangle">Triangle</option>
+                <option value="rectangle">Rectangle</option>
+                <option value="line">Line</option>
+                <option value="polygon">Polygon</option>
+                <option value="circle">Circle</option>
+            </select>
+        </section>
+        <section id="section_fill_outline_picker">
+            <label for="fill_outline_picker">Fill:</label>
+            <input type="checkbox" id="fill_outline_picker" checked>
+        </section>
+        <section id="keybind_info">
+            <p>Keybinds:</p>
+            <ul>
+                <li>Left Click: Create Vertex</li>
+                <li>Right Click: Finish drawing shape (early)</li>
+                <li>Z: Undo a vertex addition</li>
+                <li>Y: Redo a vertex removal (up to 10 in memory)</li>
+                <li>C: Clear the current shape (if not complete)</li>
+            </ul>
+        
+        <script src="js/utilities.js"></script>
+        <script src="js/main.js"></script>
+        <script src="js/paint_program.js"></script>
+        <script src="js/init_web_gl.js"></script>
+        <script src="js/shape.js"></script>
+        <script src="js/axis.js"></script>
+        
+        <script>
+            new main();
+        </script>
+    </body>
+</html>

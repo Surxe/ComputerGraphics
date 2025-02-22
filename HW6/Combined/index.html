@@ -1,0 +1,557 @@
+<html lang="en">
+    <head>
+        <title>Browser Tab Name</title>
+        <meta charset="utf-8">
+    </head>
+
+    <body>
+        <header>
+            <h1>Main Title</h1>
+        </header>
+        <section id="console">
+            <p>Section Title</p>
+        </section>
+        <script id="2DVertexShader" type="notjs">
+            attribute vec4 a_position;
+            attribute vec3 a_color;
+            varying vec3 v_color;
+            void main() {
+                v_color = a_color;
+                gl_Position = a_position;
+            }
+        </script>
+        <script id="2DFragmentShader" type="notjs">
+            precision mediump float;
+            varying vec3 v_color;
+            void main() {
+                gl_FragColor = vec4(v_color, 1.0);
+            }
+        </script>
+        <section id="section_color_picker">
+            <label for="colorPicker">Select a color:</label>
+            <input type="color" id="color_picker" value="#000000">
+            <p>Selected Color: <span id="color_value">#000000 rgb(0, 0, 0)</span></p>
+        </section>
+        <section id="section_shape_picker">
+            <label for="shape_picker">Select a shape:</label>
+            <select id="shape_picker">
+                <option value="triangle">Triangle</option>
+                <option value="rectangle">Rectangle</option>
+                <option value="line">Line</option>
+                <option value="polygon">Polygon</option>
+                <option value="circle">Circle</option>
+            </select>
+        </section>
+        <section id="section_fill_outline_picker">
+            <label for="fill_outline_picker">Fill:</label>
+            <input type="checkbox" id="fill_outline_picker" checked>
+        </section>
+        <section id="keybind_info">
+            <p>Keybinds:</p>
+            <ul>
+                <li>Left Click: Create Vertex</li>
+                <li>Right Click: Finish drawing shape (early)</li>
+                <li>Z: Undo a vertex addition</li>
+                <li>Y: Redo a vertex removal (up to 10 in memory)</li>
+                <li>C: Clear the current shape (if not complete)</li>
+            </ul>
+        
+        <script>
+            function hex_to_rgb(hex) {
+                hex = hex.replace(/^#/, '');
+
+                let r = parseInt(hex.substring(0, 2), 16)/255;
+                let g = parseInt(hex.substring(2, 4), 16)/255;
+                let b = parseInt(hex.substring(4, 6), 16)/255;
+
+                return [r, g, b];
+            } 
+
+            function mouse_event_to_gl_coords(event, canvas) {
+                const rect = canvas.getBoundingClientRect();
+                const x = event.clientX - rect.left;
+                const y = event.clientY - rect.top;
+                const cx = -1 +  2*x/canvas.width
+                const cy = -1 + 2*(1-y/canvas.height)
+                return [cx, cy];
+            }
+        </script>
+        <script>
+            var gl; // global
+
+            class main {
+                constructor() {
+                    // Create and append canvas
+                    var canvas = document.createElement("canvas");
+                    canvas.width = 800;
+                    canvas.height = 800;
+                    canvas.style.border = '1px solid black';
+                    document.body.appendChild(canvas);
+
+                    // Initialize global WebGL context
+                    gl = canvas.getContext("webgl");
+                    if (!gl) {
+                        console.error("WebGL not supported.");
+                    }
+
+                    this.webGL = new InitWebGLProgram();
+                    var vertex_shader_source = document.getElementById("2DVertexShader").text;
+                    var fragment_shader_source = document.getElementById("2DFragmentShader").text;
+                    var vertex_shader = this.webGL.createShader(gl.VERTEX_SHADER, vertex_shader_source);
+                    var fragment_shader = this.webGL.createShader(gl.FRAGMENT_SHADER, fragment_shader_source);
+
+                    // Create and use the shader program
+                    this.program = this.webGL.createProgram(vertex_shader, fragment_shader);
+                    gl.useProgram(this.program);
+
+                    // Create and render objects
+                    this.axis = new Axis();
+
+                    this.paint_program = new PaintProgram(this.program);
+
+                    // Shape listener
+                    const shape_picker = document.getElementById("shape_picker");
+                    var shape_type = shape_picker.value;
+                    shape_picker.addEventListener("change", () => {
+                        shape_type = shape_picker.value;
+                        console.log("Shape changed to: " + shape_type);
+                    });
+
+                    // Color listener
+                    const color_picker = document.getElementById("color_picker");
+                    const color_value = document.getElementById("color_value");
+                    var r, g, b;
+                    var color_str;
+                    color_picker.addEventListener("input", () => {
+                        [r, g, b] = hex_to_rgb(color_picker.value);
+                        color_str = `${color_picker.value} rgb(${r}, ${g}, ${b})`
+                        color_value.textContent = color_str; // Updates the displayed color code
+                        console.log(`Color changed to: ${color_str}`);
+                    });
+
+                    // Fill outline listener
+                    var should_fill = true;
+                    document.getElementById('fill_outline_picker').addEventListener('change', (event) => {
+                        should_fill = event.target.checked;
+                    });
+
+                    // Click listener
+                    canvas.addEventListener('click', (event) => {
+                        var [cx, cy] = mouse_event_to_gl_coords(event, canvas);
+                        this.paint_program.add_point(cx, cy, r, g, b, shape_type, should_fill, true);
+                        console.log(`Clicked at: (cx${cx}, cy${cy}) rgb(${r}, ${g}, ${b})`);
+                    });
+
+                    // Mouse move listener
+                    canvas.addEventListener('mousemove', (event) => {
+                        var [cx, cy] = mouse_event_to_gl_coords(event, canvas);
+                        this.paint_program.add_point(cx, cy, r, g, b, shape_type, should_fill, false);
+                        console.log(`Mouse moved to: (cx${cx}, cy${cy})`);
+                    });
+
+                    // Right click listener
+                    canvas.addEventListener("contextmenu", (event) => {
+                        event.preventDefault(); // prevent the default context menu
+                        this.paint_program.complete_current_shape();
+                        console.log("Right-click detected on canvas");
+                    });
+
+                    // 'z' key listener
+                    window.addEventListener('keydown', (event) => {
+                        if (event.key === 'z') {
+                            this.paint_program.undo();
+                            console.log("Undoing last vertex");
+                        }
+                    });
+
+                    // 'y' key listener
+                    window.addEventListener('keydown', (event) => {
+                        if (event.key === 'y') {
+                            this.paint_program.redo();
+                            console.log("Redoing last vertex");
+                        }
+                    });
+
+                    // 'c' key listener
+                    window.addEventListener('keydown', (event) => {
+                        if (event.key === 'c') {
+                            this.paint_program.clear_shape();
+                            console.log("Removing current shape (if any)");
+                        }
+                    });
+
+                    // Render the scene
+                    this.renderScene();
+                }
+
+                renderScene() {
+                    gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+                    this.paint_program.render();
+                    //this.axis.render(this.program);
+                }   
+            }
+        </script>
+        <script>
+            class PaintProgram {
+                constructor(program) {
+                    this.program = program
+                    this.shapes = [];
+                    this.next_vertices = [];
+                    this.next_shape;
+                    this.popped_vertices = [];
+                    this.args_per_vertex = 5; // 2 for position, 3 for color
+                }
+
+                get_num_vertices_current_shape() {
+                    return this.next_vertices.length/this.args_per_vertex
+                }
+
+                add_point(x, y, r, g, b, shape_type="triangle", should_fill=true, push=true) {
+                    if (this.next_vertices.length > 0) {
+                        var [x1, y1] = this.get_previous_vertex_xy(); //store the prev x and y for if a rect is chosen
+                    }
+                    this.next_vertices.push(x, y, r, g, b);
+
+                    this.shape_class;
+                    var num_vertices_current_shape = this.get_num_vertices_current_shape()
+                    if (num_vertices_current_shape == 0) { //no vertices drawn yet
+                        return;
+                    }
+                    console.log(`num_vertices_current_shape: ${num_vertices_current_shape} shape_type: ${shape_type}`)
+                    var shape_complete = false;
+                    var num_verts_to_remove = 1;
+                    if (shape_type == "triangle") {
+                        if (num_vertices_current_shape == 3) { // every 3rd vertex creates a new triangle
+                            this.shape_class = Triangle;
+                            shape_complete = true;
+                        }
+                        else if (num_vertices_current_shape == 2) {
+                            this.shape_class = Line;
+                        }
+                        else if (num_vertices_current_shape == 1) {
+                            this.shape_class = Point;
+                        }
+                    }
+                    else if (shape_type == "line") {
+                        if (num_vertices_current_shape == 2) {
+                            this.shape_class = Line;
+                            shape_complete = true;
+                        }
+                        else if (num_vertices_current_shape == 1) {
+                            this.shape_class = Point;
+                        }
+                    }
+                    else if (shape_type == "polygon") {
+                        if (num_vertices_current_shape >= 3) {
+                            this.shape_class = Polygon;
+                        }
+                        else if (num_vertices_current_shape == 2) {
+                            this.shape_class = Line;
+                        }
+                        else if (num_vertices_current_shape == 1) {
+                            this.shape_class = Point;
+                        }
+                    }
+                    else if (shape_type == "rectangle") {
+                        if (num_vertices_current_shape == 2) {
+                            this.shape_class = Rectangle;
+                            num_verts_to_remove = 3;
+                            
+                            // Remove last vertex
+                            this.remove_last_vertex(1, false);
+                            this.next_vertices.push(x1, y, r, g, b);
+                            this.next_vertices.push(x, y, r, g, b); //add back to the end
+                            this.next_vertices.push(x, y1, r, g, b);
+
+                            shape_complete = true;
+                        }
+                        else if (num_vertices_current_shape == 1) {
+                            this.shape_class = Point;
+                        }
+                    }
+                    else if (shape_type == "circle") {
+                        if (num_vertices_current_shape == 2) {
+                            this.shape_class = Circle;
+
+                            // Calc radius from center point
+                            var radius = Math.sqrt((x-x1)**2 + (y-y1)**2);
+
+                            // Remove the first edge point
+                            this.remove_last_vertex(1, false);
+
+                            // Remove center point
+                            this.remove_last_vertex(1, false);
+
+                            // Add vertices for circle
+                            const num_segments = 30;
+                            num_verts_to_remove = num_segments
+                            for (var i = 0; i < num_segments; i++) {
+                                var angle = i * 2 * Math.PI / num_segments;
+                                var x2 = x1 + radius * Math.cos(angle);
+                                var y2 = y1 + radius * Math.sin(angle);
+                                this.next_vertices.push(x2, y2, r, g, b);
+                            }
+
+                            shape_complete = true;
+                        }
+                        else if (num_vertices_current_shape == 1) {
+                            this.shape_class = Point;
+                        }
+                    }
+                    else {
+                        throw Exception(`Invalid shape type: ${shape_type}`)
+                    }
+
+                    this.next_shape = new this.shape_class(this.next_vertices, should_fill);
+                    
+                    this.render();
+
+                    if (!push) { //after previewing the shape, remove the last vertex
+                        console.log(`Removing ${num_verts_to_remove} vertices`)
+                        this.remove_last_vertex(num_verts_to_remove, false);
+                        if (num_verts_to_remove == 30) {
+                            this.next_vertices.push(x1, y1, r, g, b); //add back to the end
+                        }
+                    }
+                    else if (shape_complete) { // if shape is complete
+                        this.shapes.push(this.next_shape);
+                        this.next_vertices = [];
+                    }
+                }
+
+                remove_last_vertex(num_vertices=1, store_last_vertex=true) {
+                    if (this.next_vertices.length > 0) {
+                        if (store_last_vertex) {
+                            // Get last vertex
+                            var last_vertex = this.next_vertices.slice(-this.args_per_vertex);
+
+                            // Store up to 10 vertices
+                            if (this.popped_vertices.length >= 10) {
+                                this.popped_vertices.shift();
+                            }
+                            this.popped_vertices.push(last_vertex);
+                        }
+
+                        // Remove from used vertices list
+                        this.next_vertices = this.next_vertices.slice(0, -this.args_per_vertex);
+                    }
+                    else {
+                        throw Exception("No vertices to remove")
+                    }
+
+                    // Call it again if needed
+                    num_vertices--;
+                    if (num_vertices > 0) {
+                        this.remove_last_vertex(num_vertices, store_last_vertex);
+                    }
+                }
+
+                get_previous_vertex_xy() {
+                    if (this.next_vertices.length > 0) {
+                        return this.next_vertices.slice(-this.args_per_vertex, -this.args_per_vertex+2);
+                    }
+                    else {
+                        return null;
+                    }
+                }
+
+                mark_shape_complete() {
+                    this.shapes.push(this.next_shape);
+                    this.next_vertices = [];
+                }
+
+                complete_current_shape() {
+                    var num_vertices_current_shape = this.get_num_vertices_current_shape()
+                    if (num_vertices_current_shape > 0) {
+                        this.mark_shape_complete(); // complete the shape
+                    }
+                    this.render();
+                }
+
+                undo() {
+                    if (this.get_num_vertices_current_shape() > 0) {
+                        this.remove_last_vertex(1, true);
+                        this.render();
+                    }
+                }
+
+                redo() {
+                    if (this.popped_vertices.length > 0) {
+                        var last_vertex = this.popped_vertices.pop();
+                        this.next_vertices.push(...last_vertex);
+                        this.render();
+                    }
+                }
+
+                clear_shape() {
+                    if (this.next_vertices.length==0) {
+                        this.shapes.pop();
+                    }
+                    else {
+                        this.next_vertices = [];
+                    }
+                    this.render();
+                }
+
+                render() {
+                    // Render all existing shapes
+                    for (var i = 0; i < this.shapes.length; i++) {
+                        this.shapes[i].render(this.program);
+                    }
+
+                    // Preview the next shape
+                    if (this.next_shape) {
+                        this.next_shape.render(this.program);
+                    }
+                }
+            }
+        </script>
+        <script>
+            class InitWebGLProgram {
+                constructor() {
+                    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+                    gl.clearColor(1, 1, 1, 1);
+                    gl.clear(gl.COLOR_BUFFER_BIT);
+                }
+
+                createShader(type, source) {
+                    var shader = gl.createShader(type);
+                    gl.shaderSource(shader, source);
+                    gl.compileShader(shader);
+                    if (gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                        return shader;
+                    }
+                    console.error(gl.getShaderInfoLog(shader));
+                    gl.deleteShader(shader);
+                }
+
+                createProgram(vs, fs) {
+                    var program = gl.createProgram();
+                    gl.attachShader(program, vs);
+                    gl.attachShader(program, fs);
+                    gl.linkProgram(program);
+                    if (gl.getProgramParameter(program, gl.LINK_STATUS)) {
+                        return program;
+                    }
+                    console.error(gl.getProgramInfoLog(program));
+                    gl.deleteProgram(program);
+                }
+            }
+        </script>
+        <script>
+            class Shape {
+                constructor(vertices, outline_gl_draw_mode, fill_gl_draw_mode, should_fill) {
+                    this.vertices = [...vertices];
+                    this.outline_gl_draw_mode = outline_gl_draw_mode;
+                    this.fill_gl_draw_mode = fill_gl_draw_mode;
+                    this.should_fill = should_fill;
+                    this.pos_buffer = gl.createBuffer();
+                    gl.bindBuffer(gl.ARRAY_BUFFER, this.pos_buffer);
+                    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.vertices), gl.STATIC_DRAW);
+                }
+
+                render(program) {
+                    gl.bindBuffer(gl.ARRAY_BUFFER, this.pos_buffer);
+
+                    var pos_attr_loc = gl.getAttribLocation(program, "a_position");
+                    var color_attr_loc = gl.getAttribLocation(program, "a_color");
+
+                    var type = gl.FLOAT;
+                    var normalize = false;
+                    var unit_stride = Float32Array.BYTES_PER_ELEMENT;
+
+                    gl.enableVertexAttribArray(pos_attr_loc);
+                    gl.enableVertexAttribArray(color_attr_loc);
+
+                    gl.vertexAttribPointer(pos_attr_loc, 2, type, normalize, 5*unit_stride, 0); //x and y
+                    gl.vertexAttribPointer(color_attr_loc,    3, type, normalize, 5*unit_stride, 2*unit_stride); //r, g, b starts 2 pos over
+
+                    var gl_draw_mode = this.should_fill ? this.fill_gl_draw_mode : this.outline_gl_draw_mode;
+
+                    gl.drawArrays(gl_draw_mode, 0, this.vertices.length/5); // div 5 as there are 2 coordinates and 3 colors per vertex
+                }
+            }
+
+            class Triangle extends Shape {
+                constructor(vertices, should_fill) {
+                    super(vertices, gl.LINE_LOOP, gl.TRIANGLES, should_fill);
+                }
+            }
+
+            class Rectangle extends Shape {
+                constructor(vertices, should_fill) {
+                    super(vertices, gl.LINE_LOOP, gl.TRIANGLE_FAN, should_fill);
+                }
+            }
+
+            class Line extends Shape {
+                constructor(vertices, should_fill) {
+                    super(vertices, gl.LINE_LOOP, gl.LINES, should_fill);
+                }
+            }
+
+            class Polygon extends Shape {
+                constructor(vertices, should_fill) {
+                    super(vertices, gl.LINE_LOOP, gl.TRIANGLE_FAN, should_fill);
+                }
+            }
+
+            class Circle extends Shape {
+                constructor(vertices, should_fill) {
+                    super(vertices, gl.LINE_LOOP, gl.TRIANGLE_FAN, should_fill);
+                }
+            }
+
+            class Point extends Shape {
+                constructor(vertices, should_fill) {
+                    super(vertices, gl.POINTS, gl.POINTS, should_fill);
+                }
+            }
+        </script>
+        <script>
+            class Axis {
+                constructor() {
+                    var axisVertices = [
+                        // X    Y    Z      R  G  B
+                        -1,    0,   0,     1, 0, 0,  // X-Axis (Red)
+                        1,    0,   0,     1, 0, 0,  
+
+                        0,   -1,   0,     0, 1, 0,  // Y-Axis (Green)
+                        0,    1,   0,     0, 1, 0   
+                    ];
+
+                    this.axisBuffer = gl.createBuffer();
+                    gl.bindBuffer(gl.ARRAY_BUFFER, this.axisBuffer);
+                    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(axisVertices), gl.STATIC_DRAW);
+                }
+
+                render(program) {
+                    gl.bindBuffer(gl.ARRAY_BUFFER, this.axisBuffer);
+
+                    var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
+                    var colorAttributeLocation = gl.getAttribLocation(program, "a_color");
+
+                    var size = 3;
+                    var type = gl.FLOAT;
+                    var normalize = false;
+                    var stride = 6 * Float32Array.BYTES_PER_ELEMENT;
+                    var offset = 0;
+
+                    gl.enableVertexAttribArray(positionAttributeLocation);
+                    gl.enableVertexAttribArray(colorAttributeLocation);
+
+                    gl.vertexAttribPointer(positionAttributeLocation, size, type, normalize, stride, offset);
+                    gl.vertexAttribPointer(colorAttributeLocation, size, type, normalize, stride, stride);
+
+                    // Render as lines
+                    gl.drawArrays(gl.LINES, 0, 4);
+                }
+            }
+
+        </script>
+        
+        <script>
+            new main();
+        </script>
+    </body>
+</html>
