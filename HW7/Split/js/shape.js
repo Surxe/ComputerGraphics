@@ -1,21 +1,90 @@
 class Shape {
-    constructor(vertices, rgb=[0, 0, 0]) {
-        // Assume vertices is a list of (x, y, z) records
-        // Transform to [x, y, z, r, g, b] format
-        var positions = [];
-        for (var vertex_i = 0; vertex_i < vertices.length; vertex_i++) {
+    constructor(positions, translations=[0, 0, 0], scalars=[1, 1, 1], rgb=[0, 0, 0]) {
+        this.positions = positions; // Assume positions is a list of [x, y, z] lists
+        this.translations = translations; //translations is synonymous to location
+        this.scalars = scalars;
+        this.rgb = rgb;
+        
+        this.process_transformations();
+    }
+
+    process_transformations() {
+        this.positions = this.center_positions(this.positions);
+        this.positions = this.scale_positions(this.positions, this.scalars);
+        this.positions = this.translate_positions(this.positions, this.translations);
+
+        var reformatted_positions = this.reformat_positions_arr();
+        this.buffer_vertices(reformatted_positions)
+    }
+
+    // Ensure positions is centered around the origin
+    center_positions(positions) {
+        var x_sum = 0;
+        var y_sum = 0;
+        var z_sum = 0;
+        for (var vertex_i = 0; vertex_i < positions.length; vertex_i++) {
+            x_sum += positions[vertex_i][0];
+            y_sum += positions[vertex_i][1];
+            z_sum += positions[vertex_i][2];
+        }
+
+        var x_avg = x_sum / positions.length;
+        var y_avg = y_sum / positions.length;
+        var z_avg = z_sum / positions.length;
+
+        if (x_avg != 0 || y_avg != 0 || z_avg != 0) {
+            // Center the shape around the origin
+            for (var vertex_i = 0; vertex_i < positions.length; vertex_i++) {
+                positions[vertex_i][0] -= x_avg;
+                positions[vertex_i][1] -= y_avg;
+                positions[vertex_i][2] -= z_avg;
+            }
+        }
+
+        return positions
+    }
+
+    scale_positions(positions, scalars) {
+        for (var vertex_i = 0; vertex_i < positions.length; vertex_i++) {
+            positions[vertex_i][0] *= scalars[0];
+            positions[vertex_i][1] *= scalars[1];
+            positions[vertex_i][2] *= scalars[2];
+        }
+
+        return positions;
+    }
+
+    translate_positions(positions, translations) {
+        for (var vertex_i = 0; vertex_i < positions.length; vertex_i++) {
+            positions[vertex_i][0] += translations[0];
+            positions[vertex_i][1] += translations[1];
+            positions[vertex_i][2] += translations[2];
+        }
+
+        return positions;
+    }
+
+    // Reformat to [x, y, z, r, g, b] format
+    // gl format is not very readable, and is not used to store the data, but is rather used in an intermediary step
+    reformat_positions_arr() {
+        var vertices = [];
+        for (var vertex_i = 0; vertex_i < this.positions.length; vertex_i++) {
             for (var dimension_j = 0; dimension_j < 3; dimension_j++) {
-                positions.push(vertices[vertex_i][dimension_j]);
+                vertices.push(this.positions[vertex_i][dimension_j]);
             }
             
-            positions.push(rgb[0]);
-            positions.push(rgb[1]);
-            positions.push(rgb[2]);
+            vertices.push(this.rgb[0]);
+            vertices.push(this.rgb[1]);
+            vertices.push(this.rgb[2]);
         }
-        
+
+        return vertices;
+    }
+    
+    buffer_vertices(vertices) {
         this.positionBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
     }
 
     render(program) {
@@ -36,7 +105,5 @@ class Shape {
         gl.vertexAttribPointer(colorAttributeLocation, size, type, normalize, stride, 3 * Float32Array.BYTES_PER_ELEMENT);
 
         gl.drawArrays(gl.TRIANGLES, 0, 3);
-
-        return this;
     }
 }
