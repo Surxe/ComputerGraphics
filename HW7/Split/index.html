@@ -35,10 +35,16 @@
                 [0, 0.5, 0.0],
                 [0.5, 0.0, 1.0]
             ]
-            var translations = [0, 0, 0]
-            var scalars = [1, 1, 1]
+            var translations = [0, -.5, 0]
+            var scalars = [0.5, 0.5, 0.5]
             var rotations = [0, 0, 15]
             var should_fill = false;
+            my_main.create_shape('triangle', positions, translations, scalars, rotations, should_fill);
+
+            translations = [-.5, 0.5, 0]
+            my_main.create_shape('triangle', positions, translations, scalars, rotations, should_fill);
+
+            translations = [.5, 0.5, 0]
             my_main.create_shape('triangle', positions, translations, scalars, rotations, should_fill);
 
             my_main.render()

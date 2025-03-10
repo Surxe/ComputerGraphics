@@ -4,6 +4,8 @@ class main {
     constructor() {
         // Create and append canvas
         var canvas = document.createElement("canvas");
+        canvas.width = 800;
+        canvas.height = 800;
         document.body.appendChild(canvas);
 
         // Initialize global WebGL context
