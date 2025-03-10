@@ -30,6 +30,7 @@ class main {
     }
 
     create_shape(shape_name, positions, translations, scalars, rotations, should_fill) {
+        // Determine the shape to create
         const shape_map = {
             'triangle': Triangle,
             'rectangle': Rectangle,
@@ -42,7 +43,10 @@ class main {
             console.error("Invalid shape_name.");
             return;
         }
-        var shape = new Triangle(positions, translations, scalars, rotations, should_fill);
+
+        // Deep copy all arguments when creating the shape
+        var shape = new Triangle(positions.map(vertex => [...vertex]), [...translations], [...scalars], [...rotations], should_fill);
+
         this.shapes.push(shape);
     }
 

@@ -22,8 +22,8 @@ class Shape {
 
     process_transformations() {
         this.positions = this.center_positions(this.positions);
-        this.positions = Transform.rotate_positions(this.positions, this.rotations);
         this.positions = Transform.scale_positions(this.positions, this.scalars);
+        this.positions = Transform.rotate_positions(this.positions, this.rotations);
         this.positions = Transform.translate_positions(this.positions, this.translations);
         this.validate_position_bounds(this.positions);
 
@@ -65,8 +65,6 @@ class Shape {
                 positions[vertex_i][2] -= z_avg;
             }
         }
-
-        console.log('Centered positions:', positions);
 
         return positions
     }
@@ -114,6 +112,8 @@ class Shape {
         var gl_draw_mode = this.should_fill ? this.fill_gl_draw_mode : this.outline_gl_draw_mode;
 
         gl.drawArrays(gl_draw_mode, 0, this.positions.length);
+
+        console.log("Rendered shape at coordinates: ", this.positions);
     }
 }
 
