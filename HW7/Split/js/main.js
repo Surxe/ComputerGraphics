@@ -22,12 +22,25 @@ class main {
         this.program = this.webGL.createProgram(vertexShader, fragmentShader);
         gl.useProgram(this.program);
 
+        this.shapes = [];
+
         var verts = [
             [-0.5, 0.0, 0.0],
             [0, 0.5, 0.0],
             [0.5, 0.0, 1.0]
         ]
         var temp = new Shape(verts, [0, 0, 0], [1, 1, 1], [0, 0, 15]);
-        temp.render(this.program)
+
+        
+        this.shapes.push(temp);
+        this.render()
+    }
+
+    render() {
+        gl.clearColor(1, 1, 1, 1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        for (var shape of this.shapes) {
+            shape.render(this.program);
+        }
     }
 }
