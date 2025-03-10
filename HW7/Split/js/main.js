@@ -24,16 +24,24 @@ class main {
 
         this.shapes = [];
 
-        var verts = [
-            [-0.5, 0.0, 0.0],
-            [0, 0.5, 0.0],
-            [0.5, 0.0, 1.0]
-        ]
-        var temp = new Shape(verts, [0, 0, 0], [1, 1, 1], [0, 0, 15]);
-
-        
-        this.shapes.push(temp);
         this.render()
+    }
+
+    create_shape(shape_name, positions, translations, scalars, rotations, should_fill) {
+        const shape_map = {
+            'triangle': Triangle,
+            'rectangle': Rectangle,
+            'line': Line,
+            'polygon': Polygon,
+            'circle': Circle,
+            'point': Point
+        };
+        if (!(shape_name in shape_map)) {
+            console.error("Invalid shape_name.");
+            return;
+        }
+        var shape = new Triangle(positions, translations, scalars, rotations, should_fill);
+        this.shapes.push(shape);
     }
 
     render() {

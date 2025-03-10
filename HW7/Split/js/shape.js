@@ -1,9 +1,20 @@
 class Shape {
-    constructor(positions, translations=[0, 0, 0], scalars=[1, 1, 1], rotations=[0, 0, 0], rgb=[0, 0, 0]) {
+    constructor(positions, 
+            translations=[0, 0, 0], 
+            scalars=[1, 1, 1], 
+            rotations=[0, 0, 0], 
+            outline_gl_draw_mode=gl.LINE_LOOP, 
+            fill_gl_draw_mode=gl.TRIANGLES, 
+            should_fill=true, rgb=[0, 0, 0]
+        ) {
+
         this.positions = positions; // Assume positions is a list of [x, y, z] lists
         this.translations = translations; //translations is synonymous to location
         this.scalars = scalars;
         this.rotations = rotations;
+        this.outline_gl_draw_mode = outline_gl_draw_mode;
+        this.fill_gl_draw_mode = fill_gl_draw_mode;
+        this.should_fill = should_fill;
         this.rgb = rgb;
         
         this.process_transformations();
@@ -88,6 +99,44 @@ class Shape {
         gl.enableVertexAttribArray(colorAttributeLocation);
         gl.vertexAttribPointer(colorAttributeLocation, size, type, normalize, stride, 3 * Float32Array.BYTES_PER_ELEMENT);
 
-        gl.drawArrays(gl.TRIANGLES, 0, 3);
+        var gl_draw_mode = this.should_fill ? this.fill_gl_draw_mode : this.outline_gl_draw_mode;
+
+        gl.drawArrays(gl_draw_mode, 0, this.positions.length);
+    }
+}
+
+class Triangle extends Shape {
+    constructor(positions, translations, scalars, rotations, should_fill) {
+        super(positions, translations, scalars, rotations, gl.LINE_LOOP, gl.TRIANGLES, should_fill);
+    }
+}
+
+class Rectangle extends Shape {
+    constructor(vertices, should_fill) {
+        super(vertices, gl.LINE_LOOP, gl.TRIANGLE_FAN, should_fill);
+    }
+}
+
+class Line extends Shape {
+    constructor(vertices, should_fill) {
+        super(vertices, gl.LINE_LOOP, gl.LINES, should_fill);
+    }
+}
+
+class Polygon extends Shape {
+    constructor(vertices, should_fill) {
+        super(vertices, gl.LINE_LOOP, gl.TRIANGLE_FAN, should_fill);
+    }
+}
+
+class Circle extends Shape {
+    constructor(vertices, should_fill) {
+        super(vertices, gl.LINE_LOOP, gl.TRIANGLE_FAN, should_fill);
+    }
+}
+
+class Point extends Shape {
+    constructor(vertices, should_fill) {
+        super(vertices, gl.POINTS, gl.POINTS, should_fill);
     }
 }
