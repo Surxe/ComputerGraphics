@@ -1,43 +1,60 @@
 class Transform {
-    constructor() {
-        this.forward = [0,0,1];
-        this.right = [1,0,0];
-        this.up = [0,1,0];
+    static num_dimensions = 3;
+
+    static translate_position(position, translation) {
+        return position + translation;
     }
 
-    rotate(degrees) {
-        this.x_rotation = [
-                    [1,0,0,0],
-                    [0,Math.cos(degrees[0]),-1*Math.sin(degrees[0]),0],
-                    [0,Math.sin(degrees[0]),Math.cos(degrees[0]),0],
-                    [0,0,0,1]
-                ];		
-        this.y_rotation = [
-                [Math.cos(degrees[1]),0,Math.sin(degrees[1]),0],
-                [0,1,0,0],
-                [-1*Math.sin(degrees[1]),0,Math.cos(degrees[1]),0],
-                [0,0,0,1]	
-                ];
-        this.z_rotation = [
-                    [Math.cos(degrees[2]),-1*Math.sin(degrees[2]),0,0],
-                    [Math.sin(degrees[2]),Math.cos(degrees[2]),0,0],
-                    [0,0,1,0],
-                    [0,0,0,1]
-                ]
-        //this.forward = this.cross_multiply(x_rotation,[0,0,1,0]);		
-        this.forward = this.cross_multiply(this.z_rotation,this.cross_multiply(this.y_rotation,this.cross_multiply(this.x_rotation,[0,0,1,0])))
-        this.right = this.cross_multiply(this.z_rotation,this.cross_multiply(this.y_rotation,this.cross_multiply(this.x_rotation,[1,0,0,0])))
-        this.up = this.cross_multiply(this.z_rotation,this.cross_multiply(this.y_rotation,this.cross_multiply(this.x_rotation,[0,1,0,0])))
-    }		
-    	
-    cross_multiply(M,V) {
-        var temp = [
-                    M[0][0]*V[0]+M[0][1]*V[1]+M[0][2] * V[2]+ M[0][3]*V[3],
-                    M[1][0]*V[0]+M[1][1]*V[1]+M[1][2] * V[2]+ M[1][3]*V[3],
-                    M[2][0]*V[0]+M[2][1]*V[1]+M[2][2] * V[2]+ M[2][3]*V[3],
-                    M[3][0]*V[0]+M[3][1]*V[1]+M[3][2] * V[2]+ M[3][3]*V[3]
-                    ]
-        return temp;
+    static translate_positions(positions, translations) {
+        for (var vertex_i = 0; vertex_i < positions.length; vertex_i++) {
+            for (var dimension_j = 0; dimension_j < Transform.num_dimensions; dimension_j++) {
+                positions[vertex_i][dimension_j] = Transform.translate_position(positions[vertex_i][dimension_j], translations[dimension_j]);
+            }
+        }
+
+        return positions;
     }
-    
+
+    static scale_position(position, scalar) {
+        return position * scalar;
+    }
+
+    static scale_positions(positions, scalars) {
+        for (var vertex_i = 0; vertex_i < positions.length; vertex_i++) {
+            for (var dimension_j = 0; dimension_j < Transform.num_dimensions; dimension_j++) {
+                positions[vertex_i][dimension_j] = Transform.scale_position(positions[vertex_i][dimension_j], scalars[dimension_j]);
+            }
+        }
+
+        return positions;
+    }
+
+    static rotate_axes(position, degrees=[0, 0, 0]) {
+        let [x, y, z] = position;
+        let [x_rads, y_rads, z_rads] = degrees.map(deg => deg * (Math.PI / 180)); // Convert degrees to radians
+
+        // Rotation around X-axis
+        let x_cos = Math.cos(x_rads), x_sin = Math.sin(x_rads);
+        let y1 = y * x_cos - z * x_sin;
+        let z1 = y * x_sin + z * x_cos;
+
+        // Rotation around Y-axis
+        let y_cos = Math.cos(y_rads), y_sin = Math.sin(y_rads);
+        let x2 = x * y_cos + z1 * y_sin;
+        let new_z = -x * y_sin + z1 * y_cos;
+
+        // Rotation around Z-axis
+        let z_cos = Math.cos(z_rads), z_sin = Math.sin(z_rads);
+        let new_x = x2 * z_cos - y1 * z_sin;
+        let new_y = x2 * z_sin + y1 * z_cos;
+
+        return [new_x, new_y, new_z];
+    }
+
+    static rotate_positions(positions, degrees=[0, 0, 0]) {
+        for (var vertex_i = 0; vertex_i < positions.length; vertex_i++) {
+            positions[vertex_i] = Transform.rotate_axes(positions[vertex_i], degrees);
+        }
+        return positions;
+    }
 }

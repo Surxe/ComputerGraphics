@@ -11,9 +11,9 @@ class Shape {
 
     process_transformations() {
         this.positions = this.center_positions(this.positions);
-        this.positions = this.scale_positions(this.positions, this.scalars);
-        this.positions = this.translate_positions(this.positions, this.translations);
-        this.positions = this.rotate_positions(this.positions, this.rotations);
+        this.positions = Transform.scale_positions(this.positions, this.scalars);
+        this.positions = Transform.translate_positions(this.positions, this.translations);
+        this.positions = Transform.rotate_positions(this.positions, this.rotations);
 
         var reformatted_positions = this.reformat_positions_arr();
         this.buffer_vertices(reformatted_positions)
@@ -46,58 +46,6 @@ class Shape {
         console.log('Centered positions:', positions);
 
         return positions
-    }
-
-    scale_positions(positions, scalars) {
-        for (var vertex_i = 0; vertex_i < positions.length; vertex_i++) {
-            positions[vertex_i][0] *= scalars[0];
-            positions[vertex_i][1] *= scalars[1];
-            positions[vertex_i][2] *= scalars[2];
-        }
-
-        return positions;
-    }
-
-    translate_positions(positions, translations) {
-        for (var vertex_i = 0; vertex_i < positions.length; vertex_i++) {
-            positions[vertex_i][0] += translations[0];
-            positions[vertex_i][1] += translations[1];
-            positions[vertex_i][2] += translations[2];
-        }
-
-        return positions;
-    }
-
-    rotate(position, degrees=[0, 0, 0]) {
-        let [x, y, z] = position;
-        console.log(degrees)
-        let [x_rads, y_rads, z_rads] = degrees.map(deg => deg * (Math.PI / 180)); // Convert degrees to radians
-        console.log(x_rads, y_rads, z_rads)
-
-        // Rotation around X-axis
-        let x_cos = Math.cos(x_rads), x_sin = Math.sin(x_rads);
-        let y1 = y * x_cos - z * x_sin;
-        let z1 = y * x_sin + z * x_cos;
-
-        // Rotation around Y-axis
-        let y_cos = Math.cos(y_rads), y_sin = Math.sin(y_rads);
-        let x2 = x * y_cos + z1 * y_sin;
-        let new_z = -x * y_sin + z1 * y_cos;
-
-        // Rotation around Z-axis
-        let z_cos = Math.cos(z_rads), z_sin = Math.sin(z_rads);
-        let new_x = x2 * z_cos - y1 * z_sin;
-        let new_y = x2 * z_sin + y1 * z_cos;
-
-        return [new_x, new_y, new_z];
-    }
-
-    rotate_positions(positions, degrees=[0, 0, 0]) {
-        for (var vertex_i = 0; vertex_i < positions.length; vertex_i++) {
-            positions[vertex_i] = this.rotate(positions[vertex_i], degrees);
-        }
-        console.log('Rotated positions:', positions);
-        return positions;
     }
 
     // Reformat to [x, y, z, r, g, b] format
