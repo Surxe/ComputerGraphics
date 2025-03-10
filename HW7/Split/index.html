@@ -30,6 +30,7 @@
         <script>
             my_main = new main();
 
+            // Initial shapes' states
             var positions = [
                 [-0.5, 0.0, 0.0],
                 [0, 0.5, 0.0],
@@ -37,17 +38,39 @@
             ]
             var translations = [0, .5, 0]
             var scalars = [.5, .5, .5]
-            var rotations = [0, 0, 15]
+            var rotations = [60, 30, 15]
             var should_fill = false;
             my_main.create_shape('triangle', positions, translations, scalars, rotations, should_fill);
 
-            translations = [-.5, -.5, 0]
-            my_main.create_shape('triangle', positions, translations, scalars, rotations, should_fill);
+            // translations = [-.5, -.5, 0]
+            // my_main.create_shape('triangle', positions, translations, scalars, rotations, should_fill);
 
-            translations = [.5, -.5, 0]
-            my_main.create_shape('triangle', positions, translations, scalars, rotations, should_fill);
+            // translations = [.5, -.5, 0]
+            // my_main.create_shape('triangle', positions, translations, scalars, rotations, should_fill);
 
             my_main.render()
+
+            function rotate_objects() {
+                for (var i = 0; i < my_main.shapes.length; i++) {
+                    var shape = my_main.shapes[i];
+
+                    // nth shape will have nth dimension rotated by 5 degrees
+                    // i.e. 3rd shape will have 3rd dimension rotated, 1st shape will have 1st dimension rotated
+                    shape.rotations[i] += 5;
+                        
+                    shape.process_transformations();
+                }
+                my_main.render();
+            }
+
+            let interval_id = setInterval(rotate_objects, 1000); //rotate all objects every 1000ms
+
+            // When space is pressed, stop the interval
+            document.addEventListener('keydown', function(event) {
+                if (event.code === 'Space') {
+                    clearInterval(interval_id);
+                }
+            });
         </script>
 	</BODY>
 </HTML>

@@ -1,33 +1,37 @@
 class Shape {
-    constructor(positions, 
+    constructor(
+            positions, 
             translations=[0, 0, 0], 
             scalars=[1, 1, 1], 
             rotations=[0, 0, 0], 
             outline_gl_draw_mode=gl.LINE_LOOP, 
             fill_gl_draw_mode=gl.TRIANGLES, 
-            should_fill=true, rgb=[0, 0, 0]
+            should_fill=true, 
+            rgb=[0, 0, 0]
         ) {
 
-        this.positions = positions; // Assume positions is a list of [x, y, z] lists
-        this.translations = translations; //translations is synonymous to location
-        this.scalars = scalars;
-        this.rotations = rotations;
+        // Deep copy all arguments when creating the shape
+        this.original_positions = positions.map(vertex => [...vertex]);
+        this.positions = positions.map(vertex => [...vertex]); // Assume positions is a list of [x, y, z] lists
+        this.translations = [...translations]; //translations is synonymous to location
+        this.scalars = [...scalars];
+        this.rotations = [...rotations];
         this.outline_gl_draw_mode = outline_gl_draw_mode;
         this.fill_gl_draw_mode = fill_gl_draw_mode;
         this.should_fill = should_fill;
         this.rgb = rgb;
         
         this.process_transformations();
-    }
+    } 
 
     process_transformations() {
-        this.positions = this.center_positions(this.positions);
-        this.positions = Transform.scale_positions(this.positions, this.scalars);
+        this.positions = this.center_positions(this.original_positions);
         this.positions = Transform.rotate_positions(this.positions, this.rotations);
+        this.positions = Transform.scale_positions(this.positions, this.scalars);
         this.positions = Transform.translate_positions(this.positions, this.translations);
         this.validate_position_bounds(this.positions);
 
-        var reformatted_positions = this.reformat_positions_arr();
+        var reformatted_positions = this.reformat_positions_arr(this.positions);
         this.buffer_vertices(reformatted_positions)
     }
 
@@ -66,16 +70,16 @@ class Shape {
             }
         }
 
-        return positions
+        return positions.map(vertex => [...vertex]);
     }
 
     // Reformat to [x, y, z, r, g, b] format
     // gl format is not very readable, and is not used to store the data, but is rather used in an intermediary step
-    reformat_positions_arr() {
+    reformat_positions_arr(positions) {
         var vertices = [];
-        for (var vertex_i = 0; vertex_i < this.positions.length; vertex_i++) {
+        for (var vertex_i = 0; vertex_i < positions.length; vertex_i++) {
             for (var dimension_j = 0; dimension_j < 3; dimension_j++) {
-                vertices.push(this.positions[vertex_i][dimension_j]);
+                vertices.push(positions[vertex_i][dimension_j]);
             }
             
             vertices.push(this.rgb[0]);

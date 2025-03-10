@@ -44,8 +44,7 @@ class main {
             return;
         }
 
-        // Deep copy all arguments when creating the shape
-        var shape = new Triangle(positions.map(vertex => [...vertex]), [...translations], [...scalars], [...rotations], should_fill);
+        var shape = new Triangle(positions, translations, scalars, rotations, should_fill);
 
         this.shapes.push(shape);
     }
