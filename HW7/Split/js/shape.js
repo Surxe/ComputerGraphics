@@ -1,12 +1,18 @@
 class Shape {
-    constructor() {
-        var positions = [
-            // X    Y       Z      R  G  B
-            0,      0,      0,     1, 0, 0,
-            0,      0.5,    0,     0, 1, 0,
-            0.7,    0,      0,     0, 0, 1,
-        ];
-
+    constructor(vertices, rgb=[0, 0, 0]) {
+        // Assume vertices is a list of (x, y, z) records
+        // Transform to [x, y, z, r, g, b] format
+        var positions = [];
+        for (var vertex_i = 0; vertex_i < vertices.length; vertex_i++) {
+            for (var dimension_j = 0; dimension_j < 3; dimension_j++) {
+                positions.push(vertices[vertex_i][dimension_j]);
+            }
+            
+            positions.push(rgb[0]);
+            positions.push(rgb[1]);
+            positions.push(rgb[2]);
+        }
+        
         this.positionBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);

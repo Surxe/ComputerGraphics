@@ -59,7 +59,12 @@
                     this.program = this.webGL.createProgram(vertexShader, fragmentShader);
                     gl.useProgram(this.program);
 
-                    var temp = new Shape();
+                    var verts = [
+                        [0.0, 0.0, 0.0],
+                        [0, 0.5, 0.0],
+                        [0.7, 0.0, 0.0]
+                    ]
+                    var temp = new Shape(verts);
                     if (temp.render(this.program)) {
                         console.log("Shape rendered successfully.");
                     }
