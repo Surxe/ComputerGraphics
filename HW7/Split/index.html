@@ -31,22 +31,27 @@
             my_main = new main();
 
             // Initial shapes' states
-            var positions = [
-                [-0.5, 0.0, 0.0],
-                [0, 0.5, 0.0],
-                [0.5, 0.0, 1.0]
-            ]
+            // Octagon
+            var positions = [];
+            var r = 0.5;
+
+            for (let i = 0; i < 8; i++) {
+                let angle = (i * Math.PI) / 4; // Divide full circle into 8 parts
+                let x = r * Math.cos(angle);
+                let y = r * Math.sin(angle);
+                positions.push([x, y, 0]);
+            }
             var translations = [0, .5, 0]
             var scalars = [.5, .5, .5]
-            var rotations = [60, 30, 15]
+            var rotations = [0, 0, 0]
             var should_fill = false;
-            my_main.create_shape('triangle', positions, translations, scalars, rotations, should_fill);
+            my_main.create_shape('polygon', positions, translations, scalars, rotations, should_fill);
 
-            // translations = [-.5, -.5, 0]
-            // my_main.create_shape('triangle', positions, translations, scalars, rotations, should_fill);
+            translations = [-.5, -.5, 0]
+            my_main.create_shape('polygon', positions, translations, scalars, rotations, should_fill);
 
-            // translations = [.5, -.5, 0]
-            // my_main.create_shape('triangle', positions, translations, scalars, rotations, should_fill);
+            translations = [.5, -.5, 0]
+            my_main.create_shape('polygon', positions, translations, scalars, rotations, should_fill);
 
             my_main.render()
 
@@ -56,14 +61,14 @@
 
                     // nth shape will have nth dimension rotated by 5 degrees
                     // i.e. 3rd shape will have 3rd dimension rotated, 1st shape will have 1st dimension rotated
-                    shape.rotations[i] += 5;
+                    shape.rotations[i] += 1;
                         
                     shape.process_transformations();
                 }
                 my_main.render();
             }
 
-            let interval_id = setInterval(rotate_objects, 1000); //rotate all objects every 1000ms
+            let interval_id = setInterval(rotate_objects, 1000/30); //rotate all objects every interval
 
             // When space is pressed, stop the interval
             document.addEventListener('keydown', function(event) {
