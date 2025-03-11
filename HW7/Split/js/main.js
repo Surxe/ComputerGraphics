@@ -2,10 +2,11 @@ var gl; // global
 
 class main {
     constructor() {
-        // Create and append canvas
+        // Create and append canvas with id canvas
         var canvas = document.createElement("canvas");
         canvas.width = 800;
         canvas.height = 800;
+        canvas.id = "canvas";
         document.body.appendChild(canvas);
 
         // Initialize global WebGL context

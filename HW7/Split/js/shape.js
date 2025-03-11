@@ -96,6 +96,18 @@ class Shape {
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
     }
 
+    is_out_of_bounds() {
+        for (var vertex_i = 0; vertex_i < this.positions.length; vertex_i++) {
+            for (var dimension_j = 0; dimension_j < 3; dimension_j++) {
+                if (this.positions[vertex_i][dimension_j] > 1 || this.positions[vertex_i][dimension_j] < -1) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     render(program) {
         gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
 
@@ -116,8 +128,6 @@ class Shape {
         var gl_draw_mode = this.should_fill ? this.fill_gl_draw_mode : this.outline_gl_draw_mode;
 
         gl.drawArrays(gl_draw_mode, 0, this.positions.length);
-
-        console.log("Rendered shape at coordinates: ", this.positions);
     }
 }
 

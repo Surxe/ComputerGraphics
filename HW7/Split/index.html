@@ -53,10 +53,11 @@
             translations = [.5, -.5, 0]
             my_main.create_shape('polygon', positions, translations, scalars, rotations, should_fill);
 
-            my_main.render()
+            my_main.render();
 
-            function rotate_objects() {
-                for (var i = 0; i < my_main.shapes.length; i++) {
+            function tick() {
+                // Rotate first 3 shapes
+                for (var i = 0; i < Math.min(3, my_main.shapes.length); i++) {
                     var shape = my_main.shapes[i];
 
                     // nth shape will have nth dimension rotated by 5 degrees
@@ -65,16 +66,64 @@
                         
                     shape.process_transformations();
                 }
+
+                // Translate all other shapes
+                move_center_shapes();
+
                 my_main.render();
             }
 
-            let interval_id = setInterval(rotate_objects, 1000/30); //rotate all objects every interval
+            let interval_id = setInterval(tick, 1000/30);
 
             // When space is pressed, stop the interval
             document.addEventListener('keydown', function(event) {
                 if (event.code === 'Space') {
                     clearInterval(interval_id);
                 }
+            });
+
+            function move_center_shapes() {
+                for (var i=3; i<my_main.shapes.length; i++) {
+                    var center_shape = my_main.shapes[i];
+                    var magnitude = 0.01;
+
+                    // Check if it was moved from origin
+                    var dimension = 0;
+                    var direction = 0;
+                    var already_moved = false;
+                    while (dimension <= 1) { //check x, y dims at [0, 1]
+                        if (center_shape.translations[dimension] != 0) {
+                            direction = center_shape.translations[dimension] / Math.abs(center_shape.translations[dimension]);
+                            already_moved = true;
+                            break;
+                        }
+                        dimension++;
+                    }
+                    if (!already_moved) { //if still at origin, pick a random dim and move randomly
+                        dimension = Math.floor(Math.random() * 3); // [0, 1, 2]
+                        direction = Math.floor(Math.random() * 2) * 2 - 1; // [-1, 1]
+                    }
+
+                    // move it if not out of bounds
+                    translation = magnitude * direction;
+                    center_shape.translations[dimension] += translation;
+                    if (center_shape.is_out_of_bounds()) {
+                        my_main.shapes.pop();
+                        my_main.render();
+                        console.log('out of bounds, deleting shape');
+                    }
+                }
+            }
+
+            // When canvas is clicked, create another shape
+            document.getElementById('canvas').addEventListener('click', function(event) {
+                if (my_main.shapes.length >= 4) {
+                    return;
+                }
+                console.log('clicked canvas');
+                translations = [0, 0, 0]
+                my_main.create_shape('polygon', positions, translations, scalars, rotations, should_fill);
+                my_main.render();
             });
         </script>
 	</BODY>
