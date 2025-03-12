@@ -63,12 +63,15 @@
                     // nth shape will have nth dimension rotated by 5 degrees
                     // i.e. 3rd shape will have 3rd dimension rotated, 1st shape will have 1st dimension rotated
                     shape.rotations[i] += 1;
-                        
-                    shape.process_transformations();
                 }
 
                 // Translate all other shapes
                 move_center_shapes();
+
+                for (var i = 0; i < my_main.shapes.length; i++) {
+                    var shape = my_main.shapes[i];
+                    shape.process_transformations();
+                }
 
                 my_main.render();
             }
@@ -95,6 +98,7 @@
                         if (center_shape.translations[dimension] != 0) {
                             direction = center_shape.translations[dimension] / Math.abs(center_shape.translations[dimension]);
                             already_moved = true;
+                            console.log('already moved, use dimension: ' + dimension + ' direction: ' + direction);
                             break;
                         }
                         dimension++;
@@ -109,9 +113,9 @@
                     center_shape.translations[dimension] += translation;
                     if (center_shape.is_out_of_bounds()) {
                         my_main.shapes.pop();
-                        my_main.render();
                         console.log('out of bounds, deleting shape');
                     }
+                    console.log('translation is now ' + translation + ' at dimension ' + dimension);
                 }
             }
 
