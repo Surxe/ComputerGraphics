@@ -39,7 +39,8 @@
                 let angle = (i * Math.PI) / 4; // Divide full circle into 8 parts
                 let x = r * Math.cos(angle);
                 let y = r * Math.sin(angle);
-                positions.push([x, y, 0]);
+                let z = r * Math.random();
+                positions.push([x, y, z]);
             }
             var translations = [0, .5, 0]
             var scalars = [.5, .5, .5]
@@ -113,9 +114,7 @@
                     center_shape.translations[dimension] += translation;
                     if (center_shape.is_out_of_bounds()) {
                         my_main.shapes.pop();
-                        console.log('out of bounds, deleting shape');
                     }
-                    console.log('translation is now ' + translation + ' at dimension ' + dimension);
                 }
             }
 
