@@ -29,21 +29,10 @@ class Shape {
         this.positions = Transform.rotate_positions(this.positions, this.rotations);
         this.positions = Transform.scale_positions(this.positions, this.scalars);
         this.positions = Transform.translate_positions(this.positions, this.translations);
-        this.validate_position_bounds(this.positions);
+        this.is_out_of_bounds(this.positions);
 
         var reformatted_positions = this.reformat_positions_arr(this.positions);
         this.buffer_vertices(reformatted_positions)
-    }
-
-    // Ensure positions are within the bounds of the canvas
-    validate_position_bounds() {
-        for (var vertex_i = 0; vertex_i < this.positions.length; vertex_i++) {
-            for (var dimension_j = 0; dimension_j < 3; dimension_j++) {
-                if (this.positions[vertex_i][dimension_j] > 1 || this.positions[vertex_i][dimension_j] < -1) {
-                    console.error('Position out of bounds after transformations:', this.positions[vertex_i]);
-                }
-            }
-        }
     }
 
     // Ensure positions is centered around the origin
