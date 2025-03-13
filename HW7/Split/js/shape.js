@@ -83,18 +83,16 @@ class Shape {
     // gl format is not very readable, and is not used to store the data, but is rather used in an intermediary step
     reformat_positions_arr(positions) {
         var is_rgb_per_vertex;
-        is_rgb_per_vertex = true
-        // if (this.rgb.length != this.positions.length && this.rgb.length == 1 && this.rgb[0].length == 3) { // if rgb is a single color, apply it to all vertices
-        //     is_rgb_per_vertex = false
-        // }
-        // else if (this.rgb.length == this.positions.length) { // apply to each vertex
-        //     is_rgb_per_vertex = true;
-        // }
-        // else {
-        //     console.error("Invalid rgb array length.");
-        //     return;
-        // }
-        console.log(this.rgb.length, this.positions.length)
+        if (this.rgb.length != this.positions.length && this.rgb.length == 1 && this.rgb[0].length == 3) { // if rgb is a single color, apply it to all vertices
+            is_rgb_per_vertex = false
+        }
+        else if (this.rgb.length == this.positions.length) { // apply to each vertex
+            is_rgb_per_vertex = true;
+        }
+        else {
+            console.error("Invalid rgb array length.");
+            return;
+        }
 
         var vertices = [];
         for (var vertex_i = 0; vertex_i < positions.length; vertex_i++) {
@@ -157,7 +155,7 @@ class Shape {
 
 class Triangle extends Shape {
     constructor(positions, indices, translations, scalars, rotations, should_fill) {
-        super(positions, indices, translations, scalars, rotations, gl.LINE_LOOP, gl.TRIANGLES, should_fill);
+        super(positions, indices, translations, scalars, rotations, gl.LINE_LOOP, gl.TRIANGLES, should_fill, rgb);
     }
 }
 
@@ -175,7 +173,7 @@ class Line extends Shape {
 
 class Polygon extends Shape {
     constructor(positions, indices, translations, scalars, rotations, should_fill) {
-        super(positions, indices, translations, scalars, rotations, gl.LINE_LOOP, gl.TRIANGLE_FAN, should_fill);
+        super(positions, indices, translations, scalars, rotations, gl.LINE_LOOP, gl.TRIANGLE_FAN, should_fill, rgb);
     }
 }
 
