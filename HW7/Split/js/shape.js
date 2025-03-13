@@ -139,8 +139,8 @@ class Line extends Shape {
 }
 
 class Polygon extends Shape {
-    constructor(vertices, should_fill) {
-        super(vertices, gl.LINE_LOOP, gl.TRIANGLE_FAN, should_fill);
+    constructor(positions, translations, scalars, rotations, should_fill) {
+        super(positions, translations, scalars, rotations, gl.LINE_LOOP, gl.TRIANGLE_FAN, should_fill);
     }
 }
 

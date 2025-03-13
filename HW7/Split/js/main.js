@@ -45,7 +45,8 @@ class main {
             return;
         }
 
-        var shape = new Triangle(positions, translations, scalars, rotations, should_fill);
+        var shape_class = shape_map[shape_name];
+        var shape = new Polygon(positions, translations, scalars, rotations, should_fill);
 
         this.shapes.push(shape);
     }

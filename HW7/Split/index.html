@@ -31,21 +31,23 @@
             my_main = new main();
 
             // Initial shapes' states
-            // Octagon
+            // Octagon base
             var positions = [];
+            positions.push([0, 0, 1]); // center of all fan connections. creates a conal volume
             var r = 0.5;
 
-            for (let i = 0; i < 8; i++) {
+            for (let i = 0; i <= 8; i++) {
                 let angle = (i * Math.PI) / 4; // Divide full circle into 8 parts
                 let x = r * Math.cos(angle);
                 let y = r * Math.sin(angle);
-                let z = r * Math.random();
+                let z = r * 0;
                 positions.push([x, y, z]);
             }
+
             var translations = [0, .5, 0]
             var scalars = [.5, .5, .5]
             var rotations = [0, 0, 0]
-            var should_fill = false;
+            var should_fill = true;
             my_main.create_shape('polygon', positions, translations, scalars, rotations, should_fill);
 
             translations = [-.5, -.5, 0]
