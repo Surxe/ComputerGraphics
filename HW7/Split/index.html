@@ -36,7 +36,7 @@
             positions.push([0, 0, 1]); // center of all fan connections. creates a conal volume
             var r = 0.5;
 
-            for (let i = 0; i <= 8; i++) {
+            for (let i = 0; i < 8; i++) {
                 let angle = (i * Math.PI) / 4; // Divide full circle into 8 parts
                 let x = r * Math.cos(angle);
                 let y = r * Math.sin(angle);
@@ -45,16 +45,33 @@
             }
 
             var translations = [0, .5, 0]
+            var indices = [
+            8, 0, 1,   // Side triangle 1
+            8, 1, 2,   // Side triangle 2
+            8, 2, 3,   // Side triangle 3
+            8, 3, 4,   // Side triangle 4
+            8, 4, 5,   // Side triangle 5
+            8, 5, 6,   // Side triangle 6
+            8, 6, 7,   // Side triangle 7
+            8, 7, 0,   // Side triangle 8
+            0, 1, 2,   // Base
+            0, 2, 3,
+            0, 3, 4,
+            0, 4, 5,
+            0, 5, 6,
+            0, 6, 7,
+            0, 7, 1
+            ]
             var scalars = [.5, .5, .5]
             var rotations = [0, 0, 0]
             var should_fill = true;
-            my_main.create_shape('polygon', positions, translations, scalars, rotations, should_fill);
+            my_main.create_shape('triangle', positions, indices, translations, scalars, rotations, should_fill);
 
             translations = [-.5, -.5, 0]
-            my_main.create_shape('polygon', positions, translations, scalars, rotations, should_fill);
+            my_main.create_shape('triangle', positions, indices, translations, scalars, rotations, should_fill);
 
             translations = [.5, -.5, 0]
-            my_main.create_shape('polygon', positions, translations, scalars, rotations, should_fill);
+            my_main.create_shape('triangle', positions, indices, translations, scalars, rotations, should_fill);
 
             my_main.render();
 

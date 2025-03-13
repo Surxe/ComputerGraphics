@@ -1,6 +1,7 @@
 class Shape {
     constructor(
             positions, 
+            indices = null, // optional, will default to indices of array
             translations=[0, 0, 0], 
             scalars=[1, 1, 1], 
             rotations=[0, 0, 0], 
@@ -10,10 +11,10 @@ class Shape {
             rgb=[0, 0, 0]
         ) {
 
-        // Deep copy all arguments when creating the shape
         this.original_positions = positions.map(vertex => [...vertex]);
-        this.positions = positions.map(vertex => [...vertex]); // Assume positions is a list of [x, y, z] lists
-        this.translations = [...translations]; //translations is synonymous to location
+        this.positions = positions.map(vertex => [...vertex]); // List of [x, y, z] lists
+        this.indices = indices ? [...indices] : null;
+        this.translations = [...translations];
         this.scalars = [...scalars];
         this.rotations = [...rotations];
         this.outline_gl_draw_mode = outline_gl_draw_mode;
@@ -24,6 +25,18 @@ class Shape {
         this.process_transformations();
     } 
 
+    buffer_vertices(vertices) {
+        this.positionBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+    }
+
+    buffer_indices(indices) {
+        this.indexBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+    }
+
     process_transformations() {
         this.positions = this.center_positions(this.original_positions);
         this.positions = Transform.rotate_positions(this.positions, this.rotations);
@@ -33,6 +46,10 @@ class Shape {
 
         var reformatted_positions = this.reformat_positions_arr(this.positions);
         this.buffer_vertices(reformatted_positions)
+
+        if (this.indices) {
+            this.buffer_indices(this.indices);
+        }
     }
 
     // Ensure positions is centered around the origin
@@ -79,12 +96,6 @@ class Shape {
         return vertices;
     }
     
-    buffer_vertices(vertices) {
-        this.positionBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-    }
-
     is_out_of_bounds() {
         for (var vertex_i = 0; vertex_i < this.positions.length; vertex_i++) {
             for (var dimension_j = 0; dimension_j < 3; dimension_j++) {
@@ -99,7 +110,6 @@ class Shape {
 
     render(program) {
         gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
-
         var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
         gl.enableVertexAttribArray(positionAttributeLocation);
 
@@ -116,13 +126,18 @@ class Shape {
 
         var gl_draw_mode = this.should_fill ? this.fill_gl_draw_mode : this.outline_gl_draw_mode;
 
-        gl.drawArrays(gl_draw_mode, 0, this.positions.length);
+        if (this.indices) {
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+            gl.drawElements(gl_draw_mode, this.indices.length, gl.UNSIGNED_SHORT, 0);
+        } else {
+            gl.drawArrays(gl_draw_mode, 0, this.positions.length);
+        }
     }
 }
 
 class Triangle extends Shape {
-    constructor(positions, translations, scalars, rotations, should_fill) {
-        super(positions, translations, scalars, rotations, gl.LINE_LOOP, gl.TRIANGLES, should_fill);
+    constructor(positions, indices, translations, scalars, rotations, should_fill) {
+        super(positions, indices, translations, scalars, rotations, gl.LINE_LOOP, gl.TRIANGLES, should_fill);
     }
 }
 
@@ -139,8 +154,8 @@ class Line extends Shape {
 }
 
 class Polygon extends Shape {
-    constructor(positions, translations, scalars, rotations, should_fill) {
-        super(positions, translations, scalars, rotations, gl.LINE_LOOP, gl.TRIANGLE_FAN, should_fill);
+    constructor(positions, indices, translations, scalars, rotations, should_fill) {
+        super(positions, indices, translations, scalars, rotations, gl.LINE_LOOP, gl.TRIANGLE_FAN, should_fill);
     }
 }
 

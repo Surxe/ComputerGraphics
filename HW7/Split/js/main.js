@@ -46,7 +46,7 @@ class main {
         }
 
         var shape_class = shape_map[shape_name];
-        var shape = new Polygon(positions, translations, scalars, rotations, should_fill);
+        var shape = new shape_class(positions, translations, scalars, rotations, should_fill);
 
         this.shapes.push(shape);
     }
