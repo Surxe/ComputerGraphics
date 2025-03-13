@@ -64,14 +64,27 @@
             ]
             var scalars = [.5, .5, .5]
             var rotations = [0, 0, 0]
+            var rgb = [
+                // red center
+                [1, 0, 0],
+                // green base
+                [0, 1, 0],
+                [0, 1, 0],
+                [0, 1, 0],
+                [0, 1, 0],
+                [0, 1, 0],
+                [0, 1, 0],
+                [0, 1, 0],
+                [0, 1, 0],
+            ]
             var should_fill = true;
-            my_main.create_shape('triangle', positions, indices, translations, scalars, rotations, should_fill);
+            my_main.create_shape('triangle', positions, indices, translations, scalars, rotations, should_fill, rgb);
 
             translations = [-.5, -.5, 0]
-            my_main.create_shape('triangle', positions, indices, translations, scalars, rotations, should_fill);
+            my_main.create_shape('triangle', positions, indices, translations, scalars, rotations, should_fill, rgb);
 
             translations = [.5, -.5, 0]
-            my_main.create_shape('triangle', positions, indices, translations, scalars, rotations, should_fill);
+            my_main.create_shape('triangle', positions, indices, translations, scalars, rotations, should_fill, rgb);
 
             my_main.render();
 

@@ -20,8 +20,8 @@ class Shape {
         this.outline_gl_draw_mode = outline_gl_draw_mode;
         this.fill_gl_draw_mode = fill_gl_draw_mode;
         this.should_fill = should_fill;
-        this.rgb = rgb;
-        
+        this.rgb = [...rgb];
+
         this.process_transformations();
     } 
 
@@ -82,15 +82,35 @@ class Shape {
     // Reformat to [x, y, z, r, g, b] format
     // gl format is not very readable, and is not used to store the data, but is rather used in an intermediary step
     reformat_positions_arr(positions) {
+        var is_rgb_per_vertex;
+        is_rgb_per_vertex = true
+        // if (this.rgb.length != this.positions.length && this.rgb.length == 1 && this.rgb[0].length == 3) { // if rgb is a single color, apply it to all vertices
+        //     is_rgb_per_vertex = false
+        // }
+        // else if (this.rgb.length == this.positions.length) { // apply to each vertex
+        //     is_rgb_per_vertex = true;
+        // }
+        // else {
+        //     console.error("Invalid rgb array length.");
+        //     return;
+        // }
+        console.log(this.rgb.length, this.positions.length)
+
         var vertices = [];
         for (var vertex_i = 0; vertex_i < positions.length; vertex_i++) {
             for (var dimension_j = 0; dimension_j < 3; dimension_j++) {
                 vertices.push(positions[vertex_i][dimension_j]);
             }
             
-            vertices.push(this.rgb[0]);
-            vertices.push(this.rgb[1]);
-            vertices.push(this.rgb[2]);
+            if (is_rgb_per_vertex) {
+                vertices.push(this.rgb[vertex_i][0]);
+                vertices.push(this.rgb[vertex_i][1]);
+                vertices.push(this.rgb[vertex_i][2]);
+            } else {
+                vertices.push(this.rgb[0]);
+                vertices.push(this.rgb[1]);
+                vertices.push(this.rgb[2]);
+            }
         }
 
         return vertices;
