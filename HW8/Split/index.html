@@ -93,7 +93,71 @@
                 game_engine.render();
             }
 
-            let interval_id = setInterval(tick, 1000/30);
+            // WASD movement
+            let keysPressed = {
+                W: false,  // Move Up (Y+)
+                S: false,  // Move Down (Y-)
+                A: false,  // Move Left (X-)
+                D: false   // Move Right (X+)
+            };
+
+            // Handle keydown event
+            document.addEventListener('keydown', function(event) {
+                if (event.keyCode == 87 && !keysPressed.W) { // W
+                    keysPressed.W = true;
+                } else if (event.keyCode == 83 && !keysPressed.S) { // S
+                    keysPressed.S = true;
+                } else if (event.keyCode == 65 && !keysPressed.A) { // A
+                    keysPressed.A = true;
+                } else if (event.keyCode == 68 && !keysPressed.D) { // D
+                    keysPressed.D = true;
+                }
+
+                updateMovement();
+            });
+
+            // Handle keyup event
+            document.addEventListener('keyup', function(event) {
+                if (event.keyCode == 87) { // W
+                    keysPressed.W = false;
+                } else if (event.keyCode == 83) { // S
+                    keysPressed.S = false;
+                } else if (event.keyCode == 65) { // A
+                    keysPressed.A = false;
+                } else if (event.keyCode == 68) { // D
+                    keysPressed.D = false;
+                }
+
+                updateMovement();
+            });
+
+            // Update movement based on pressed keys
+            function updateMovement() {
+                let x_movement = 0;
+                let y_movement = 0;
+
+                // Check vertical movement (W/S)
+                if (keysPressed.W) {
+                    y_movement += 0.1;  // Move up
+                } else if (keysPressed.S) {
+                    y_movement -= 0.1;  // Move down
+                }
+
+                // Check horizontal movement (A/D)
+                if (keysPressed.A) {
+                    x_movement -= 0.1;  // Move left
+                } else if (keysPressed.D) {
+                    x_movement += 0.1;  // Move right
+                }
+
+                // Apply movement to the game object's translations
+                game_engine.game_objects[0].translations[0] += x_movement;
+                game_engine.game_objects[0].translations[1] += y_movement;
+
+                game_engine.render();
+            }
+
+
 
         </script>
 	</BODY>
