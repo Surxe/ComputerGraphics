@@ -7,6 +7,8 @@ class GameEngine {
         canvas.width = 800;
         canvas.height = 800;
         canvas.id = "canvas";
+        canvas.style.border = "1px solid";
+
         document.body.appendChild(canvas);
 
         // Initialize global WebGL context
