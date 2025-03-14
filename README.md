@@ -34,3 +34,9 @@ Use WebGL shaders to create your initials with vertices and a different color fo
 **Painful Paint**
 
 Create a paint program that can draw lines, triangles, polygons, and free draw.
+
+
+## HW7
+**Placement Lab**
+
+Create mulitple 3D shapes on the canvas that utilize all types of transforms to control their instanced vertex data

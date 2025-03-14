@@ -1,0 +1,517 @@
+<HTML>
+	<HEAD>
+		<TITLE>Test to see if I can do rotation matrices with point.</TITLE>
+	</HEAD>
+	<BODY>
+		<script>
+            class Transform {
+            static num_dimensions = 3;
+
+            static translate_position(position, translation) {
+                return position + translation;
+            }
+
+            static translate_positions(positions, translations) {
+                for (var vertex_i = 0; vertex_i < positions.length; vertex_i++) {
+                    for (var dimension_j = 0; dimension_j < Transform.num_dimensions; dimension_j++) {
+                        positions[vertex_i][dimension_j] = Transform.translate_position(positions[vertex_i][dimension_j], translations[dimension_j]);
+                    }
+                }
+
+                return positions;
+            }
+
+            static scale_position(position, scalar) {
+                return position * scalar;
+            }
+
+            static scale_positions(positions, scalars) {
+                for (var vertex_i = 0; vertex_i < positions.length; vertex_i++) {
+                    for (var dimension_j = 0; dimension_j < Transform.num_dimensions; dimension_j++) {
+                        positions[vertex_i][dimension_j] = Transform.scale_position(positions[vertex_i][dimension_j], scalars[dimension_j]);
+                    }
+                }
+
+                return positions;
+            }
+
+            static rotate_axes(position, degrees=[0, 0, 0]) {
+                let [x, y, z] = position;
+                let [x_rads, y_rads, z_rads] = degrees.map(deg => deg * (Math.PI / 180)); // Convert degrees to radians
+
+                // Rotation around X-axis
+                let x_cos = Math.cos(x_rads), x_sin = Math.sin(x_rads);
+                let y1 = y * x_cos - z * x_sin;
+                let z1 = y * x_sin + z * x_cos;
+
+                // Rotation around Y-axis
+                let y_cos = Math.cos(y_rads), y_sin = Math.sin(y_rads);
+                let x2 = x * y_cos + z1 * y_sin;
+                let new_z = -x * y_sin + z1 * y_cos;
+
+                // Rotation around Z-axis
+                let z_cos = Math.cos(z_rads), z_sin = Math.sin(z_rads);
+                let new_x = x2 * z_cos - y1 * z_sin;
+                let new_y = x2 * z_sin + y1 * z_cos;
+
+                return [new_x, new_y, new_z];
+            }
+
+            static rotate_positions(positions, degrees=[0, 0, 0]) {
+                for (var vertex_i = 0; vertex_i < positions.length; vertex_i++) {
+                    positions[vertex_i] = Transform.rotate_axes(positions[vertex_i], degrees);
+                }
+                return positions;
+            }
+        }
+        </script>
+		<script>
+            class InitWebGLProgram {
+                constructor() {
+                    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+                    gl.clearColor(1, 1, 1, 1);
+                    gl.clear(gl.COLOR_BUFFER_BIT);
+                }
+
+                createShader(type, source) {
+                    var shader = gl.createShader(type);
+                    gl.shaderSource(shader, source);
+                    gl.compileShader(shader);
+                    if (gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                        return shader;
+                    }
+                    console.error(gl.getShaderInfoLog(shader));
+                    gl.deleteShader(shader);
+                }
+
+                createProgram(vs, fs) {
+                    var program = gl.createProgram();
+                    gl.attachShader(program, vs);
+                    gl.attachShader(program, fs);
+                    gl.linkProgram(program);
+                    if (gl.getProgramParameter(program, gl.LINK_STATUS)) {
+                        return program;
+                    }
+                    console.error(gl.getProgramInfoLog(program));
+                    gl.deleteProgram(program);
+                }
+            }
+        </script>
+        <script>
+            class Shape {
+                constructor(
+                        positions, 
+                        indices=null, // optional, will default to indices of array
+                        translations=[0, 0, 0], 
+                        scalars=[1, 1, 1], 
+                        rotations=[0, 0, 0], 
+                        outline_gl_draw_mode=gl.LINE_LOOP, 
+                        fill_gl_draw_mode=gl.TRIANGLES, 
+                        should_fill=true, 
+                        rgb=[0, 0, 0],
+                        velocity=[0, 0, 0]
+                    ) {
+
+                    this.original_positions = positions.map(vertex => [...vertex]);
+                    this.positions = positions.map(vertex => [...vertex]); // List of [x, y, z] lists
+                    this.indices = indices ? [...indices] : null;
+                    this.translations = [...translations];
+                    this.scalars = [...scalars];
+                    this.rotations = [...rotations];
+                    this.outline_gl_draw_mode = outline_gl_draw_mode;
+                    this.fill_gl_draw_mode = fill_gl_draw_mode;
+                    this.should_fill = should_fill;
+                    this.rgb = [...rgb];
+                    this.velocity = [...velocity];
+
+
+                    this.process_transformations();
+                } 
+
+                buffer_vertices(vertices) {
+                    this.positionBuffer = gl.createBuffer();
+                    gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
+                    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+                }
+
+                buffer_indices(indices) {
+                    this.indexBuffer = gl.createBuffer();
+                    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+                    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+                }
+
+                process_transformations() {
+                    this.positions = this.center_positions(this.original_positions);
+                    this.positions = Transform.rotate_positions(this.positions, this.rotations);
+                    this.positions = Transform.scale_positions(this.positions, this.scalars);
+                    this.positions = Transform.translate_positions(this.positions, this.translations);
+                    this.is_out_of_bounds(this.positions);
+
+                    var reformatted_positions = this.reformat_positions_arr(this.positions);
+                    this.buffer_vertices(reformatted_positions)
+
+                    if (this.indices) {
+                        this.buffer_indices(this.indices);
+                    }
+                }
+
+                // Ensure positions is centered around the origin
+                center_positions(positions) {
+                    var x_sum = 0;
+                    var y_sum = 0;
+                    var z_sum = 0;
+                    for (var vertex_i = 0; vertex_i < positions.length; vertex_i++) {
+                        x_sum += positions[vertex_i][0];
+                        y_sum += positions[vertex_i][1];
+                        z_sum += positions[vertex_i][2];
+                    }
+
+                    var x_avg = x_sum / positions.length;
+                    var y_avg = y_sum / positions.length;
+                    var z_avg = z_sum / positions.length;
+
+                    if (x_avg != 0 || y_avg != 0 || z_avg != 0) {
+                        // Center the shape around the origin
+                        for (var vertex_i = 0; vertex_i < positions.length; vertex_i++) {
+                            positions[vertex_i][0] -= x_avg;
+                            positions[vertex_i][1] -= y_avg;
+                            positions[vertex_i][2] -= z_avg;
+                        }
+                    }
+
+                    return positions.map(vertex => [...vertex]);
+                }
+
+                // Reformat to [x, y, z, r, g, b] format
+                // gl format is not very readable, and is not used to store the data, but is rather used in an intermediary step
+                reformat_positions_arr(positions) {
+                    var is_rgb_per_vertex;
+                    if (this.rgb.length != this.positions.length && this.rgb.length == 1 && this.rgb[0].length == 3) { // if rgb is a single color, apply it to all vertices
+                        is_rgb_per_vertex = false
+                    }
+                    else if (this.rgb.length == this.positions.length) { // apply to each vertex
+                        is_rgb_per_vertex = true;
+                    }
+                    else {
+                        console.error("Invalid rgb array length.");
+                        return;
+                    }
+
+                    var vertices = [];
+                    for (var vertex_i = 0; vertex_i < positions.length; vertex_i++) {
+                        for (var dimension_j = 0; dimension_j < 3; dimension_j++) {
+                            vertices.push(positions[vertex_i][dimension_j]);
+                        }
+                        
+                        if (is_rgb_per_vertex) {
+                            vertices.push(this.rgb[vertex_i][0]);
+                            vertices.push(this.rgb[vertex_i][1]);
+                            vertices.push(this.rgb[vertex_i][2]);
+                        } else {
+                            vertices.push(this.rgb[0]);
+                            vertices.push(this.rgb[1]);
+                            vertices.push(this.rgb[2]);
+                        }
+                    }
+
+                    return vertices;
+                }
+                
+                is_out_of_bounds() {
+                    for (var vertex_i = 0; vertex_i < this.positions.length; vertex_i++) {
+                        for (var dimension_j = 0; dimension_j < 3; dimension_j++) {
+                            if (this.positions[vertex_i][dimension_j] > 1 || this.positions[vertex_i][dimension_j] < -1) {
+                                return true;
+                            }
+                        }
+                    }
+
+                    return false;
+                }
+
+                move() {
+                    console.log(this.velocity)
+                    this.translations = this.translations.map((translation, i) => translation + this.velocity[i]);
+                }
+
+                render(program) {
+                    gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
+                    var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
+                    gl.enableVertexAttribArray(positionAttributeLocation);
+
+                    var size = 3;
+                    var type = gl.FLOAT;
+                    var normalize = false;
+                    var stride = 6 * Float32Array.BYTES_PER_ELEMENT;
+                    var offset = 0;
+                    gl.vertexAttribPointer(positionAttributeLocation, size, type, normalize, stride, offset);
+
+                    var colorAttributeLocation = gl.getAttribLocation(program, "a_color");
+                    gl.enableVertexAttribArray(colorAttributeLocation);
+                    gl.vertexAttribPointer(colorAttributeLocation, size, type, normalize, stride, 3 * Float32Array.BYTES_PER_ELEMENT);
+
+                    var gl_draw_mode = this.should_fill ? this.fill_gl_draw_mode : this.outline_gl_draw_mode;
+
+                    if (this.indices) {
+                        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+                        gl.drawElements(gl_draw_mode, this.indices.length, gl.UNSIGNED_SHORT, 0);
+                    } else {
+                        gl.drawArrays(gl_draw_mode, 0, this.positions.length);
+                    }
+                }
+            }
+
+            class Triangle extends Shape {
+                constructor(positions, indices, translations, scalars, rotations, should_fill, rgb, velocity) {
+                    super(positions, indices, translations, scalars, rotations, gl.LINE_LOOP, gl.TRIANGLES, should_fill, rgb, velocity);
+                }
+            }
+
+            class Rectangle extends Shape {
+                constructor(vertices, should_fill) {
+                    super(vertices, gl.LINE_LOOP, gl.TRIANGLE_FAN, should_fill);
+                }
+            }
+
+            class Line extends Shape {
+                constructor(vertices, should_fill) {
+                    super(vertices, gl.LINE_LOOP, gl.LINES, should_fill);
+                }
+            }
+
+            class Polygon extends Shape {
+                constructor(positions, indices, translations, scalars, rotations, should_fill, rgb, velocity) {
+                    super(positions, indices, translations, scalars, rotations, gl.LINE_LOOP, gl.TRIANGLE_FAN, should_fill, rgb, velocity);
+                }
+            }
+
+            class Circle extends Shape {
+                constructor(vertices, should_fill) {
+                    super(vertices, gl.LINE_LOOP, gl.TRIANGLE_FAN, should_fill);
+                }
+            }
+
+            class Point extends Shape {
+                constructor(vertices, should_fill) {
+                    super(vertices, gl.POINTS, gl.POINTS, should_fill);
+                }
+            }
+        </script>
+        <script>
+            var gl; // global
+
+            class main {
+                constructor() {
+                    // Create and append canvas with id canvas
+                    var canvas = document.createElement("canvas");
+                    canvas.width = 800;
+                    canvas.height = 800;
+                    canvas.id = "canvas";
+                    document.body.appendChild(canvas);
+
+                    // Initialize global WebGL context
+                    gl = canvas.getContext("webgl");
+                    if (!gl) {
+                        console.error("WebGL not supported.");
+                    }
+
+                    this.webGL = new InitWebGLProgram();
+                    var vertexShaderSource = document.getElementById("2DVertexShader").text;
+                    var fragmentShaderSource = document.getElementById("2DFragmentShader").text;
+                    var vertexShader = this.webGL.createShader(gl.VERTEX_SHADER, vertexShaderSource);
+                    var fragmentShader = this.webGL.createShader(gl.FRAGMENT_SHADER, fragmentShaderSource);
+
+                    // Create and use the shader program
+                    this.program = this.webGL.createProgram(vertexShader, fragmentShader);
+                    gl.useProgram(this.program);
+
+                    this.shapes = [];
+
+                    this.render()
+                }
+
+                create_shape(shape_name, positions, indices, translations, scalars, rotations, should_fill, rgb, velocity) {
+                    // Determine the shape to create
+                    const shape_map = {
+                        'triangle': Triangle,
+                        'rectangle': Rectangle,
+                        'line': Line,
+                        'polygon': Polygon,
+                        'circle': Circle,
+                        'point': Point
+                    };
+                    if (!(shape_name in shape_map)) {
+                        console.error("Invalid shape_name.");
+                        return;
+                    }
+
+                    var shape_class = shape_map[shape_name];
+                    console.log('X', velocity)
+                    var shape = new shape_class(positions, indices, translations, scalars, rotations, should_fill, rgb, velocity);
+
+                    this.shapes.push(shape);
+                }
+
+                render() {
+                    gl.clearColor(1, 1, 1, 1.0);
+                    gl.clear(gl.COLOR_BUFFER_BIT);
+                    for (var shape of this.shapes) {
+                        shape.render(this.program);
+                    }
+                }
+            }
+        </script>
+
+        <section id="console">
+            <p>Section Title</p>
+        </section>
+        <script id="2DVertexShader" type="notjs">
+            attribute vec4 a_position;
+            attribute vec3 a_color;
+            varying vec3 v_color;
+            void main() {
+                v_color = a_color;
+                gl_Position = a_position;
+            }
+        </script>
+        <script id="2DFragmentShader" type="notjs">
+            precision mediump float;
+            varying vec3 v_color;
+            void main() {
+                gl_FragColor = vec4(v_color, 1.0);
+            }
+        </script>
+        <script>
+            my_main = new main();
+
+            // Initial shapes' states
+            // Octagon base
+            var positions = [];
+            var r = 0.5;
+            for (let i = 0; i < 8; i++) { //i=0 to 7. 8 points
+                let angle = (i * Math.PI) / 4; // Divide full circle into 8 parts
+                let x = r * Math.cos(angle);
+                let y = r * Math.sin(angle);
+                let z = r * 0;
+                positions.push([x, y, z]);
+            }
+
+            positions.push([0, 0, 1]); // i=8. center of all fan connections. creates a conal volume
+
+            var translations = [0, .5, 0]
+            var indices = [
+            8, 0, 1,   // Side triangle 1
+            8, 1, 2,   // Side triangle 2
+            8, 2, 3,   // Side triangle 3
+            8, 3, 4,   // Side triangle 4
+            8, 4, 5,   // Side triangle 5
+            8, 5, 6,   // Side triangle 6
+            8, 6, 7,   // Side triangle 7
+            8, 7, 0,   // Side triangle 8
+            0, 1, 2,   // Base
+            0, 2, 3,
+            0, 3, 4,
+            0, 4, 5,
+            0, 5, 6,
+            0, 6, 7,
+            0, 7, 1
+            ]
+            var scalars = [.5, .5, .5]
+            var rotations = [0, 0, 0]
+            var rgb = [
+                // blue base
+                [0, 0, 1],
+                [0, 0, 1],
+                [0, 0, 1],
+                [0, 0, 1],
+                [0, 0, 1],
+                [0, 0, 1],
+                [0, 0, 1],
+                [0, 0, 1],
+                // red center
+                [1, 0, 0],
+            ]
+            var should_fill = true;
+            my_main.create_shape('triangle', positions, indices, translations, scalars, rotations, should_fill, rgb);
+
+            translations = [-.5, -.5, 0]
+            my_main.create_shape('triangle', positions, indices, translations, scalars, rotations, should_fill, rgb);
+
+            translations = [.5, -.5, 0]
+            my_main.create_shape('triangle', positions, indices, translations, scalars, rotations, should_fill, rgb);
+
+            my_main.render();
+
+            function tick() {
+                // Rotate first 3 shapes
+                for (var i = 0; i < Math.min(3, my_main.shapes.length); i++) {
+                    var shape = my_main.shapes[i];
+
+                    // nth shape will have nth dimension rotated by 5 degrees
+                    // i.e. 3rd shape will have 3rd dimension rotated, 1st shape will have 1st dimension rotated
+                    shape.rotations[i] += 1;
+                }
+
+                // Translate all other shapes
+                move_center_shapes();
+
+                for (var i = 0; i < my_main.shapes.length; i++) {
+                    var shape = my_main.shapes[i];
+                    shape.process_transformations();
+                }
+
+                my_main.render();
+            }
+
+            let interval_id = setInterval(tick, 1000/30);
+
+            // When space is pressed, stop the interval
+            document.addEventListener('keydown', function(event) {
+                if (event.code === 'Space') {
+                    clearInterval(interval_id);
+                }
+            });
+
+            function move_center_shapes() {
+                for (var i=3; i<my_main.shapes.length; i++) {
+                    var center_shape = my_main.shapes[i];
+
+                    // Move it by its velocity
+                    center_shape.move();
+
+                    //check if its out of bounds
+                    if (center_shape.is_out_of_bounds()) {
+                        my_main.shapes.pop();
+                    }
+                }
+            }
+
+            // When canvas is clicked, create another shape
+            document.getElementById('canvas').addEventListener('click', function(event) {
+                console.log('clicked canvas');
+                translations = [0, 0, 0]
+
+                // Randomize its velocity
+                direction_options = [-1, 0, 1]
+                magnitude = 0.01;
+                var velocity = []
+                for (var i = 0; i < 3; i++) {
+                    velocity.push(magnitude * direction_options[Math.floor(Math.random() * 3)]);
+                }
+                // --> velocity in each dimension is randomly one of [-0.01, 0, 0.01]
+                console.log('VELOCITY INITIAL:', velocity);
+
+                // Randomize its rotations
+                magnitude = 90;
+                var rotations = []
+                for (var i = 0; i < 3; i++) {
+                    rotations.push(magnitude * (Math.random() * 2 - 1));
+                }
+                // --> rotation in each dimension is between [-m, .. 0, .. m]
+
+                my_main.create_shape('polygon', positions, indices, translations, scalars, rotations, should_fill, rgb, velocity);
+                my_main.render();
+            });
+        </script>
+	</BODY>
+</HTML>
