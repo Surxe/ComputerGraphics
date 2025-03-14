@@ -6,7 +6,7 @@
 		<script src="js/transform.js"></script>
 		<script src="js/init_web_gl.js"></script>
         <script src="js/game_engine.js"></script>
-        <script src="js/shape.js"></script>
+        <script src="js/game_object.js"></script>
 
         <section id="console">
             <p>Section Title</p>
@@ -30,7 +30,7 @@
         <script>
             game_engine = new GameEngine();
 
-            // Initial shapes' states
+            // Initial game_objects' states
             // Octagon base
             var positions = [];
             var r = 0.5;
@@ -78,32 +78,32 @@
                 [1, 0, 0],
             ]
             var should_fill = true;
-            game_engine.create_shape('triangle', positions, indices, translations, scalars, rotations, should_fill, rgb);
+            game_engine.create_game_object('triangle', positions, indices, translations, scalars, rotations, should_fill, rgb);
 
             translations = [-.5, -.5, 0]
-            game_engine.create_shape('triangle', positions, indices, translations, scalars, rotations, should_fill, rgb);
+            game_engine.create_game_object('triangle', positions, indices, translations, scalars, rotations, should_fill, rgb);
 
             translations = [.5, -.5, 0]
-            game_engine.create_shape('triangle', positions, indices, translations, scalars, rotations, should_fill, rgb);
+            game_engine.create_game_object('triangle', positions, indices, translations, scalars, rotations, should_fill, rgb);
 
             game_engine.render();
 
             function tick() {
-                // Rotate first 3 shapes
-                for (var i = 0; i < Math.min(3, game_engine.shapes.length); i++) {
-                    var shape = game_engine.shapes[i];
+                // Rotate first 3 game_objects
+                for (var i = 0; i < Math.min(3, game_engine.game_objects.length); i++) {
+                    var game_object = game_engine.game_objects[i];
 
-                    // nth shape will have nth dimension rotated by 5 degrees
-                    // i.e. 3rd shape will have 3rd dimension rotated, 1st shape will have 1st dimension rotated
-                    shape.rotations[i] += 1;
+                    // nth game_object will have nth dimension rotated by 5 degrees
+                    // i.e. 3rd game_object will have 3rd dimension rotated, 1st game_object will have 1st dimension rotated
+                    game_object.rotations[i] += 1;
                 }
 
-                // Translate all other shapes
-                move_center_shapes();
+                // Translate all other game_objects
+                move_center_game_objects();
 
-                for (var i = 0; i < game_engine.shapes.length; i++) {
-                    var shape = game_engine.shapes[i];
-                    shape.process_transformations();
+                for (var i = 0; i < game_engine.game_objects.length; i++) {
+                    var game_object = game_engine.game_objects[i];
+                    game_object.process_transformations();
                 }
 
                 game_engine.render();
@@ -118,21 +118,21 @@
                 }
             });
 
-            function move_center_shapes() {
-                for (var i=3; i<game_engine.shapes.length; i++) {
-                    var center_shape = game_engine.shapes[i];
+            function move_center_game_objects() {
+                for (var i=3; i<game_engine.game_objects.length; i++) {
+                    var center_game_object = game_engine.game_objects[i];
 
                     // Move it by its velocity
-                    center_shape.move();
+                    center_game_object.move();
 
                     //check if its out of bounds
-                    if (center_shape.is_out_of_bounds()) {
-                        game_engine.shapes.pop();
+                    if (center_game_object.is_out_of_bounds()) {
+                        game_engine.game_objects.pop();
                     }
                 }
             }
 
-            // When canvas is clicked, create another shape
+            // When canvas is clicked, create another game_object
             document.getElementById('canvas').addEventListener('click', function(event) {
                 translations = [0, 0, 0]
 
@@ -153,7 +153,7 @@
                 }
                 // --> rotation in each dimension is between [-m, .. 0, .. m]
 
-                game_engine.create_shape('polygon', positions, indices, translations, scalars, rotations, should_fill, rgb, velocity);
+                game_engine.create_game_object('polygon', positions, indices, translations, scalars, rotations, should_fill, rgb, velocity);
                 game_engine.render();
             });
         </script>

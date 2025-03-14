@@ -25,14 +25,14 @@ class GameEngine {
         this.program = this.webGL.createProgram(vertexShader, fragmentShader);
         gl.useProgram(this.program);
 
-        this.shapes = [];
+        this.game_objects = [];
 
         this.render()
     }
 
-    create_shape(shape_name, positions, indices, translations, scalars, rotations, should_fill, rgb, velocity) {
-        // Determine the shape to create
-        const shape_map = {
+    create_game_object(game_object_name, positions, indices, translations, scalars, rotations, should_fill, rgb, velocity) {
+        // Determine the game_object to create
+        const game_object_map = {
             'triangle': Triangle,
             'rectangle': Rectangle,
             'line': Line,
@@ -40,22 +40,22 @@ class GameEngine {
             'circle': Circle,
             'point': Point
         };
-        if (!(shape_name in shape_map)) {
-            console.error("Invalid shape_name.");
+        if (!(game_object_name in game_object_map)) {
+            console.error("Invalid game_object_name.");
             return;
         }
 
-        var shape_class = shape_map[shape_name];
-        var shape = new shape_class(positions, indices, translations, scalars, rotations, should_fill, rgb, velocity);
+        var game_object_class = game_object_map[game_object_name];
+        var game_object = new game_object_class(positions, indices, translations, scalars, rotations, should_fill, rgb, velocity);
 
-        this.shapes.push(shape);
+        this.game_objects.push(game_object);
     }
 
     render() {
         gl.clearColor(1, 1, 1, 1.0);
         gl.clear(gl.COLOR_BUFFER_BIT);
-        for (var shape of this.shapes) {
-            shape.render(this.program);
+        for (var game_object of this.game_objects) {
+            game_object.render(this.program);
         }
     }
 }

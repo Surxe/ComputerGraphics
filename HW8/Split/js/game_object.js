@@ -1,4 +1,4 @@
-class Shape {
+class GameObject {
     constructor(
             positions, 
             indices=null, // optional, will default to indices of array
@@ -71,7 +71,7 @@ class Shape {
         var z_avg = z_sum / positions.length;
 
         if (x_avg != 0 || y_avg != 0 || z_avg != 0) {
-            // Center the shape around the origin
+            // Center the game_object around the origin
             for (var vertex_i = 0; vertex_i < positions.length; vertex_i++) {
                 positions[vertex_i][0] -= x_avg;
                 positions[vertex_i][1] -= y_avg;
@@ -168,8 +168,8 @@ class Shape {
     }
 }
 
-// Create preset shape classes
-const shape_configs = {
+// Create preset game_object classes
+const game_object_configs = {
     Triangle: { outline_gl_draw_mode: 'LINE_LOOP', fill_gl_draw_mode: 'TRIANGLES' },
     Rectangle: { outline_gl_draw_mode: 'LINE_LOOP', fill_gl_draw_mode: 'TRIANGLE_FAN' },
     Line: { outline_gl_draw_mode: 'LINE_LOOP', fill_gl_draw_mode: 'LINES' },
@@ -177,23 +177,23 @@ const shape_configs = {
     Circle: { outline_gl_draw_mode: 'LINE_LOOP', fill_gl_draw_mode: 'TRIANGLE_FAN' },
     Point: { outline_gl_draw_mode: 'POINTS', fill_gl_draw_mode: 'POINTS' }
 }
-function create_shape_class(shape_name) {
-    const shape_config = shape_configs[shape_name];
-    if (shape_config === undefined) {
-        throw new Error(`Shape ${shape_name} not found in shape_configs`);
+function create_game_object_class(game_object_name) {
+    const game_object_config = game_object_configs[game_object_name];
+    if (game_object_config === undefined) {
+        throw new Error(`game_object ${game_object_name} not found in game_object_configs`);
     }
-    console.log('Creating shape class', shape_name)
+    console.log('Creating game_object class', game_object_name)
 
-    return class extends Shape {
+    return class extends GameObject {
         constructor(...args) {
-            super(...args, shape_config.outline_gl_draw_mode, shape_config.fill_gl_draw_mode);
+            super(...args, game_object_config.outline_gl_draw_mode, game_object_config.fill_gl_draw_mode);
         }
     }
 }
 
-const Triangle = create_shape_class('Triangle');
-const Rectangle = create_shape_class('Rectangle');
-const Line = create_shape_class('Line');
-const Polygon = create_shape_class('Polygon');
-const Circle = create_shape_class('Circle');
-const Point = create_shape_class('Point');
+const Triangle = create_game_object_class('Triangle');
+const Rectangle = create_game_object_class('Rectangle');
+const Line = create_game_object_class('Line');
+const Polygon = create_game_object_class('Polygon');
+const Circle = create_game_object_class('Circle');
+const Point = create_game_object_class('Point');
