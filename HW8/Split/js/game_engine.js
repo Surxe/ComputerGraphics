@@ -1,6 +1,6 @@
 var gl; // global
 
-class main {
+class GameEngine {
     constructor() {
         // Create and append canvas with id canvas
         var canvas = document.createElement("canvas");

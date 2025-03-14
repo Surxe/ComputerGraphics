@@ -6,7 +6,7 @@
 		<script src="js/transform.js"></script>
 		<script src="js/init_web_gl.js"></script>
         <script src="js/shape.js"></script>
-        <script src="js/main.js"></script>
+        <script src="js/game_engine.js"></script>
 
         <section id="console">
             <p>Section Title</p>
@@ -28,7 +28,7 @@
             }
         </script>
         <script>
-            my_main = new main();
+            game_engine = new GameEngine();
 
             // Initial shapes' states
             // Octagon base
@@ -78,20 +78,20 @@
                 [1, 0, 0],
             ]
             var should_fill = true;
-            my_main.create_shape('triangle', positions, indices, translations, scalars, rotations, should_fill, rgb);
+            game_engine.create_shape('triangle', positions, indices, translations, scalars, rotations, should_fill, rgb);
 
             translations = [-.5, -.5, 0]
-            my_main.create_shape('triangle', positions, indices, translations, scalars, rotations, should_fill, rgb);
+            game_engine.create_shape('triangle', positions, indices, translations, scalars, rotations, should_fill, rgb);
 
             translations = [.5, -.5, 0]
-            my_main.create_shape('triangle', positions, indices, translations, scalars, rotations, should_fill, rgb);
+            game_engine.create_shape('triangle', positions, indices, translations, scalars, rotations, should_fill, rgb);
 
-            my_main.render();
+            game_engine.render();
 
             function tick() {
                 // Rotate first 3 shapes
-                for (var i = 0; i < Math.min(3, my_main.shapes.length); i++) {
-                    var shape = my_main.shapes[i];
+                for (var i = 0; i < Math.min(3, game_engine.shapes.length); i++) {
+                    var shape = game_engine.shapes[i];
 
                     // nth shape will have nth dimension rotated by 5 degrees
                     // i.e. 3rd shape will have 3rd dimension rotated, 1st shape will have 1st dimension rotated
@@ -101,12 +101,12 @@
                 // Translate all other shapes
                 move_center_shapes();
 
-                for (var i = 0; i < my_main.shapes.length; i++) {
-                    var shape = my_main.shapes[i];
+                for (var i = 0; i < game_engine.shapes.length; i++) {
+                    var shape = game_engine.shapes[i];
                     shape.process_transformations();
                 }
 
-                my_main.render();
+                game_engine.render();
             }
 
             let interval_id = setInterval(tick, 1000/30);
@@ -119,15 +119,15 @@
             });
 
             function move_center_shapes() {
-                for (var i=3; i<my_main.shapes.length; i++) {
-                    var center_shape = my_main.shapes[i];
+                for (var i=3; i<game_engine.shapes.length; i++) {
+                    var center_shape = game_engine.shapes[i];
 
                     // Move it by its velocity
                     center_shape.move();
 
                     //check if its out of bounds
                     if (center_shape.is_out_of_bounds()) {
-                        my_main.shapes.pop();
+                        game_engine.shapes.pop();
                     }
                 }
             }
@@ -155,8 +155,8 @@
                 }
                 // --> rotation in each dimension is between [-m, .. 0, .. m]
 
-                my_main.create_shape('polygon', positions, indices, translations, scalars, rotations, should_fill, rgb, velocity);
-                my_main.render();
+                game_engine.create_shape('polygon', positions, indices, translations, scalars, rotations, should_fill, rgb, velocity);
+                game_engine.render();
             });
         </script>
 	</BODY>
