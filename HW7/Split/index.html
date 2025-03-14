@@ -134,13 +134,10 @@
 
             // When canvas is clicked, create another shape
             document.getElementById('canvas').addEventListener('click', function(event) {
-                if (my_main.shapes.length >= 4) {
-                    return;
-                }
                 console.log('clicked canvas');
                 translations = [0, 0, 0]
 
-                // Determine its velocity
+                // Randomize its velocity
                 direction_options = [-1, 0, 1]
                 magnitude = 0.01;
                 var velocity = []
@@ -149,6 +146,14 @@
                 }
                 // --> velocity in each dimension is randomly one of [-0.01, 0, 0.01]
                 console.log('VELOCITY INITIAL:', velocity);
+
+                // Randomize its rotations
+                magnitude = 90;
+                var rotations = []
+                for (var i = 0; i < 3; i++) {
+                    rotations.push(magnitude * (Math.random() * 2 - 1));
+                }
+                // --> rotation in each dimension is between [-m, .. 0, .. m]
 
                 my_main.create_shape('polygon', positions, indices, translations, scalars, rotations, should_fill, rgb, velocity);
                 my_main.render();
