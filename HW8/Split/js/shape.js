@@ -5,11 +5,11 @@ class Shape {
             translations=[0, 0, 0], 
             scalars=[1, 1, 1], 
             rotations=[0, 0, 0], 
-            outline_gl_draw_mode=gl.LINE_LOOP, 
-            fill_gl_draw_mode=gl.TRIANGLES, 
             should_fill=true, 
             rgb=[0, 0, 0],
-            velocity=[0, 0, 0]
+            velocity=[0, 0, 0],
+            outline_gl_draw_mode=gl.LINE_LOOP, 
+            fill_gl_draw_mode=gl.TRIANGLES
         ) {
 
         this.original_positions = positions.map(vertex => [...vertex]);
@@ -150,7 +150,15 @@ class Shape {
         gl.enableVertexAttribArray(colorAttributeLocation);
         gl.vertexAttribPointer(colorAttributeLocation, size, type, normalize, stride, 3 * Float32Array.BYTES_PER_ELEMENT);
 
-        var gl_draw_mode = this.should_fill ? this.fill_gl_draw_mode : this.outline_gl_draw_mode;
+        const draw_mode_map = {
+            'LINE_LOOP': gl.LINE_LOOP,
+            'TRIANGLES': gl.TRIANGLES,
+            'TRIANGLE_FAN': gl.TRIANGLE_FAN,
+            'LINES': gl.LINES,
+            'POINTS': gl.POINTS
+        }
+        var draw_mode = this.should_fill ? this.fill_gl_draw_mode : this.outline_gl_draw_mode;
+        var gl_draw_mode = draw_mode_map[draw_mode];
 
         if (this.indices) {
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
@@ -161,38 +169,32 @@ class Shape {
     }
 }
 
-class Triangle extends Shape {
-    constructor(positions, indices, translations, scalars, rotations, should_fill, rgb, velocity) {
-        super(positions, indices, translations, scalars, rotations, gl.LINE_LOOP, gl.TRIANGLES, should_fill, rgb, velocity);
+// Create preset shape classes
+const shape_configs = {
+    Triangle: { outline_gl_draw_mode: 'LINE_LOOP', fill_gl_draw_mode: 'TRIANGLES' },
+    Rectangle: { outline_gl_draw_mode: 'LINE_LOOP', fill_gl_draw_mode: 'TRIANGLE_FAN' },
+    Line: { outline_gl_draw_mode: 'LINE_LOOP', fill_gl_draw_mode: 'LINES' },
+    Polygon: { outline_gl_draw_mode: 'LINE_LOOP', fill_gl_draw_mode: 'TRIANGLE_FAN' },
+    Circle: { outline_gl_draw_mode: 'LINE_LOOP', fill_gl_draw_mode: 'TRIANGLE_FAN' },
+    Point: { outline_gl_draw_mode: 'POINTS', fill_gl_draw_mode: 'POINTS' }
+}
+function create_shape_class(shape_name) {
+    const shape_config = shape_configs[shape_name];
+    if (shape_config === undefined) {
+        throw new Error(`Shape ${shape_name} not found in shape_configs`);
+    }
+    console.log('Creating shape class for ', shape_name)
+
+    return class extends Shape {
+        constructor(...args) {
+            super(...args, shape_config.outline_gl_draw_mode, shape_config.fill_gl_draw_mode);
+        }
     }
 }
 
-class Rectangle extends Shape {
-    constructor(vertices, should_fill) {
-        super(vertices, gl.LINE_LOOP, gl.TRIANGLE_FAN, should_fill);
-    }
-}
-
-class Line extends Shape {
-    constructor(vertices, should_fill) {
-        super(vertices, gl.LINE_LOOP, gl.LINES, should_fill);
-    }
-}
-
-class Polygon extends Shape {
-    constructor(positions, indices, translations, scalars, rotations, should_fill, rgb, velocity) {
-        super(positions, indices, translations, scalars, rotations, gl.LINE_LOOP, gl.TRIANGLE_FAN, should_fill, rgb, velocity);
-    }
-}
-
-class Circle extends Shape {
-    constructor(vertices, should_fill) {
-        super(vertices, gl.LINE_LOOP, gl.TRIANGLE_FAN, should_fill);
-    }
-}
-
-class Point extends Shape {
-    constructor(vertices, should_fill) {
-        super(vertices, gl.POINTS, gl.POINTS, should_fill);
-    }
-}
+const Triangle = create_shape_class('Triangle');
+const Rectangle = create_shape_class('Rectangle');
+const Line = create_shape_class('Line');
+const Polygon = create_shape_class('Polygon');
+const Circle = create_shape_class('Circle');
+const Point = create_shape_class('Point');
