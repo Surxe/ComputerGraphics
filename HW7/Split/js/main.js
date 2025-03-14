@@ -30,7 +30,7 @@ class main {
         this.render()
     }
 
-    create_shape(shape_name, positions, translations, scalars, rotations, should_fill) {
+    create_shape(shape_name, positions, indices, translations, scalars, rotations, should_fill, rgb, velocity) {
         // Determine the shape to create
         const shape_map = {
             'triangle': Triangle,
@@ -46,7 +46,8 @@ class main {
         }
 
         var shape_class = shape_map[shape_name];
-        var shape = new shape_class(positions, translations, scalars, rotations, should_fill);
+        console.log('X', velocity)
+        var shape = new shape_class(positions, indices, translations, scalars, rotations, should_fill, rgb, velocity);
 
         this.shapes.push(shape);
     }

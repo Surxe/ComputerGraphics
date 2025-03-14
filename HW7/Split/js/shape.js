@@ -1,14 +1,15 @@
 class Shape {
     constructor(
             positions, 
-            indices = null, // optional, will default to indices of array
+            indices=null, // optional, will default to indices of array
             translations=[0, 0, 0], 
             scalars=[1, 1, 1], 
             rotations=[0, 0, 0], 
             outline_gl_draw_mode=gl.LINE_LOOP, 
             fill_gl_draw_mode=gl.TRIANGLES, 
             should_fill=true, 
-            rgb=[0, 0, 0]
+            rgb=[0, 0, 0],
+            velocity=[0, 0, 0]
         ) {
 
         this.original_positions = positions.map(vertex => [...vertex]);
@@ -21,6 +22,8 @@ class Shape {
         this.fill_gl_draw_mode = fill_gl_draw_mode;
         this.should_fill = should_fill;
         this.rgb = [...rgb];
+        this.velocity = [...velocity];
+
 
         this.process_transformations();
     } 
@@ -126,6 +129,11 @@ class Shape {
         return false;
     }
 
+    move() {
+        console.log(this.velocity)
+        this.translations = this.translations.map((translation, i) => translation + this.velocity[i]);
+    }
+
     render(program) {
         gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
         var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
@@ -154,8 +162,8 @@ class Shape {
 }
 
 class Triangle extends Shape {
-    constructor(positions, indices, translations, scalars, rotations, should_fill) {
-        super(positions, indices, translations, scalars, rotations, gl.LINE_LOOP, gl.TRIANGLES, should_fill, rgb);
+    constructor(positions, indices, translations, scalars, rotations, should_fill, rgb, velocity) {
+        super(positions, indices, translations, scalars, rotations, gl.LINE_LOOP, gl.TRIANGLES, should_fill, rgb, velocity);
     }
 }
 
@@ -172,8 +180,8 @@ class Line extends Shape {
 }
 
 class Polygon extends Shape {
-    constructor(positions, indices, translations, scalars, rotations, should_fill) {
-        super(positions, indices, translations, scalars, rotations, gl.LINE_LOOP, gl.TRIANGLE_FAN, should_fill, rgb);
+    constructor(positions, indices, translations, scalars, rotations, should_fill, rgb, velocity) {
+        super(positions, indices, translations, scalars, rotations, gl.LINE_LOOP, gl.TRIANGLE_FAN, should_fill, rgb, velocity);
     }
 }
 

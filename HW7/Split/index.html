@@ -121,29 +121,11 @@
             function move_center_shapes() {
                 for (var i=3; i<my_main.shapes.length; i++) {
                     var center_shape = my_main.shapes[i];
-                    var magnitude = 0.01;
 
-                    // Check if it was moved from origin
-                    var dimension = 0;
-                    var direction = 0;
-                    var already_moved = false;
-                    while (dimension <= 1) { //check x, y dims at [0, 1]
-                        if (center_shape.translations[dimension] != 0) {
-                            direction = center_shape.translations[dimension] / Math.abs(center_shape.translations[dimension]);
-                            already_moved = true;
-                            console.log('already moved, use dimension: ' + dimension + ' direction: ' + direction);
-                            break;
-                        }
-                        dimension++;
-                    }
-                    if (!already_moved) { //if still at origin, pick a random dim and move randomly
-                        dimension = Math.floor(Math.random() * 3); // [0, 1, 2]
-                        direction = Math.floor(Math.random() * 2) * 2 - 1; // [-1, 1]
-                    }
+                    // Move it by its velocity
+                    center_shape.move();
 
-                    // move it if not out of bounds
-                    translation = magnitude * direction;
-                    center_shape.translations[dimension] += translation;
+                    //check if its out of bounds
                     if (center_shape.is_out_of_bounds()) {
                         my_main.shapes.pop();
                     }
@@ -157,7 +139,18 @@
                 }
                 console.log('clicked canvas');
                 translations = [0, 0, 0]
-                my_main.create_shape('polygon', positions, translations, scalars, rotations, should_fill);
+
+                // Determine its velocity
+                direction_options = [-1, 0, 1]
+                magnitude = 0.01;
+                var velocity = []
+                for (var i = 0; i < 3; i++) {
+                    velocity.push(magnitude * direction_options[Math.floor(Math.random() * 3)]);
+                }
+                // --> velocity in each dimension is randomly one of [-0.01, 0, 0.01]
+                console.log('VELOCITY INITIAL:', velocity);
+
+                my_main.create_shape('polygon', positions, indices, translations, scalars, rotations, should_fill, rgb, velocity);
                 my_main.render();
             });
         </script>
