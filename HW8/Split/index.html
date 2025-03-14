@@ -31,60 +31,38 @@
             game_engine = new GameEngine();
 
             // Initial game_objects' states
-            // Octagon base
-            var positions = [];
-            var r = 0.5;
-            for (let i = 0; i < 8; i++) { //i=0 to 7. 8 points
-                let angle = (i * Math.PI) / 4; // Divide full circle into 8 parts
-                let x = r * Math.cos(angle);
-                let y = r * Math.sin(angle);
-                let z = r * 0;
-                positions.push([x, y, z]);
-            }
-
-            positions.push([0, 0, 1]); // i=8. center of all fan connections. creates a conal volume
-
-            var translations = [0, .5, 0]
-            var indices = [
-            8, 0, 1,   // Side triangle 1
-            8, 1, 2,   // Side triangle 2
-            8, 2, 3,   // Side triangle 3
-            8, 3, 4,   // Side triangle 4
-            8, 4, 5,   // Side triangle 5
-            8, 5, 6,   // Side triangle 6
-            8, 6, 7,   // Side triangle 7
-            8, 7, 0,   // Side triangle 8
-            0, 1, 2,   // Base
-            0, 2, 3,
-            0, 3, 4,
-            0, 4, 5,
-            0, 5, 6,
-            0, 6, 7,
-            0, 7, 1
+            // shape is square with triangle ontop
+            //    **
+            //   ****
+            //  ******
+            // ********
+            // ********
+            // ********
+            // ********
+            var positions = [
+                // square base
+                [-.5, -.5, 0],
+                [.5, -.5, 0],
+                [.5, .5, 0],
+                [-.5, .5, 0],
             ]
-            var scalars = [.5, .5, .5]
-            var rotations = [0, 0, 0]
             var rgb = [
-                // blue base
+                // blue square base
                 [0, 0, 1],
                 [0, 0, 1],
                 [0, 0, 1],
                 [0, 0, 1],
-                [0, 0, 1],
-                [0, 0, 1],
-                [0, 0, 1],
-                [0, 0, 1],
-                // red center
-                [1, 0, 0],
             ]
+            var rotations = [0, 0, 0]
+            var scalars = [.5, .5, .5]
+            var translations = [0, 0, 0]
             var should_fill = true;
-            game_engine.create_game_object('triangle', positions, indices, translations, scalars, rotations, should_fill, rgb);
-
-            translations = [-.5, -.5, 0]
-            game_engine.create_game_object('triangle', positions, indices, translations, scalars, rotations, should_fill, rgb);
-
-            translations = [.5, -.5, 0]
-            game_engine.create_game_object('triangle', positions, indices, translations, scalars, rotations, should_fill, rgb);
+            var velocity = [0, 0, 0];
+            var indices = null;
+            var outline_gl_draw_mode = 'LINE_LOOP';
+            var fill_gl_draw_mode = 'TRIANGLE_FAN';
+            var game_object = new GameObject(positions, rgb, rotations, scalars, translations, should_fill, velocity, indices, outline_gl_draw_mode, fill_gl_draw_mode);
+            game_engine.add_game_object(game_object);
 
             game_engine.render();
 
@@ -98,64 +76,11 @@
                     game_object.rotations[i] += 1;
                 }
 
-                // Translate all other game_objects
-                move_center_game_objects();
-
-                for (var i = 0; i < game_engine.game_objects.length; i++) {
-                    var game_object = game_engine.game_objects[i];
-                    game_object.process_transformations();
-                }
-
                 game_engine.render();
             }
 
             let interval_id = setInterval(tick, 1000/30);
 
-            // When space is pressed, stop the interval
-            document.addEventListener('keydown', function(event) {
-                if (event.code === 'Space') {
-                    clearInterval(interval_id);
-                }
-            });
-
-            function move_center_game_objects() {
-                for (var i=3; i<game_engine.game_objects.length; i++) {
-                    var center_game_object = game_engine.game_objects[i];
-
-                    // Move it by its velocity
-                    center_game_object.move();
-
-                    //check if its out of bounds
-                    if (center_game_object.is_out_of_bounds()) {
-                        game_engine.game_objects.pop();
-                    }
-                }
-            }
-
-            // When canvas is clicked, create another game_object
-            document.getElementById('canvas').addEventListener('click', function(event) {
-                translations = [0, 0, 0]
-
-                // Randomize its velocity
-                direction_options = [-1, 0, 1]
-                magnitude = 0.01;
-                var velocity = []
-                for (var i = 0; i < 3; i++) {
-                    velocity.push(magnitude * direction_options[Math.floor(Math.random() * 3)]);
-                }
-                // --> velocity in each dimension is randomly one of [-0.01, 0, 0.01]
-
-                // Randomize its rotations
-                magnitude = 90;
-                var rotations = []
-                for (var i = 0; i < 3; i++) {
-                    rotations.push(magnitude * (Math.random() * 2 - 1));
-                }
-                // --> rotation in each dimension is between [-m, .. 0, .. m]
-
-                game_engine.create_game_object('polygon', positions, indices, translations, scalars, rotations, should_fill, rgb, velocity);
-                game_engine.render();
-            });
         </script>
 	</BODY>
 </HTML>

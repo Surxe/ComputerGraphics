@@ -25,6 +25,7 @@ class GameEngine {
 
         // Create and use the shader program
         this.program = this.webGL.createProgram(vertexShader, fragmentShader);
+
         gl.useProgram(this.program);
 
         this.game_objects = [];
@@ -32,24 +33,7 @@ class GameEngine {
         this.render()
     }
 
-    create_game_object(game_object_name, positions, indices, translations, scalars, rotations, should_fill, rgb, velocity) {
-        // Determine the game_object to create
-        const game_object_map = {
-            'triangle': Triangle,
-            'rectangle': Rectangle,
-            'line': Line,
-            'polygon': Polygon,
-            'circle': Circle,
-            'point': Point
-        };
-        if (!(game_object_name in game_object_map)) {
-            console.error("Invalid game_object_name.");
-            return;
-        }
-
-        var game_object_class = game_object_map[game_object_name];
-        var game_object = new game_object_class(positions, indices, translations, scalars, rotations, should_fill, rgb, velocity);
-
+    add_game_object(game_object) {
         this.game_objects.push(game_object);
     }
 

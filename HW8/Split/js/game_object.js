@@ -1,58 +1,39 @@
 class GameObject {
     constructor(
             positions, 
-            indices=null, // optional, will default to indices of array
-            translations=[0, 0, 0], 
-            scalars=[1, 1, 1], 
-            rotations=[0, 0, 0], 
-            should_fill=true, 
             rgb=[0, 0, 0],
+            rotations=[0, 0, 0],
+            scalars=[1, 1, 1],
+            translations=[0, 0, 0],
+            should_fill=true, 
             velocity=[0, 0, 0],
-            outline_gl_draw_mode=gl.LINE_LOOP, 
-            fill_gl_draw_mode=gl.TRIANGLES
+            indices=null, // optional, will default to indices of array
+            outline_gl_draw_mode='LINE_LOOP', 
+            fill_gl_draw_mode='TRIANGLES'
         ) {
 
-        this.original_positions = positions.map(vertex => [...vertex]);
-        this.positions = positions.map(vertex => [...vertex]); // List of [x, y, z] lists
-        this.indices = indices ? [...indices] : null;
-        this.translations = [...translations];
-        this.scalars = [...scalars];
+        this.original_positions = positions.map(vertex => [...vertex]); // List of [x, y, z] lists
+        this.positions;
+        this.rgb = [...rgb];
         this.rotations = [...rotations];
+        this.scalars = [...scalars];
+        this.translations = [...translations];
+        this.should_fill = should_fill;
+        this.velocity = [...velocity];
+        this.indices = indices ? [...indices] : null;
         this.outline_gl_draw_mode = outline_gl_draw_mode;
         this.fill_gl_draw_mode = fill_gl_draw_mode;
-        this.should_fill = should_fill;
-        this.rgb = [...rgb];
-        this.velocity = [...velocity];
 
-
-        this.process_transformations();
-    } 
-
-    buffer_vertices(vertices) {
-        this.positionBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-    }
-
-    buffer_indices(indices) {
-        this.indexBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+        this.buffer()
     }
 
     process_transformations() {
-        this.positions = this.center_positions(this.original_positions);
-        this.positions = Transform.rotate_positions(this.positions, this.rotations);
-        this.positions = Transform.scale_positions(this.positions, this.scalars);
+        this.positions = this.original_positions.map(vertex => [...vertex]);
+        this.positions = this.center_positions(this.positions);
         this.positions = Transform.translate_positions(this.positions, this.translations);
-        this.is_out_of_bounds(this.positions);
-
-        var reformatted_positions = this.reformat_positions_arr(this.positions);
-        this.buffer_vertices(reformatted_positions)
-
-        if (this.indices) {
-            this.buffer_indices(this.indices);
-        }
+        this.positions = Transform.scale_positions(this.positions, this.scalars);
+        this.positions = Transform.rotate_positions(this.positions, this.rotations);
+        console.log("process_transformations", this.positions);
     }
 
     // Ensure positions is centered around the origin
@@ -80,6 +61,29 @@ class GameObject {
         }
 
         return positions.map(vertex => [...vertex]);
+    }
+
+    buffer_vertices(vertices) {
+        this.positionBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+    }
+
+    buffer_indices(indices) {
+        this.indexBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+    }
+
+    buffer() {
+        this.process_transformations();
+
+        var reformatted_positions = this.reformat_positions_arr(this.positions);
+        this.buffer_vertices(reformatted_positions)
+
+        if (this.indices) {
+            this.buffer_indices(this.indices);
+        }
     }
 
     // Reformat to [x, y, z, r, g, b] format
@@ -130,10 +134,14 @@ class GameObject {
     }
 
     move() {
-        this.translations = this.translations.map((translation, i) => translation + this.velocity[i]);
+        
     }
 
     render(program) {
+        this.buffer();
+
+        console.log("Rendering game object.");
+
         gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
         var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
         gl.enableVertexAttribArray(positionAttributeLocation);
@@ -158,6 +166,10 @@ class GameObject {
         }
         var draw_mode = this.should_fill ? this.fill_gl_draw_mode : this.outline_gl_draw_mode;
         var gl_draw_mode = draw_mode_map[draw_mode];
+        if (gl_draw_mode == undefined) {
+            console.error("Invalid draw mode.");
+            return;
+        }
 
         if (this.indices) {
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
@@ -167,33 +179,3 @@ class GameObject {
         }
     }
 }
-
-// Create preset game_object classes
-const game_object_configs = {
-    Triangle: { outline_gl_draw_mode: 'LINE_LOOP', fill_gl_draw_mode: 'TRIANGLES' },
-    Rectangle: { outline_gl_draw_mode: 'LINE_LOOP', fill_gl_draw_mode: 'TRIANGLE_FAN' },
-    Line: { outline_gl_draw_mode: 'LINE_LOOP', fill_gl_draw_mode: 'LINES' },
-    Polygon: { outline_gl_draw_mode: 'LINE_LOOP', fill_gl_draw_mode: 'TRIANGLE_FAN' },
-    Circle: { outline_gl_draw_mode: 'LINE_LOOP', fill_gl_draw_mode: 'TRIANGLE_FAN' },
-    Point: { outline_gl_draw_mode: 'POINTS', fill_gl_draw_mode: 'POINTS' }
-}
-function create_game_object_class(game_object_name) {
-    const game_object_config = game_object_configs[game_object_name];
-    if (game_object_config === undefined) {
-        throw new Error(`game_object ${game_object_name} not found in game_object_configs`);
-    }
-    console.log('Creating game_object class', game_object_name)
-
-    return class extends GameObject {
-        constructor(...args) {
-            super(...args, game_object_config.outline_gl_draw_mode, game_object_config.fill_gl_draw_mode);
-        }
-    }
-}
-
-const Triangle = create_game_object_class('Triangle');
-const Rectangle = create_game_object_class('Rectangle');
-const Line = create_game_object_class('Line');
-const Polygon = create_game_object_class('Polygon');
-const Circle = create_game_object_class('Circle');
-const Point = create_game_object_class('Point');
