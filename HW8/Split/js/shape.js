@@ -130,7 +130,6 @@ class Shape {
     }
 
     move() {
-        console.log(this.velocity)
         this.translations = this.translations.map((translation, i) => translation + this.velocity[i]);
     }
 
@@ -183,7 +182,7 @@ function create_shape_class(shape_name) {
     if (shape_config === undefined) {
         throw new Error(`Shape ${shape_name} not found in shape_configs`);
     }
-    console.log('Creating shape class for ', shape_name)
+    console.log('Creating shape class', shape_name)
 
     return class extends Shape {
         constructor(...args) {

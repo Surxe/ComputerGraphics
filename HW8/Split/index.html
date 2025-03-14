@@ -134,7 +134,6 @@
 
             // When canvas is clicked, create another shape
             document.getElementById('canvas').addEventListener('click', function(event) {
-                console.log('clicked canvas');
                 translations = [0, 0, 0]
 
                 // Randomize its velocity
@@ -145,7 +144,6 @@
                     velocity.push(magnitude * direction_options[Math.floor(Math.random() * 3)]);
                 }
                 // --> velocity in each dimension is randomly one of [-0.01, 0, 0.01]
-                console.log('VELOCITY INITIAL:', velocity);
 
                 // Randomize its rotations
                 magnitude = 90;

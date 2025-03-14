@@ -46,7 +46,6 @@ class GameEngine {
         }
 
         var shape_class = shape_map[shape_name];
-        console.log('X', velocity)
         var shape = new shape_class(positions, indices, translations, scalars, rotations, should_fill, rgb, velocity);
 
         this.shapes.push(shape);
