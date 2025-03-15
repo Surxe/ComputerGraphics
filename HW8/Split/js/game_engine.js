@@ -38,7 +38,7 @@ class GameEngine {
     }
 
     render() {
-        gl.clearColor(1, 1, 1, 1.0);
+        gl.clearColor(0, 0, 0, 1.0);
         gl.clear(gl.COLOR_BUFFER_BIT);
         for (var game_object of this.game_objects) {
             game_object.render(this.program);
