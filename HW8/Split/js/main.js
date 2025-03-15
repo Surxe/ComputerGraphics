@@ -45,23 +45,10 @@ var indices = [
 ]
 var outline_gl_draw_mode = 'LINE_LOOP';
 var fill_gl_draw_mode = 'TRIANGLES';
-var game_object = new GameObject(positions, rgb, rotations, scalars, translations, should_fill, velocity, indices, outline_gl_draw_mode, fill_gl_draw_mode);
-game_engine.add_game_object(game_object);
+var hero = new Hero(positions, rgb, rotations, scalars, translations, should_fill, velocity, indices, outline_gl_draw_mode, fill_gl_draw_mode);
+game_engine.add_game_object(hero);
 
 game_engine.render();
-
-function tick() {
-    // Rotate first 3 game_objects
-    for (var i = 0; i < Math.min(3, game_engine.game_objects.length); i++) {
-        var game_object = game_engine.game_objects[i];
-
-        // nth game_object will have nth dimension rotated by 5 degrees
-        // i.e. 3rd game_object will have 3rd dimension rotated, 1st game_object will have 1st dimension rotated
-        game_object.rotations[2] += 1;
-    }
-
-    game_engine.render();
-}
 
 // WASD movement
 let keys_pressed = {

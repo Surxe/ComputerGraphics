@@ -33,7 +33,6 @@ class GameObject {
         this.positions = Transform.translate_positions(this.positions, this.translations);
         this.positions = Transform.scale_positions(this.positions, this.scalars);
         this.positions = Transform.rotate_positions(this.positions, this.rotations);
-        console.log("process_transformations", this.positions);
     }
 
     // Ensure positions is centered around the origin
@@ -139,8 +138,6 @@ class GameObject {
 
     render(program) {
         this.buffer();
-
-        console.log("Rendering game object.");
 
         gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
         var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
