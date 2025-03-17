@@ -72,7 +72,7 @@ document.addEventListener('keydown', function(event) {
         keys_pressed.D = true;
     }
 
-    updateMovement();
+    update_hero_velocity();
 });
 
 // Handle keyup event
@@ -89,31 +89,39 @@ document.addEventListener('keyup', function(event) {
         keys_pressed.D = false;
     }
 
-    updateMovement();
+    update_hero_velocity();
 });
 
 // Update movement based on pressed keys
-function updateMovement() {
+function update_hero_velocity() {
     let x_movement = 0;
     let y_movement = 0;
+    var magnitude = .05;
 
     // Check vertical movement (W/S)
     if (keys_pressed.W) {
-        y_movement += 0.1;  // Move up
+        y_movement += magnitude;  // Move up
     } else if (keys_pressed.S) {
-        y_movement -= 0.1;  // Move down
+        y_movement -= magnitude;  // Move down
     }
 
     // Check horizontal movement (A/D)
     if (keys_pressed.A) {
-        x_movement -= 0.1;  // Move left
+        x_movement -= magnitude;  // Move left
     } else if (keys_pressed.D) {
-        x_movement += 0.1;  // Move right
+        x_movement += magnitude;  // Move right
     }
 
-    // Apply movement to the game object's translations
-    game_engine.game_objects[0].translations[0] += x_movement;
-    game_engine.game_objects[0].translations[1] += y_movement;
+    hero.velocity = [x_movement, y_movement, 0];
+}
 
+function tick() {
+    hero.move();
     game_engine.render();
 }
+
+// Wait till page loads to start ticking
+document.addEventListener('DOMContentLoaded', function () {
+    const ticks_per_second = 60;
+    const interval_id = setInterval(tick, 1000/ticks_per_second);
+});

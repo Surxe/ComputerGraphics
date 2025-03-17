@@ -133,7 +133,10 @@ class GameObject {
     }
 
     move() {
-        
+        // Apply velocity to translations
+        for (var dimension_i = 0; dimension_i < 3; dimension_i++) {
+            this.translations[dimension_i] += this.velocity[dimension_i];
+        }
     }
 
     render(program) {
