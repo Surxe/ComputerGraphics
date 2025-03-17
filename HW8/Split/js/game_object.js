@@ -91,11 +91,11 @@ class GameObject {
     // gl format is not very readable, and is not used to store the data, but is rather used in an intermediary step
     reformat_positions_arr(positions) {
         var is_rgb_per_vertex;
-        if (this.rgb.length != this.positions.length && this.rgb.length == 1 && this.rgb[0].length == 3) { // if rgb is a single color, apply it to all vertices
-            is_rgb_per_vertex = false
-        }
-        else if (this.rgb.length == this.positions.length) { // apply to each vertex
+        if (this.rgb.length == this.positions.length && this.rgb[0].length == 3) { // if num vertices in rgb and positions match and each rgb has 3 values
             is_rgb_per_vertex = true;
+        }
+        else if (this.rgb.length == 3) { // if rgb is a single color with 3 values, apply it to all vertices
+            is_rgb_per_vertex = false 
         }
         else {
             console.error("Invalid rgb array length.");

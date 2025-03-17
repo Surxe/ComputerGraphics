@@ -1,4 +1,4 @@
-class Hero extends Character {
+class Villain extends Character {
     constructor(...args) {
         super(...args);
     }

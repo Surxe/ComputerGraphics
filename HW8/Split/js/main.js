@@ -26,13 +26,12 @@ var rgb = [
     [0, 0, 1],
     [0, 0, 1],
     [0, 0, 1],
-    // red triangle ontop
-    [1, 0, 0],
-    [1, 0, 0],
-    [1, 0, 0],
+    // purple triangle ontop
+    [1, 0, 1],
+    [1, 0, 1],
+    [1, 0, 1],
 ]
 var rotations = [0, 0, 0]
-var scalars = [.15, .15, .15]
 var translations = [0, 0, 0]
 var should_fill = true;
 var position_velocity = [0, 0, 0];
@@ -44,10 +43,30 @@ var indices = [
     // triangle ontop
     4, 5, 6,
 ]
-var outline_gl_draw_mode = 'LINE_LOOP';
-var fill_gl_draw_mode = 'TRIANGLES';
-var hero = new Hero(positions, rgb, rotations, scalars, translations, should_fill, position_velocity, rotation_velocity, indices, outline_gl_draw_mode, fill_gl_draw_mode);
+var hero = new Hero      (positions, rgb, rotations, [.15, .15, .15], translations, should_fill, position_velocity, rotation_velocity, indices, 'LINE_LOOP', 'TRIANGLES');
+
+// octagon villain
+positions = [];
+for (var i = 0; i < 8; i++) {
+    var x = Math.cos(i * Math.PI / 4);
+    var y = Math.sin(i * Math.PI / 4);
+    positions.push([x, y, 0]);
+}
+var villain = new Villain(positions, [0, 1, 0], rotations, [.10, .10, .10], translations, should_fill, position_velocity, rotation_velocity, null, 'LINE_LOOP', 'TRIANGLE_FAN');
+
+// red wall
+positions = [
+    [-1, -1, 0], //bottom left
+    [1, -1, 0], //bottom right
+    [1, 0, 0], //top right
+    [-1, 0, 0], //top left
+]
+var wall = new Obstacle(positions, [1, 0, 0], rotations, [.15, .15, .15], [.3, 0, 0], should_fill, position_velocity, rotation_velocity, null, 'LINE_LOOP', 'TRIANGLE_FAN');
+
+
+game_engine.add_game_object(villain);
 game_engine.add_game_object(hero);
+game_engine.add_game_object(wall);
 
 game_engine.render();
 
