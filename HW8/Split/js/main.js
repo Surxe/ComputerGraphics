@@ -32,7 +32,6 @@ var rgb = [
     [1, 0, 1],
 ]
 var rotations = [0, 0, 0]
-var translations = [0, 0, 0]
 var should_fill = true;
 var position_velocity = [0, 0, 0];
 var rotation_velocity = [0, 0, 0];
@@ -43,7 +42,9 @@ var indices = [
     // triangle ontop
     4, 5, 6,
 ]
-var hero = new Hero      (positions, rgb, rotations, [.15, .15, .15], translations, should_fill, position_velocity, rotation_velocity, indices, 'LINE_LOOP', 'TRIANGLES');
+var hero_entity = new Entity('TRIANGLES', rgb, positions, rotations, [.15, .15, .15], [0, 0, 0], position_velocity, rotation_velocity, indices);
+var hero_trigger_boxes = [];
+var hero = new Hero(hero_entity, hero_trigger_boxes);
 
 // octagon villain
 positions = [];
@@ -52,7 +53,9 @@ for (var i = 0; i < 8; i++) {
     var y = Math.sin(i * Math.PI / 4);
     positions.push([x, y, 0]);
 }
-var villain = new Villain(positions, [0, 1, 0], rotations, [.10, .10, .10], translations, should_fill, position_velocity, rotation_velocity, null, 'LINE_LOOP', 'TRIANGLE_FAN');
+var villain_entity = new Entity('TRIANGLE_FAN', [0, 1, 0], positions, rotations, [.10, .10, .10], [-.5, 0, 0], position_velocity, rotation_velocity, null);
+var villain_trigger_boxes = [];
+var villain = new Villain(villain_entity, villain_trigger_boxes);
 
 // red wall
 positions = [
@@ -61,12 +64,14 @@ positions = [
     [1, 0, 0], //top right
     [-1, 0, 0], //top left
 ]
-var wall = new Obstacle(positions, [1, 0, 0], rotations, [.15, .15, .15], [.3, 0, 0], should_fill, position_velocity, rotation_velocity, null, 'LINE_LOOP', 'TRIANGLE_FAN');
+var wall_entity = new Entity('TRIANGLE_FAN', [1, 0, 0], positions, rotations, [.15, .15, .15], [.3, 0, 0], position_velocity, rotation_velocity, null);
+var wall_trigger_boxes = [];
+var wall = new Obstacle(wall_entity, wall_trigger_boxes);
 
 
-game_engine.add_game_object(villain);
-game_engine.add_game_object(hero);
-game_engine.add_game_object(wall);
+game_engine.add_entity(villain_entity);
+game_engine.add_entity(hero_entity);
+game_engine.add_entity(wall_entity);
 
 game_engine.render();
 
@@ -109,7 +114,7 @@ document.addEventListener('keyup', function(event) {
 });
 
 function tick() {
-    game_engine.update_velocities(hero, keys_pressed);
+    game_engine.update_velocities(hero_entity, keys_pressed);
     hero.move();
     game_engine.render();
 }

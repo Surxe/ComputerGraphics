@@ -1,4 +1,4 @@
-class Character extends GameObject {
+class Character extends Actor {
     constructor(...args) {
         super(...args);
     }

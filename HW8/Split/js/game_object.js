@@ -1,32 +1,25 @@
 class GameObject {
+    // GameObject represents any 3D object
     constructor(
-            positions, 
-            rgb=[0, 0, 0],
+            positions,
             rotations=[0, 0, 0],
             scalars=[1, 1, 1],
             translations=[0, 0, 0],
-            should_fill=true, 
             position_velocity=[0, 0, 0],
             rotation_velocity=[0, 0, 0],
             indices=null, // optional, will default to indices of array
-            outline_gl_draw_mode='LINE_LOOP', 
-            fill_gl_draw_mode='TRIANGLES'
         ) {
 
         this.original_positions = positions.map(vertex => [...vertex]); // List of [x, y, z] lists
         this.positions;
-        this.rgb = [...rgb];
         this.rotations = [...rotations];
         this.scalars = [...scalars];
         this.translations = [...translations];
-        this.should_fill = should_fill;
         this.position_velocity = [...position_velocity];
         this.rotation_velocity = [...rotation_velocity];
         this.indices = indices ? [...indices] : null;
-        this.outline_gl_draw_mode = outline_gl_draw_mode;
-        this.fill_gl_draw_mode = fill_gl_draw_mode;
 
-        this.buffer()
+        this.process_transformations()
     }
 
     process_transformations() {
@@ -62,29 +55,6 @@ class GameObject {
         }
 
         return positions.map(vertex => [...vertex]);
-    }
-
-    buffer_vertices(vertices) {
-        this.positionBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-    }
-
-    buffer_indices(indices) {
-        this.indexBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
-    }
-
-    buffer() {
-        this.process_transformations();
-
-        var reformatted_positions = this.reformat_positions_arr(this.positions);
-        this.buffer_vertices(reformatted_positions)
-
-        if (this.indices) {
-            this.buffer_indices(this.indices);
-        }
     }
 
     // Reformat to [x, y, z, r, g, b] format
@@ -147,43 +117,8 @@ class GameObject {
         }
     }
 
-    render(program) {
-        this.buffer();
-
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
-        var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
-        gl.enableVertexAttribArray(positionAttributeLocation);
-
-        var size = 3;
-        var type = gl.FLOAT;
-        var normalize = false;
-        var stride = 6 * Float32Array.BYTES_PER_ELEMENT;
-        var offset = 0;
-        gl.vertexAttribPointer(positionAttributeLocation, size, type, normalize, stride, offset);
-
-        var colorAttributeLocation = gl.getAttribLocation(program, "a_color");
-        gl.enableVertexAttribArray(colorAttributeLocation);
-        gl.vertexAttribPointer(colorAttributeLocation, size, type, normalize, stride, 3 * Float32Array.BYTES_PER_ELEMENT);
-
-        const draw_mode_map = {
-            'LINE_LOOP': gl.LINE_LOOP,
-            'TRIANGLES': gl.TRIANGLES,
-            'TRIANGLE_FAN': gl.TRIANGLE_FAN,
-            'LINES': gl.LINES,
-            'POINTS': gl.POINTS
-        }
-        var draw_mode = this.should_fill ? this.fill_gl_draw_mode : this.outline_gl_draw_mode;
-        var gl_draw_mode = draw_mode_map[draw_mode];
-        if (gl_draw_mode == undefined) {
-            console.error("Invalid draw mode.");
-            return;
-        }
-
-        if (this.indices) {
-            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
-            gl.drawElements(gl_draw_mode, this.indices.length, gl.UNSIGNED_SHORT, 0);
-        } else {
-            gl.drawArrays(gl_draw_mode, 0, this.positions.length);
-        }
+    // true/false if this is touching another game_object
+    is_touching(game_object) {
+        // touching means 
     }
 }
