@@ -6,7 +6,8 @@ class GameObject {
             scalars=[1, 1, 1],
             translations=[0, 0, 0],
             should_fill=true, 
-            velocity=[0, 0, 0],
+            position_velocity=[0, 0, 0],
+            rotation_velocity=[0, 0, 0],
             indices=null, // optional, will default to indices of array
             outline_gl_draw_mode='LINE_LOOP', 
             fill_gl_draw_mode='TRIANGLES'
@@ -19,7 +20,8 @@ class GameObject {
         this.scalars = [...scalars];
         this.translations = [...translations];
         this.should_fill = should_fill;
-        this.velocity = [...velocity];
+        this.position_velocity = [...position_velocity];
+        this.rotation_velocity = [...rotation_velocity];
         this.indices = indices ? [...indices] : null;
         this.outline_gl_draw_mode = outline_gl_draw_mode;
         this.fill_gl_draw_mode = fill_gl_draw_mode;
@@ -30,9 +32,9 @@ class GameObject {
     process_transformations() {
         this.positions = this.original_positions.map(vertex => [...vertex]);
         this.positions = this.center_positions(this.positions);
-        this.positions = Transform.translate_positions(this.positions, this.translations);
-        this.positions = Transform.scale_positions(this.positions, this.scalars);
         this.positions = Transform.rotate_positions(this.positions, this.rotations);
+        this.positions = Transform.scale_positions(this.positions, this.scalars);
+        this.positions = Transform.translate_positions(this.positions, this.translations);
     }
 
     // Ensure positions is centered around the origin
@@ -133,9 +135,15 @@ class GameObject {
     }
 
     move() {
-        // Apply velocity to translations
+        // Apply rotation_velocity to rotations
         for (var dimension_i = 0; dimension_i < 3; dimension_i++) {
-            this.translations[dimension_i] += this.velocity[dimension_i];
+            this.rotations[dimension_i] += this.rotation_velocity[dimension_i];
+        }
+
+        // Apply position_velocity to translations
+        // Translate in direction the object is facing
+        for (var dimension_i = 0; dimension_i < 3; dimension_i++) {
+            this.translations[dimension_i] += this.position_velocity[dimension_i];
         }
     }
 

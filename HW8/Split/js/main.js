@@ -35,7 +35,8 @@ var rotations = [0, 0, 0]
 var scalars = [.15, .15, .15]
 var translations = [0, 0, 0]
 var should_fill = true;
-var velocity = [0, 0, 0];
+var position_velocity = [0, 0, 0];
+var rotation_velocity = [0, 0, 0];
 var indices = [
     // square base
     0, 1, 2, 
@@ -45,7 +46,7 @@ var indices = [
 ]
 var outline_gl_draw_mode = 'LINE_LOOP';
 var fill_gl_draw_mode = 'TRIANGLES';
-var hero = new Hero(positions, rgb, rotations, scalars, translations, should_fill, velocity, indices, outline_gl_draw_mode, fill_gl_draw_mode);
+var hero = new Hero(positions, rgb, rotations, scalars, translations, should_fill, position_velocity, rotation_velocity, indices, outline_gl_draw_mode, fill_gl_draw_mode);
 game_engine.add_game_object(hero);
 
 game_engine.render();
@@ -71,8 +72,6 @@ document.addEventListener('keydown', function(event) {
     } else if (key === 'd' && !keys_pressed.D) {
         keys_pressed.D = true;
     }
-
-    update_hero_velocity();
 });
 
 // Handle keyup event
@@ -88,34 +87,55 @@ document.addEventListener('keyup', function(event) {
     } else if (key == 'd') { // D
         keys_pressed.D = false;
     }
-
-    update_hero_velocity();
 });
 
 // Update movement based on pressed keys
 function update_hero_velocity() {
-    let x_movement = 0;
-    let y_movement = 0;
-    var magnitude = .05;
+    var position_magnitude = .015;
+    var rotation_magnitude = 4;
+    var direction = 1;
 
-    // Check vertical movement (W/S)
-    if (keys_pressed.W) {
-        y_movement += magnitude;  // Move up
-    } else if (keys_pressed.S) {
-        y_movement -= magnitude;  // Move down
-    }
-
-    // Check horizontal movement (A/D)
+    // (A/D) -> Rotate left/right
     if (keys_pressed.A) {
-        x_movement -= magnitude;  // Move left
+        direction = 1;
     } else if (keys_pressed.D) {
-        x_movement += magnitude;  // Move right
+        direction = -1
     }
+    else {
+        rotation_magnitude = 0;
+    }
+    var rotation_velocity = rotation_magnitude * direction; //degrees
+    var rotation_velocity_arr = [0, 0, rotation_velocity];
+    hero.rotation_velocity = rotation_velocity_arr;
 
-    hero.velocity = [x_movement, y_movement, 0];
+    // (W/S) -> Move forward/backward
+    if (keys_pressed.W) {
+        direction = 1
+    } else if (keys_pressed.S) {
+        direction = -1
+    }
+    else {
+        position_magnitude = 0;
+    }
+    var position_velocity = position_magnitude * direction;
+    // Given position_velocity and rotation_velocity:
+    // if facing left, change x dimension by position_velocity pixels
+    // if facing right, change x dimension by position_velocity pixels
+    // if facing up, change y dimension by position_velocity pixels
+    // if facing down, change y dimension by position_velocity pixels
+    // and all directions in between
+    // ex: position_velocity = 1, rotation_velocity = 180 degrees (facing down) -> [0, -1, 0] (move down)
+    var current_rotation = hero.rotations[2] + rotation_velocity; //pre-emptively add rotation velocity as it will be added in the next move()
+    var rotation_rads = current_rotation * Math.PI / 180;
+    var dx = position_velocity * Math.sin(rotation_rads);
+    var dy = position_velocity * Math.cos(rotation_rads);
+    var position_velocity_arr = [-dx, dy, 0];
+    console.log(position_velocity_arr);
+    hero.position_velocity = position_velocity_arr
 }
 
 function tick() {
+    update_hero_velocity();
     hero.move();
     game_engine.render();
 }
