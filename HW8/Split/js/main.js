@@ -123,7 +123,7 @@ document.addEventListener('keydown', function(event) {
 });
 
 function tick() {
-    game_engine.update_velocities(hero_entity, keys_pressed);
+    hero_entity.update_velocities(keys_pressed);
     hero.move();
     game_engine.render();
 }
