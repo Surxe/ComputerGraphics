@@ -122,31 +122,32 @@ class GameObject {
         //keys_pressed is a map with keys [W, A, S, D] and values [true, false]
         var position_magnitude = .015;
         var rotation_magnitude = 4;
-        var direction = 1;
+        var rotation_direction;
 
         // (A/D) -> Rotate left/right
         if (keys_pressed.A) {
-            direction = 1;
+            rotation_direction = 1;
         } else if (keys_pressed.D) {
-            direction = -1
+            rotation_direction = -1
         }
         else {
-            rotation_magnitude = 0;
+            rotation_direction = 0;
         }
-        var rotation_velocity = rotation_magnitude * direction; //degrees
+        var rotation_velocity = rotation_magnitude * rotation_direction; //degrees
         var rotation_velocity_arr = [0, 0, rotation_velocity];
         this.rotation_velocity = rotation_velocity_arr;
 
+        var position_direction;
         // (W/S) -> Move forward/backward
         if (keys_pressed.W) {
-            direction = 1
+            position_direction = 1
         } else if (keys_pressed.S) {
-            direction = -1
+            position_direction = -1
         }
         else {
-            position_magnitude = 0;
+            position_direction = 0;
         }
-        var position_velocity = position_magnitude * direction;
+        var position_velocity = position_magnitude * position_direction;
         // Given position_velocity and rotation_velocity:
         // if facing left, change x dimension by position_velocity pixels
         // if facing right, change x dimension by position_velocity pixels
