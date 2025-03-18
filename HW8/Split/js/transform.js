@@ -19,6 +19,14 @@ class Transform {
         return position * scalar;
     }
 
+    static scale_1d_array(array, scalar) {
+        for (var i = 0; i < array.length; i++) {
+            array[i] = Transform.scale_position(array[i], scalar);
+        }
+
+        return array;
+    }
+
     static scale_positions(positions, scalars) {
         for (var vertex_i = 0; vertex_i < positions.length; vertex_i++) {
             for (var dimension_j = 0; dimension_j < Transform.num_dimensions; dimension_j++) {

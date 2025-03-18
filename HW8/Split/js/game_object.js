@@ -19,6 +19,9 @@ class GameObject {
         this.rotation_velocity = [...rotation_velocity];
         this.indices = indices ? [...indices] : null;
 
+        this.position_direction = [0, 0, 0];
+        this.rotation_direction = [0, 0, 0];
+
         this.process_transformations()
     }
 
@@ -122,32 +125,32 @@ class GameObject {
         //keys_pressed is a map with keys [W, A, S, D] and values [true, false]
         var position_magnitude = .015;
         var rotation_magnitude = 4;
-        var rotation_direction;
+        var rotation_sign;
 
         // (A/D) -> Rotate left/right
         if (keys_pressed.A) {
-            rotation_direction = 1;
+            rotation_sign = 1;
         } else if (keys_pressed.D) {
-            rotation_direction = -1
+            rotation_sign = -1
         }
         else {
-            rotation_direction = 0;
+            rotation_sign = 0;
         }
-        var rotation_velocity = rotation_magnitude * rotation_direction; //degrees
-        var rotation_velocity_arr = [0, 0, rotation_velocity];
+        var rotation_velocity = rotation_magnitude * rotation_sign; //degrees
+        this.rotation_direction = [0, 0, rotation_sign];
+        var rotation_velocity_arr = Transform.scale_1d_array(this.rotation_direction, rotation_magnitude);
         this.rotation_velocity = rotation_velocity_arr;
 
-        var position_direction;
+        var position_sign;
         // (W/S) -> Move forward/backward
         if (keys_pressed.W) {
-            position_direction = 1
+            position_sign = -1
         } else if (keys_pressed.S) {
-            position_direction = -1
+            position_sign = 1
         }
         else {
-            position_direction = 0;
+            position_sign = 0;
         }
-        var position_velocity = position_magnitude * position_direction;
         // Given position_velocity and rotation_velocity:
         // if facing left, change x dimension by position_velocity pixels
         // if facing right, change x dimension by position_velocity pixels
@@ -157,9 +160,10 @@ class GameObject {
         // ex: position_velocity = 1, rotation_velocity = 180 degrees (facing down) -> [0, -1, 0] (move down)
         var current_rotation = this.rotations[2] + rotation_velocity; //pre-emptively add rotation velocity as it will be added in the next move()
         var rotation_rads = current_rotation * Math.PI / 180;
-        var dx = position_velocity * Math.sin(rotation_rads);
-        var dy = position_velocity * Math.cos(rotation_rads);
-        var position_velocity_arr = [-dx, dy, 0];
+        var dx = position_sign * Math.sin(rotation_rads);
+        var dy = position_sign * Math.cos(rotation_rads);
+        this.position_direction = [dx, -dy, 0];
+        var position_velocity_arr = Transform.scale_1d_array(this.position_direction, position_magnitude);
         this.position_velocity = position_velocity_arr
     }
 
