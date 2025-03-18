@@ -4,6 +4,10 @@ class Hero extends Character {
     }
 
     create_bullet() {
+        // Get hero's direction
+        // Add 10 to hero's position in its direction
+        const shift = []
+
         const bullet_draw_mode = 'TRIANGLE_FAN';
         const bullet_rgb = [120/255, 120/255, 120/255];
         const bullet_positions = [
