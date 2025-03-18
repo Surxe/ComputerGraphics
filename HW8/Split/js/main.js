@@ -113,6 +113,15 @@ document.addEventListener('keyup', function(event) {
     }
 });
 
+// Handle space bar (shoot) event
+document.addEventListener('keydown', function(event) {
+    if (event.key === ' ') {
+        var bullet_actor = hero.create_bullet();
+        game_engine.add_entity(bullet_actor.entity);
+        hero.shoot(bullet_actor);
+    }
+});
+
 function tick() {
     game_engine.update_velocities(hero_entity, keys_pressed);
     hero.move();
