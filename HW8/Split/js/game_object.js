@@ -19,8 +19,8 @@ class GameObject {
         this.rotation_velocity = [...rotation_velocity];
         this.indices = indices ? [...indices] : null;
 
-        this.position_direction = [0, 0, 0];
-        this.rotation_direction = [0, 0, 0];
+        this.position_direction;
+        this.rotation_direction;
 
         this.process_transformations()
     }
@@ -136,7 +136,6 @@ class GameObject {
         else {
             rotation_sign = 0;
         }
-        var rotation_velocity = rotation_magnitude * rotation_sign; //degrees
         this.rotation_direction = [0, 0, rotation_sign];
         var rotation_velocity_arr = Transform.scale_1d_array(this.rotation_direction, rotation_magnitude);
         this.rotation_velocity = rotation_velocity_arr;
@@ -158,7 +157,7 @@ class GameObject {
         // if facing down, change y dimension by position_velocity pixels
         // and all directions in between
         // ex: position_velocity = 1, rotation_velocity = 180 degrees (facing down) -> [0, -1, 0] (move down)
-        var current_rotation = this.rotations[2] + rotation_velocity; //pre-emptively add rotation velocity as it will be added in the next move()
+        var current_rotation = this.rotations[2]; //pre-emptively add rotation velocity as it will be added in the next move()
         var rotation_rads = current_rotation * Math.PI / 180;
         var dx = position_sign * Math.sin(rotation_rads);
         var dy = position_sign * Math.cos(rotation_rads);
