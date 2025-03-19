@@ -99,6 +99,11 @@ class GameObject {
 
         return vertices;
     }
+
+    copy_velocity(other_game_object) {
+        this.position_velocity = [...other_game_object.position_velocity];
+        this.rotation_velocity = [...other_game_object.rotation_velocity];
+    }
     
     is_out_of_bounds() {
         for (var vertex_i = 0; vertex_i < this.positions.length; vertex_i++) {

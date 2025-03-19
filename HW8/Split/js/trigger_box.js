@@ -7,14 +7,8 @@ class TriggerBox extends Entity{
             return;
         }
         var draw_mode = 'LINE_LOOP';
-        var rgb = [1, 0, 0];
+        var rgb = [1, 1, 1];
         super('TRIGGER_BOX', draw_mode, rgb, positions, ...args);
-    }
-
-    render(program) {
-        // Render the TriggerBox
-        console.log("Rendering TriggerBox");
-        super.render(program);
     }
 
     is_touching(other_trigger_box) {

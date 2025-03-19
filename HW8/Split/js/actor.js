@@ -13,11 +13,15 @@ class Actor {
         }
     }
 
+    copy_lead_entity_velocity_to_trigger_boxes() {
+        for (let trigger_box of this.trigger_boxes) {
+            trigger_box.copy_velocity(this.entity);
+        }
+    }
+
     update_velocities(p1) {
         this.entity.update_velocities(p1);
-        for (let trigger_box of this.trigger_boxes) {
-            trigger_box.update_velocities(p1);
-        }
+        this.copy_lead_entity_velocity_to_trigger_boxes();
     }
 
     update_rotation_velocity(p1) {

@@ -5,10 +5,10 @@ class Main {
 
         // Initial game_objects' states
         var trigger_box_positions = [
-            [-.5, -.5, 0], //bottom left
-            [.5, -.5, 0], //bottom right
-            [.5, .5, 0], //top right
-            [-.5, .5, 0], //top left
+            [-.5, -.5-.15*1.5/3/2, 0], //bottom left
+            [.5, -.5-.15*1.5/3/2, 0], //bottom right
+            [.5, .5-.15*1.5/3/2, 0], //top right
+            [-.5, .5-.15*1.5/3/2, 0], //top left
         ]
         // shape is square with triangle ontop
         //    **
@@ -41,7 +41,6 @@ class Main {
             [1, 0, 1],
         ]
         var rotations = [0, 0, 0]
-        var should_fill = true;
         var position_velocity = [0, 0, 0];
         var rotation_velocity = [0, 0, 0];
         var indices = [
@@ -54,8 +53,8 @@ class Main {
         var position_speed = 0.015;
         var rotation_speed = 4;
         var hero_entity = new Entity('Hero', 'TRIANGLES', rgb, positions, rotations, [.15, .15, .15], [0, 0, 0], position_speed, rotation_speed, position_velocity, rotation_velocity, indices);
-        console.log(hero_entity.positions);
-        var hero_trigger_boxes = [new TriggerBox(                                   trigger_box_positions, rotations, [.15, .15, .15], [0, -.15*1.5/3/2, -.1], position_speed, rotation_speed, position_velocity, rotation_velocity, null)];
+        var hero_trigger_box = new TriggerBox(                                   trigger_box_positions, rotations, [.15, .15, .15], [0, -.15*1.5/3/2, 0], position_speed, rotation_speed, position_velocity, rotation_velocity, null)
+        var hero_trigger_boxes = [hero_trigger_box];
         var hero = new Hero(hero_entity, hero_trigger_boxes);
 
         // octagon villain
