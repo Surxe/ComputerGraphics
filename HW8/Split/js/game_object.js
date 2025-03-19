@@ -19,10 +19,9 @@ class GameObject {
         this.rotation_velocity = [...rotation_velocity];
         this.indices = indices ? [...indices] : null;
 
-        this.position_direction;
-        this.rotation_direction;
-
         this.process_transformations()
+
+        this.unit_vector = this.calc_unit_vector(1);; // direction the game_object is facing
     }
 
     process_transformations() {
@@ -136,19 +135,19 @@ class GameObject {
         else {
             rotation_sign = 0;
         }
-        this.rotation_direction = [0, 0, rotation_sign];
-        var rotation_velocity_arr = Transform.scale_1d_array(this.rotation_direction, rotation_magnitude);
+        var rotation_direction = [0, 0, rotation_sign];
+        var rotation_velocity_arr = Transform.scale_1d_array(rotation_direction, rotation_magnitude);
         this.rotation_velocity = rotation_velocity_arr;
 
-        var position_sign;
+        var position_sign = 1;
         // (W/S) -> Move forward/backward
         if (keys_pressed.W) {
-            position_sign = -1
-        } else if (keys_pressed.S) {
             position_sign = 1
+        } else if (keys_pressed.S) {
+            position_sign = -1
         }
         else {
-            position_sign = 0;
+            position_magnitude = 0
         }
         // Given position_velocity and rotation_velocity:
         // if facing left, change x dimension by position_velocity pixels
@@ -157,13 +156,19 @@ class GameObject {
         // if facing down, change y dimension by position_velocity pixels
         // and all directions in between
         // ex: position_velocity = 1, rotation_velocity = 180 degrees (facing down) -> [0, -1, 0] (move down)
-        var current_rotation = this.rotations[2]; //pre-emptively add rotation velocity as it will be added in the next move()
-        var rotation_rads = current_rotation * Math.PI / 180;
-        var dx = position_sign * Math.sin(rotation_rads);
-        var dy = position_sign * Math.cos(rotation_rads);
-        this.position_direction = [dx, -dy, 0];
-        var position_velocity_arr = Transform.scale_1d_array(this.position_direction, position_magnitude);
+        this.unit_vector = this.calc_unit_vector(position_sign);
+        var position_velocity_arr = Transform.scale_1d_array([...this.unit_vector], position_magnitude);
         this.position_velocity = position_velocity_arr
+        
+    }
+
+    calc_unit_vector(sign) {
+        // Calculate the unit vector of the direction the game_object is facing
+        var current_rotation = this.rotations[2];
+        var rotation_rads = current_rotation * Math.PI / 180;
+        var dx = sign * Math.sin(rotation_rads);
+        var dy = sign * Math.cos(rotation_rads);
+        return [-dx, dy, 0];
     }
 
     // true/false if this is touching another game_object

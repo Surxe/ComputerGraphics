@@ -5,6 +5,10 @@ class Transform {
         return position + translation;
     }
 
+    static add_1d_arrays(array1, array2) {
+        return array1.map((val, i) => val + array2[i]);
+    }
+
     static translate_positions(positions, translations) {
         for (var vertex_i = 0; vertex_i < positions.length; vertex_i++) {
             for (var dimension_j = 0; dimension_j < Transform.num_dimensions; dimension_j++) {
