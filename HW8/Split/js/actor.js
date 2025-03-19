@@ -3,6 +3,7 @@ class Actor {
     constructor(entity, trigger_boxes) {
         this.entity = entity
         this.trigger_boxes = trigger_boxes;
+        console.log("Actor " + this.entity.name + " created with " + this.trigger_boxes.length + " trigger_boxes.");
     }
 
     move() {

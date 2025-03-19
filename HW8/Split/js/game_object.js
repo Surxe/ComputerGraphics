@@ -123,6 +123,8 @@ class GameObject {
         for (var dimension_i = 0; dimension_i < 3; dimension_i++) {
             this.translations[dimension_i] += this.position_velocity[dimension_i];
         }
+
+        this.unit_vector = this.calc_unit_vector(1);
     }
 
     update_rotation_velocity(unit_vector) {

@@ -4,6 +4,7 @@ class Entity extends GameObject {
         super(name, ...args);
         this.draw_mode = draw_mode;
         this.rgb = rgb;
+        console.log("Entity " + this.name + " created.");
     }
 
     buffer() {

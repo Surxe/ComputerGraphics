@@ -64,7 +64,7 @@ class Hero extends Character {
         var bullet_trigger_boxes = [];
         var bullet_entity = new Entity('Bullet', bullet_draw_mode, bullet_rgb, bullet_positions, bullet_rotations, bullet_scalars, bullet_translations, bullet_position_speed, bullet_rotation_speed, bullet_position_velocities, bullet_rotation_velocities, bullet_indices);
         var bullet_actor = new Actor(bullet_entity, bullet_trigger_boxes);
-        game_engine.add_actor(bullet_entity);
+        game_engine.add_actor(bullet_actor);
         return bullet_actor;
     }
 
