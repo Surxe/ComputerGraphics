@@ -54,7 +54,7 @@ class Hero extends Character {
         var bullet_rotations = this.entity.rotations;
         var bullet_scalars = [.05, .05, .05];
         var bullet_translations = Transform.add_1d_arrays(this.entity.translations, shift_vector);
-        var bullet_position_speed = this.entity.position_speed * 2;
+        var bullet_position_speed = Transform.get_magnitude(this.entity.position_velocity) + this.entity.position_speed * 2; //Bullet speed is 2x hero's speed + its current velocity
         var bullet_rotation_speed = 0;
         var bullet_position_velocities = this.entity.position_velocities;
         var bullet_rotation_velocities = [0, 0, 0];
