@@ -1,7 +1,7 @@
 class Entity extends GameObject {
     // Entities are GameObjects that are drawn on the screen using WebGL
-    constructor(draw_mode, rgb, ...args) {
-        super(...args);
+    constructor(name, draw_mode, rgb, ...args) {
+        super(name, ...args);
         this.draw_mode = draw_mode;
         this.rgb = rgb;
     }
@@ -27,6 +27,10 @@ class Entity extends GameObject {
         this.indexBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+    }
+
+    update_velocities(a) {
+
     }
 
     render(program) {

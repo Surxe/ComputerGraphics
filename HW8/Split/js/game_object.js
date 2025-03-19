@@ -1,20 +1,26 @@
 class GameObject {
     // GameObject represents any 3D object
     constructor(
+            name,
             positions,
             rotations=[0, 0, 0],
             scalars=[1, 1, 1],
             translations=[0, 0, 0],
+            position_speed=0,
+            rotation_speed=0,
             position_velocity=[0, 0, 0],
             rotation_velocity=[0, 0, 0],
             indices=null, // optional, will default to indices of array
         ) {
 
+        this.name = name;
         this.original_positions = positions.map(vertex => [...vertex]); // List of [x, y, z] lists
         this.positions;
         this.rotations = [...rotations];
         this.scalars = [...scalars];
         this.translations = [...translations];
+        this.position_speed = position_speed;
+        this.rotation_speed = rotation_speed;
         this.position_velocity = [...position_velocity];
         this.rotation_velocity = [...rotation_velocity];
         this.indices = indices ? [...indices] : null;
@@ -119,47 +125,14 @@ class GameObject {
         }
     }
 
-    // Update movement/rotations based on pressed keys
-    update_velocities(keys_pressed) {
-        //keys_pressed is a map with keys [W, A, S, D] and values [true, false]
-        var position_magnitude = .015;
-        var rotation_magnitude = 4;
-        var rotation_sign;
-
-        // (A/D) -> Rotate left/right
-        if (keys_pressed.A) {
-            rotation_sign = 1;
-        } else if (keys_pressed.D) {
-            rotation_sign = -1
-        }
-        else {
-            rotation_sign = 0;
-        }
-        var rotation_direction = [0, 0, rotation_sign];
-        var rotation_velocity_arr = Transform.scale_1d_array(rotation_direction, rotation_magnitude);
+    update_rotation_velocity(unit_vector) {
+        var rotation_velocity_arr = Transform.scale_1d_array(unit_vector, this.rotation_speed);
         this.rotation_velocity = rotation_velocity_arr;
+    }
 
-        var position_sign = 1;
-        // (W/S) -> Move forward/backward
-        if (keys_pressed.W) {
-            position_sign = 1
-        } else if (keys_pressed.S) {
-            position_sign = -1
-        }
-        else {
-            position_magnitude = 0
-        }
-        // Given position_velocity and rotation_velocity:
-        // if facing left, change x dimension by position_velocity pixels
-        // if facing right, change x dimension by position_velocity pixels
-        // if facing up, change y dimension by position_velocity pixels
-        // if facing down, change y dimension by position_velocity pixels
-        // and all directions in between
-        // ex: position_velocity = 1, rotation_velocity = 180 degrees (facing down) -> [0, -1, 0] (move down)
-        this.unit_vector = this.calc_unit_vector(position_sign);
-        var position_velocity_arr = Transform.scale_1d_array([...this.unit_vector], position_magnitude);
+    update_position_velocity(unit_vector) {
+        var position_velocity_arr = Transform.scale_1d_array(unit_vector, this.position_speed);
         this.position_velocity = position_velocity_arr
-        
     }
 
     calc_unit_vector(sign) {

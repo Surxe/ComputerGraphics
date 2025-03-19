@@ -42,7 +42,9 @@ var indices = [
     // triangle ontop
     4, 5, 6,
 ]
-var hero_entity = new Entity('TRIANGLES', rgb, positions, rotations, [.15, .15, .15], [0, 0, 0], position_velocity, rotation_velocity, indices);
+var position_speed = 0.015;
+var rotation_speed = 4;
+var hero_entity = new Entity('Hero', 'TRIANGLES', rgb, positions, rotations, [.15, .15, .15], [0, 0, 0], position_speed, rotation_speed, position_velocity, rotation_velocity, indices);
 var hero_trigger_boxes = [];
 var hero = new Hero(hero_entity, hero_trigger_boxes);
 
@@ -53,7 +55,7 @@ for (var i = 0; i < 8; i++) {
     var y = Math.sin(i * Math.PI / 4);
     positions.push([x, y, 0]);
 }
-var villain_entity = new Entity('TRIANGLE_FAN', [0, 1, 0], positions, rotations, [.10, .10, .10], [-.5, 0, 0], position_velocity, rotation_velocity, null);
+var villain_entity = new Entity('Villain', 'TRIANGLE_FAN', [0, 1, 0], positions, rotations, [.10, .10, .10], [-.5, 0, 0], 0, 0, position_velocity, rotation_velocity, null);
 var villain_trigger_boxes = [];
 var villain = new Villain(villain_entity, villain_trigger_boxes);
 
@@ -64,14 +66,14 @@ positions = [
     [1, 0, 0], //top right
     [-1, 0, 0], //top left
 ]
-var wall_entity = new Entity('TRIANGLE_FAN', [1, 0, 0], positions, rotations, [.15, .15, .15], [.3, 0, 0], position_velocity, rotation_velocity, null);
+var wall_entity = new Entity('Wall', 'TRIANGLE_FAN', [1, 0, 0], positions, rotations, [.15, .15, .15], [.3, 0, 0], 0, 0, position_velocity, rotation_velocity, null);
 var wall_trigger_boxes = [];
 var wall = new Obstacle(wall_entity, wall_trigger_boxes);
 
 
-game_engine.add_entity(villain_entity);
-game_engine.add_entity(hero_entity);
-game_engine.add_entity(wall_entity);
+game_engine.add_actor(villain);
+game_engine.add_actor(hero);
+game_engine.add_actor(wall);
 
 game_engine.render();
 
@@ -117,14 +119,14 @@ document.addEventListener('keyup', function(event) {
 document.addEventListener('keydown', function(event) {
     if (event.key === ' ') {
         var bullet_actor = hero.create_bullet();
-        game_engine.add_entity(bullet_actor.entity);
+        game_engine.add_actor(bullet_actor.entity);
         hero.shoot(bullet_actor);
     }
 });
 
 function tick() {
-    hero_entity.update_velocities(keys_pressed);
-    hero.move();
+    game_engine.update_velocities(keys_pressed);
+    game_engine.move();
     game_engine.render();
 }
 

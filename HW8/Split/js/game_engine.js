@@ -28,23 +28,35 @@ class GameEngine {
 
         gl.useProgram(this.program);
 
-        this.entities = [];
+        this.actors = [];
 
         this.render()
     }
 
-    add_entity(entity) {
+    add_actor(actor) {
         // If entity is an Entity
-        if (entity instanceof Entity) {
-            this.entities.push(entity);
+        if (actor instanceof Actor) {
+            this.actors.push(actor);
+        }
+    }
+
+    update_velocities(keys_pressed) {
+        for (var actor of this.actors) {
+            actor.update_velocities(keys_pressed);
+        }
+    }
+
+    move() {
+        for (var actor of this.actors) {
+            actor.move();
         }
     }
 
     render() {
         gl.clearColor(0, 0, 0, 1.0);
         gl.clear(gl.COLOR_BUFFER_BIT);
-        for (var entity of this.entities) {
-            entity.render(this.program);
+        for (var actor of this.actors) {
+            actor.render(this.program);
         }
     }
 }
