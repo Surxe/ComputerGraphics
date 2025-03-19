@@ -6,7 +6,15 @@ class TriggerBox extends Entity{
             console.error("TriggerBox must have 4 positions.");
             return;
         }
-        super(positions, ...args);
+        var draw_mode = 'LINE_LOOP';
+        var rgb = [1, 0, 0];
+        super('TRIGGER_BOX', draw_mode, rgb, positions, ...args);
+    }
+
+    render(program) {
+        // Render the TriggerBox
+        console.log("Rendering TriggerBox");
+        super.render(program);
     }
 
     is_touching(other_trigger_box) {

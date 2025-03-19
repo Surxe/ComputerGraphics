@@ -1,6 +1,12 @@
 game_engine = new GameEngine();
 
 // Initial game_objects' states
+var trigger_box_positions = [
+    [-.5, -.5, 0], //bottom left
+    [.5, -.5, 0], //bottom right
+    [.5, .5, 0], //top right
+    [-.5, .5, 0], //top left
+]
 // shape is square with triangle ontop
 //    **
 //   ****
@@ -45,7 +51,8 @@ var indices = [
 var position_speed = 0.015;
 var rotation_speed = 4;
 var hero_entity = new Entity('Hero', 'TRIANGLES', rgb, positions, rotations, [.15, .15, .15], [0, 0, 0], position_speed, rotation_speed, position_velocity, rotation_velocity, indices);
-var hero_trigger_boxes = [];
+console.log(hero_entity.positions);
+var hero_trigger_boxes = [new TriggerBox(                                   trigger_box_positions, rotations, [.15, .15, .15], [0, -.15*1.5/3/2, -.1], position_speed, rotation_speed, position_velocity, rotation_velocity, null)];
 var hero = new Hero(hero_entity, hero_trigger_boxes);
 
 // octagon villain
@@ -56,7 +63,7 @@ for (var i = 0; i < 8; i++) {
     positions.push([x, y, 0]);
 }
 var villain_entity = new Entity('Villain', 'TRIANGLE_FAN', [0, 1, 0], positions, rotations, [.10, .10, .10], [-.5, 0, 0], 0, 0, position_velocity, rotation_velocity, null);
-var villain_trigger_boxes = [];
+var villain_trigger_boxes = []//[new TriggerBox(                                   trigger_box_positions, rotations, [.15, .15, .15], [0, 0, 0], 0, 0, position_velocity, rotation_velocity, null)];
 var villain = new Villain(villain_entity, villain_trigger_boxes);
 
 // red wall
@@ -66,8 +73,8 @@ positions = [
     [1, 0, 0], //top right
     [-1, 0, 0], //top left
 ]
-var wall_entity = new Entity('Wall', 'TRIANGLE_FAN', [1, 0, 0], positions, rotations, [.15, .15, .15], [.3, 0, 0], 0, 0, position_velocity, rotation_velocity, null);
-var wall_trigger_boxes = [];
+var wall_entity =         new Entity    ('Wall', 'TRIANGLE_FAN', [1, 0, 0], positions, rotations, [.15, .15, .15], [.3, 0, 0], 0, 0, position_velocity, rotation_velocity, null);
+var wall_trigger_boxes = []//[new TriggerBox(                                   trigger_box_positions, rotations, [.15, .15, .15], [0, 0, 0], 0, 0, position_velocity, rotation_velocity, null)];       
 var wall = new Obstacle(wall_entity, wall_trigger_boxes);
 
 
@@ -132,6 +139,6 @@ function tick() {
 
 // Wait till page loads to start ticking
 document.addEventListener('DOMContentLoaded', function () {
-    const ticks_per_second = 60;
+    const ticks_per_second = 30;
     const interval_id = setInterval(tick, 1000/ticks_per_second);
 });

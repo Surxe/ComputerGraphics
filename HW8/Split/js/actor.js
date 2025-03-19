@@ -34,6 +34,9 @@ class Actor {
 
     render(program) {
         this.entity.render(program);
+        for (let trigger_box of this.trigger_boxes) {
+            trigger_box.render(program);
+        }
     }
 
     is_touching(other_actor) {
