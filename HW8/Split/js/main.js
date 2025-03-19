@@ -4,11 +4,17 @@ class Main {
         var game_engine = new GameEngine();
 
         // Initial game_objects' states
-        var trigger_box_positions = [
-            [-.5, -.5-.15*1.5/3/2, 0], //bottom left
-            [.5, -.5-.15*1.5/3/2, 0], //bottom right
-            [.5, .5-.15*1.5/3/2, 0], //top right
-            [-.5, .5-.15*1.5/3/2, 0], //top left
+        var trigger_box1_positions = [
+            [-.5, -.5, 0], //bottom left
+            [.5, -.5, 0], //bottom right
+            [.5, .5, 0], //top right
+            [-.5, .5, 0], //top left
+        ]
+        var trigger_box2_positions = [
+            [-.5, .5, 0],
+            [0, 1, 0],
+            [.5, .5, 0],
+            [0, 0.5, 0],
         ]
         // shape is square with triangle ontop
         //    **
@@ -53,8 +59,10 @@ class Main {
         var position_speed = 0.015;
         var rotation_speed = 4;
         var hero_entity = new Entity('Hero', 'TRIANGLES', rgb, positions, rotations, [.15, .15, .15], [0, 0, 0], position_speed, rotation_speed, position_velocity, rotation_velocity, indices);
-        var hero_trigger_box = new TriggerBox(                                   trigger_box_positions, rotations, [.15, .15, .15], [0, -.15*1.5/3/2, 0], position_speed, rotation_speed, position_velocity, rotation_velocity, null)
-        var hero_trigger_boxes = [hero_trigger_box];
+        var hero_trigger_boxes = [
+            new TriggerBox(                                   trigger_box1_positions, rotations, [.15, .15, .15], [0, 0, 0], position_speed, rotation_speed, position_velocity, rotation_velocity, null),
+            new TriggerBox(                                   trigger_box2_positions, [0, 0, 0], [.15, .15, .15], [0, 0, -.5], position_speed, rotation_speed, position_velocity, rotation_velocity, null)
+        ];
         var hero = new Hero(hero_entity, hero_trigger_boxes);
 
         // octagon villain
@@ -65,7 +73,7 @@ class Main {
             positions.push([x, y, 0]);
         }
         var villain_entity = new Entity('Villain', 'TRIANGLE_FAN', [0, 1, 0], positions, rotations, [.10, .10, .10], [-.5, 0, 0], 0, 0, position_velocity, rotation_velocity, null);
-        var villain_trigger_boxes = []//[new TriggerBox(                                   trigger_box_positions, rotations, [.15, .15, .15], [0, 0, 0], 0, 0, position_velocity, rotation_velocity, null)];
+        var villain_trigger_boxes = []//[new TriggerBox(                                   trigger_box1_positions, rotations, [.15, .15, .15], [0, 0, 0], 0, 0, position_velocity, rotation_velocity, null)];
         var villain = new Villain(villain_entity, villain_trigger_boxes);
 
         // red wall
@@ -76,7 +84,7 @@ class Main {
             [-1, 0, 0], //top left
         ]
         var wall_entity =         new Entity    ('Wall', 'TRIANGLE_FAN', [1, 0, 0], positions, rotations, [.15, .15, .15], [.3, 0, 0], 0, 0, position_velocity, rotation_velocity, null);
-        var wall_trigger_boxes = []//[new TriggerBox(                                   trigger_box_positions, rotations, [.15, .15, .15], [0, 0, 0], 0, 0, position_velocity, rotation_velocity, null)];       
+        var wall_trigger_boxes = []//[new TriggerBox(                                   trigger_box1_positions, rotations, [.15, .15, .15], [0, 0, 0], 0, 0, position_velocity, rotation_velocity, null)];       
         var wall = new Obstacle(wall_entity, wall_trigger_boxes);
 
 

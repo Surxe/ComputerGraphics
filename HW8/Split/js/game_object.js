@@ -32,37 +32,9 @@ class GameObject {
 
     process_transformations() {
         this.positions = this.original_positions.map(vertex => [...vertex]);
-        this.positions = this.center_positions(this.positions);
         this.positions = Transform.rotate_positions(this.positions, this.rotations);
         this.positions = Transform.scale_positions(this.positions, this.scalars);
         this.positions = Transform.translate_positions(this.positions, this.translations);
-    }
-
-    // Ensure positions is centered around the origin
-    center_positions(positions) {
-        var x_sum = 0;
-        var y_sum = 0;
-        var z_sum = 0;
-        for (var vertex_i = 0; vertex_i < positions.length; vertex_i++) {
-            x_sum += positions[vertex_i][0];
-            y_sum += positions[vertex_i][1];
-            z_sum += positions[vertex_i][2];
-        }
-
-        var x_avg = x_sum / positions.length;
-        var y_avg = y_sum / positions.length;
-        var z_avg = z_sum / positions.length;
-
-        if (x_avg != 0 || y_avg != 0 || z_avg != 0) {
-            // Center the game_object around the origin
-            for (var vertex_i = 0; vertex_i < positions.length; vertex_i++) {
-                positions[vertex_i][0] -= x_avg;
-                positions[vertex_i][1] -= y_avg;
-                positions[vertex_i][2] -= z_avg;
-            }
-        }
-
-        return positions.map(vertex => [...vertex]);
     }
 
     // Reformat to [x, y, z, r, g, b] format
