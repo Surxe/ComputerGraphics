@@ -22,12 +22,12 @@ class TriggerBox extends Entity{
         // Rotate the other box's vertices by the rotation of this box
         var rotated_other_positions = [];
         for (let other_position of other_positions) {
-            rotated_other_positions.push(Transform.rotate_3d(other_position, rotations));
+            rotated_other_positions.push(Transform.rotate_axes(other_position, rotations));
         }
         // Rotate this box's vertices by the rotation of the other box
         var rotated_positions = [];
         for (let position of positions) {
-            rotated_positions.push(Transform.rotate_3d(position, other_rotations));
+            rotated_positions.push(Transform.rotate_axes(position, other_rotations));
         }
         // Get the normals of the faces of this box
         var normals = [];
