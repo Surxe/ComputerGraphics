@@ -7,9 +7,24 @@ class Actor {
     }
 
     move() {
-        this.entity.move();
+        // Update positions and rotations
+
+        var new_position_data = this.entity.attempt_move();
+        if (!new_position_data) {
+            return;
+        }
+        this.entity.positions = new_position_data[0];
+        this.entity.rotations = new_position_data[1];
+        this.entity.translations = new_position_data[2];
+        this.entity.unit_vector = this.calc_unit_vector(1);
+        
+        
         for (let trigger_box of this.trigger_boxes) {
-            trigger_box.move();
+            var new_position_data = trigger_box.attempt_move();
+            trigger_box.positions = new_position_data[0];
+            trigger_box.rotations = new_position_data[1];
+            trigger_box.translations = new_position_data[2];
+            trigger_box.unit_vector = this.calc_unit_vector(1);
         }
     }
 

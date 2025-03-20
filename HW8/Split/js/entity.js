@@ -8,8 +8,6 @@ class Entity extends GameObject {
     }
 
     buffer() {
-        this.process_transformations();
-
         var reformatted_positions = this.reformat_positions_arr(this.positions);
         this.buffer_vertices(reformatted_positions)
 

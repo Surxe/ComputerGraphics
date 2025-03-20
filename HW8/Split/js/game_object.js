@@ -25,16 +25,21 @@ class GameObject {
         this.rotation_velocity = [...rotation_velocity];
         this.indices = indices ? [...indices] : null;
 
-        this.process_transformations()
+        this.positions = this.process_transformations(
+            this.original_positions.map(vertex => [...vertex]), 
+            [...this.rotations],
+            [...this.scalars],
+            [...this.translations]
+        );
 
         this.unit_vector = this.calc_unit_vector(1);; // direction the game_object is facing
     }
 
-    process_transformations() {
-        this.positions = this.original_positions.map(vertex => [...vertex]);
-        this.positions = Transform.rotate_positions(this.positions, this.rotations);
-        this.positions = Transform.scale_positions(this.positions, this.scalars);
-        this.positions = Transform.translate_positions(this.positions, this.translations);
+    process_transformations(positions, rotations, scalars, translations) {
+        positions = Transform.rotate_positions(positions, rotations);
+        positions = Transform.scale_positions(positions, scalars);
+        positions = Transform.translate_positions(positions, translations);
+        return positions;
     }
 
     // Reformat to [x, y, z, r, g, b] format
@@ -77,10 +82,10 @@ class GameObject {
         this.rotation_velocity = [...other_game_object.rotation_velocity];
     }
     
-    is_out_of_bounds() {
-        for (var vertex_i = 0; vertex_i < this.positions.length; vertex_i++) {
+    is_out_of_bounds(positions) {
+        for (var vertex_i = 0; vertex_i < positions.length; vertex_i++) {
             for (var dimension_j = 0; dimension_j < 3; dimension_j++) {
-                if (this.positions[vertex_i][dimension_j] > 1 || this.positions[vertex_i][dimension_j] < -1) {
+                if (positions[vertex_i][dimension_j] > 1 || positions[vertex_i][dimension_j] < -1) {
                     return true;
                 }
             }
@@ -89,19 +94,36 @@ class GameObject {
         return false;
     }
 
-    move() {
+    attempt_move() {
+        // Deep copy positions and rotations
+        var new_translations = [...this.translations];
+        var new_rotations = [...this.rotations];
+
         // Apply rotation_velocity to rotations
         for (var dimension_i = 0; dimension_i < 3; dimension_i++) {
-            this.rotations[dimension_i] += this.rotation_velocity[dimension_i];
+            new_rotations[dimension_i] += this.rotation_velocity[dimension_i];
         }
 
         // Apply position_velocity to translations
         // Translate in direction the object is facing
         for (var dimension_i = 0; dimension_i < 3; dimension_i++) {
-            this.translations[dimension_i] += this.position_velocity[dimension_i];
+            new_translations[dimension_i] += this.position_velocity[dimension_i];
         }
 
-        this.unit_vector = this.calc_unit_vector(1);
+        var new_positions = this.process_transformations(
+            this.original_positions.map(vertex => [...vertex]), 
+            new_rotations,
+            [...this.scalars],
+            new_translations
+        );
+
+        // Check if its out of bounds
+        if (this.is_out_of_bounds(new_positions)) {
+            console.log("Out of bounds.");
+            return false;
+        }
+
+        return [new_positions, new_rotations, new_translations];
     }
 
     update_rotation_velocity(unit_vector) {
