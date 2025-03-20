@@ -49,7 +49,9 @@ class GameEngine {
 
     move() {
         for (var actor of this.actors) {
+            var other_actors = this.actors.filter(other_actor => other_actor != actor);
             actor.move();
+            actor.collision_checks(other_actors);
         }
     }
 

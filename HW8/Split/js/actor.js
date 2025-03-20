@@ -73,4 +73,16 @@ class Actor {
         }
         return false;
     }
+
+    collision_checks(other_actors) {
+        for (var other_actor of other_actors) {
+            if (this.is_touching(other_actor)) {
+                this.on_collision(other_actor);
+            }
+        }
+    }
+
+    on_collision(other_actor) {
+        console.log("Actor " + this.entity.name + " collided with " + other_actor.entity.name);
+    }
 }

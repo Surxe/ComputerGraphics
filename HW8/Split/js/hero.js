@@ -40,7 +40,8 @@ class Hero extends Character {
         // Add pixels to hero's position in its direction
         const shift_magnitude = .08;
         const shift_direction = this.entity.unit_vector;
-        const shift_vector = Transform.scale_1d_array(shift_direction, shift_magnitude);
+        var shift_vector = Transform.scale_1d_array(shift_direction, shift_magnitude);
+        shift_vector[2] = -.5; // Move bullet to the front of the hero
 
         // Create bullet
         var bullet_draw_mode = 'TRIANGLE_FAN';

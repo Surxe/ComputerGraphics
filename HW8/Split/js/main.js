@@ -72,21 +72,47 @@ class Main {
             var y = Math.sin(i * Math.PI / 4);
             positions.push([x, y, 0]);
         }
+        var radius = 0.5;
+        // Compute length of the octagon's sides
+        var side_length = Math.sqrt(2) * radius;
         var villain_entity = new Entity('Villain', 'TRIANGLE_FAN', [0, 1, 0], positions, rotations, [.10, .10, .10], [-.5, 0, 0], position_speed, rotation_speed, position_velocity, rotation_velocity, null);
+        function travel_from_towards(p1, p2, distance) { //p1 and p2 are [x, y, z]
+            // travel <distance> from p1 towards p2
+            var x_diff = p2[0] - p1[0];
+            var y_diff = p2[1] - p1[1];
+            var z_diff = p2[2] - p1[2];
+            var magnitude = Math.sqrt(x_diff**2 + y_diff**2 + z_diff**2);
+            var unit_vector = [x_diff/magnitude, y_diff/magnitude, z_diff/magnitude];
+            return [p1[0] + unit_vector[0]*distance, p1[1] + unit_vector[1]*distance, p1[2] + unit_vector[2]*distance];
+        }
         function create_villain_tbox_positions(positions, i) {
+            const corner1 = [positions[i][0],               positions[i][1], 0];
+            const corner2 = [positions[(i + 1) % 8][0],     positions[(i + 1) % 8][1], 0];
+            const corner3 = [positions[(i + 4) % 8][0],     positions[(i + 4) % 8][1], 0];
+            const corner4 = [positions[(i + 1 + 4) % 8][0], positions[(i + 1 + 4) % 8][1], 0];
             return [
-                [positions[i][0], positions[i][1], 0],
-                [positions[(i + 1) % 8][0], positions[(i + 1) % 8][1], 0],
-                [positions[i+4][0], positions[i+4][1], 0],
-                [positions[(i + 1 + 4) % 8][0], positions[(i + 1 + 4) % 8][1], 0],
+                corner1,
+                corner2,
+                travel_from_towards(corner2, corner3, side_length),
+                travel_from_towards(corner1, corner4, side_length),
             ]
         }
-        var villain_trigger_boxes = [
-            new TriggerBox(create_villain_tbox_positions(positions, 0), rotations, [.10, .10, .10], [-.5, 0, -.5], position_speed, rotation_speed, position_velocity, rotation_velocity, null),
-            new TriggerBox(create_villain_tbox_positions(positions, 1), rotations, [.10, .10, .10], [-.5, 0, -.5], position_speed, rotation_speed, position_velocity, rotation_velocity, null),
-            new TriggerBox(create_villain_tbox_positions(positions, 2), rotations, [.10, .10, .10], [-.5, 0, -.5], position_speed, rotation_speed, position_velocity, rotation_velocity, null),
-            new TriggerBox(create_villain_tbox_positions(positions, 3), rotations, [.10, .10, .10], [-.5, 0, -.5], position_speed, rotation_speed, position_velocity, rotation_velocity, null)
-        ];
+        function create_villain_tbox(positions, scalar=.10) {
+            return new TriggerBox(positions, rotations, [scalar, scalar, scalar], [-.5, 0, -.5], position_speed, rotation_speed, position_velocity, rotation_velocity, null);
+        }
+        var villain_trigger_boxes = [];
+        for (var i = 0; i < 8; i++) {
+            villain_trigger_boxes.push(create_villain_tbox(create_villain_tbox_positions(positions, i)));
+        }
+        // add tbox to cover the middle
+        var villain_middle_tbox_positions = [
+            [-.5, -.5, 0], //bottom left
+            [.5, -.5, 0], //bottom right
+            [.5, .5, 0], //top right
+            [-.5, .5, 0], //top left
+        ]
+
+        villain_trigger_boxes.push(create_villain_tbox(villain_middle_tbox_positions, (radius-side_length)*.1*2));
         var villain = new Villain(villain_entity, villain_trigger_boxes);
 
         // red wall
@@ -104,7 +130,8 @@ class Main {
             [-1, 0, 0], //top left
         ]
         var wall_trigger_boxes = [
-            new TriggerBox(trigger_box1_positions, rotations, [.15, .15, .15], [0.3, 0, -.5], 0, 0, position_velocity, rotation_velocity, null)
+            new TriggerBox(trigger_box1_positions, rotations, [.15, .15, .15], [0.3, 0, -.5], 0, 0, position_velocity, rotation_velocity, null),
+            new TriggerBox(trigger_box1_positions, rotations, [.15, .15, .15], [0.3+1*.15, 0, -.5], 0, 0, position_velocity, rotation_velocity, null)
         ];       
         var wall = new Obstacle(wall_entity, wall_trigger_boxes);
 
@@ -166,11 +193,6 @@ class Main {
             game_engine.update_velocities(keys_pressed);
             game_engine.move();
             game_engine.render();
-
-
-            console.log('hero tb1 pos', hero.trigger_boxes[0].positions);
-            console.log('bullet1 tb1 pos', game_engine.actors[2].trigger_boxes[0].positions);
-            console.log(hero.trigger_boxes[0].is_touching(game_engine.actors[2].trigger_boxes[0]));
         }
 
         // Wait till page loads to start ticking

@@ -27,8 +27,6 @@ class OrientedBoundingBox {
             return;
         }
 
-        console.log("OrientedBoundingBox positions: ", positions);
-        
         this.positions = positions;
         this.rotation_matrix = OrientedBoundingBox.get_rotation_matrix(rotations);
 
@@ -44,15 +42,15 @@ class OrientedBoundingBox {
         ry *= to_radians;
         rz *= to_radians;
 
-        const cos_x = Math.cos(rx), sinX = Math.sin(rx);
+        const cos_x = Math.cos(rx), sin_x = Math.sin(rx);
         const cos_y = Math.cos(ry), sin_y = Math.sin(ry);
         const cos_z = Math.cos(rz), sin_z = Math.sin(rz);
 
         // Rotation matrices for each axis
         const rot_x = [
             [1, 0, 0],
-            [0, cos_x, -sinX],
-            [0, sinX, cos_x]
+            [0, cos_x, -sin_x],
+            [0, sin_x, cos_x]
         ];
         const rot_y = [
             [cos_y, 0, sin_y],
