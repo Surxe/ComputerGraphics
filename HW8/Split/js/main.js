@@ -72,7 +72,7 @@ class Main {
             var y = Math.sin(i * Math.PI / 4);
             positions.push([x, y, 0]);
         }
-        var villain_entity = new Entity('Villain', 'TRIANGLE_FAN', [0, 1, 0], positions, rotations, [.10, .10, .10], [-.5, 0, 0], 0, 0, position_velocity, rotation_velocity, null);
+        var villain_entity = new Entity('Villain', 'TRIANGLE_FAN', [0, 1, 0], positions, rotations, [.10, .10, .10], [-.5, 0, 0], position_speed, rotation_speed, position_velocity, rotation_velocity, null);
         function create_villain_tbox_positions(positions, i) {
             return [
                 [positions[i][0], positions[i][1], 0],
@@ -82,10 +82,10 @@ class Main {
             ]
         }
         var villain_trigger_boxes = [
-            new TriggerBox(create_villain_tbox_positions(positions, 0), rotations, [.10, .10, .10], [-.5, 0, -.5], 0, 0, position_velocity, rotation_velocity, null),
-            new TriggerBox(create_villain_tbox_positions(positions, 1), rotations, [.10, .10, .10], [-.5, 0, -.5], 0, 0, position_velocity, rotation_velocity, null),
-            new TriggerBox(create_villain_tbox_positions(positions, 2), rotations, [.10, .10, .10], [-.5, 0, -.5], 0, 0, position_velocity, rotation_velocity, null),
-            new TriggerBox(create_villain_tbox_positions(positions, 3), rotations, [.10, .10, .10], [-.5, 0, -.5], 0, 0, position_velocity, rotation_velocity, null)
+            new TriggerBox(create_villain_tbox_positions(positions, 0), rotations, [.10, .10, .10], [-.5, 0, -.5], position_speed, rotation_speed, position_velocity, rotation_velocity, null),
+            new TriggerBox(create_villain_tbox_positions(positions, 1), rotations, [.10, .10, .10], [-.5, 0, -.5], position_speed, rotation_speed, position_velocity, rotation_velocity, null),
+            new TriggerBox(create_villain_tbox_positions(positions, 2), rotations, [.10, .10, .10], [-.5, 0, -.5], position_speed, rotation_speed, position_velocity, rotation_velocity, null),
+            new TriggerBox(create_villain_tbox_positions(positions, 3), rotations, [.10, .10, .10], [-.5, 0, -.5], position_speed, rotation_speed, position_velocity, rotation_velocity, null)
         ];
         var villain = new Villain(villain_entity, villain_trigger_boxes);
 

@@ -43,6 +43,7 @@ class GameEngine {
     update_velocities(keys_pressed) {
         for (var actor of this.actors) {
             actor.update_velocities(keys_pressed);
+            actor.copy_lead_entity_velocity_to_trigger_boxes();
         }
     }
 

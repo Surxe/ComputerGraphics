@@ -33,8 +33,6 @@ class Hero extends Character {
             var unit_vector = [0, 0, 0];
         }
         this.update_position_velocity(unit_vector);
-
-        this.copy_lead_entity_velocity_to_trigger_boxes();
     }
 
     create_bullet() {
