@@ -3,9 +3,13 @@ class Villain extends Character {
         super(...args);
     }
 
-    update_velocities() {
+    update_velocities(position_direction=1) {
+        // Ensure the parameter is a valid number (fallback to 1 if undefined)
+        if (typeof position_direction !== "number") {
+            position_direction = 1;
+        }
+        
         // Move forward
-        var position_direction = 1;
         var unit_vector = this.calc_unit_vector(position_direction);
         this.update_position_velocity(unit_vector);
 

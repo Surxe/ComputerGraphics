@@ -94,7 +94,7 @@ class GameObject {
         return false;
     }
 
-    attempt_move() {
+    attempt_move(attempts_remaining=2, rotation_shift=0) {
         // Deep copy positions and rotations
         var new_translations = [...this.translations];
         var new_rotations = [...this.rotations];
@@ -103,6 +103,7 @@ class GameObject {
         for (var dimension_i = 0; dimension_i < 3; dimension_i++) {
             new_rotations[dimension_i] += this.rotation_velocity[dimension_i];
         }
+        new_rotations[2] = (new_rotations[2] - rotation_shift) % 360; // Rotate rs degrees around z
 
         // Apply position_velocity to translations
         // Translate in direction the object is facing
@@ -119,16 +120,10 @@ class GameObject {
 
         // Check if its out of bounds
         if (this.is_out_of_bounds(new_positions)) {
-            new_rotations[2] = (new_rotations[2] - 180) % 360; // Rotate 180 degrees around z
-            console.log(new_rotations);
-
-            //Reprocess the new positions
-            new_positions = this.process_transformations(
-                this.original_positions.map(vertex => [...vertex]), 
-                new_rotations,
-                [...this.scalars],
-                new_translations
-            );
+            if (attempts_remaining <= 0) {
+                return false;
+            }
+            return this.attempt_move(attempts_remaining-1, rotation_shift=180);
         }
 
         return [new_positions, new_rotations, new_translations];
