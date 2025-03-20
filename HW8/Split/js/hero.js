@@ -59,16 +59,10 @@ class Hero extends Character {
         var bullet_position_velocities = this.entity.position_velocities;
         var bullet_rotation_velocities = [0, 0, 0];
         var bullet_indices = null
-        var trigger_box_positions = [
-            [-.5, -.5, 0], //bottom left
-            [.5, -.5, 0], //bottom right
-            [.5, .5, 0], //top right
-            [-.5, .5, 0], //top left
-        ]
-        var bullet_trigger_boxes = [new TriggerBox(                                   trigger_box_positions, rotations, [.15, .15, .15], [.3, 0, 0], 0, 0, position_velocity, rotation_velocity, null)];
+        var bullet_trigger_boxes = [new TriggerBox(                            bullet_positions, bullet_rotations, bullet_scalars, bullet_translations, bullet_position_speed, bullet_rotation_speed, bullet_position_velocities, bullet_rotation_velocities, null)];
         var bullet_entity = new Entity('Bullet', bullet_draw_mode, bullet_rgb, bullet_positions, bullet_rotations, bullet_scalars, bullet_translations, bullet_position_speed, bullet_rotation_speed, bullet_position_velocities, bullet_rotation_velocities, bullet_indices);
         var bullet_actor = new Projectile(bullet_entity, bullet_trigger_boxes);
-        game_engine.add_actor(bullet_actor);
+
         return bullet_actor;
     }
 
