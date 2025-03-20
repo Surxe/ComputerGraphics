@@ -60,7 +60,7 @@ class Main {
             [0, 0.5, 0],
         ]
         var hero_trigger_boxes = [
-            new TriggerBox(trigger_box1_positions, rotations, [.15, .15, .15], [0, 0, 0], position_speed, rotation_speed, position_velocity, rotation_velocity, null),
+            new TriggerBox(trigger_box1_positions, rotations, [.15, .15, .15], [0, 0, -.5], position_speed, rotation_speed, position_velocity, rotation_velocity, null),
             new TriggerBox(trigger_box2_positions, [0, 0, 0], [.15, .15, .15], [0, 0, -.5], position_speed, rotation_speed, position_velocity, rotation_velocity, null)
         ];
         var hero = new Hero(hero_entity, hero_trigger_boxes);
@@ -97,8 +97,14 @@ class Main {
             [-1, 0, 0], //top left
         ]
         var wall_entity =         new Entity    ('Wall', 'TRIANGLE_FAN', [1, 0, 0], positions, rotations, [.15, .15, .15], [.3, 0, 0], 0, 0, position_velocity, rotation_velocity, null);
+        trigger_box1_positions = [
+            [-1, -1, 0], //bottom left
+            [0, -1, 0], //bottom right
+            [0, 0, 0], //top right
+            [-1, 0, 0], //top left
+        ]
         var wall_trigger_boxes = [
-            new TriggerBox(positions, rotations, [.15, .15, .15], [0.3, 0, -.5], 0, 0, position_velocity, rotation_velocity, null)
+            new TriggerBox(trigger_box1_positions, rotations, [.15, .15, .15], [0.3, 0, -.5], 0, 0, position_velocity, rotation_velocity, null)
         ];       
         var wall = new Obstacle(wall_entity, wall_trigger_boxes);
 
@@ -161,7 +167,10 @@ class Main {
             game_engine.move();
             game_engine.render();
 
-            console.log(game_engine.actors[0].trigger_boxes[1].is_touching(game_engine.actors[0].trigger_boxes[0]));
+
+            console.log('hero tb1 pos', hero.trigger_boxes[0].positions);
+            console.log('bullet1 tb1 pos', game_engine.actors[2].trigger_boxes[0].positions);
+            console.log(hero.trigger_boxes[0].is_touching(game_engine.actors[2].trigger_boxes[0]));
         }
 
         // Wait till page loads to start ticking

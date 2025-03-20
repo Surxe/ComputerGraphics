@@ -86,4 +86,17 @@ class Transform {
         var magnitude = Math.sqrt(this.dot_3d(v, v));
         return [v[0] / magnitude, v[1] / magnitude, v[2] / magnitude];
     }
+
+    static euler_to_rotation_matrix([rx, ry, rz]) {
+        const toRadians = (deg) => (deg * Math.PI) / 180;
+        const cx = Math.cos(toRadians(rx)), sx = Math.sin(toRadians(rx));
+        const cy = Math.cos(toRadians(ry)), sy = Math.sin(toRadians(ry));
+        const cz = Math.cos(toRadians(rz)), sz = Math.sin(toRadians(rz));
+
+        return [
+            [cy * cz, -cy * sz, sy], // X-axis
+            [sx * sy * cz + cx * sz, -sx * sy * sz + cx * cz, -sx * cy], // Y-axis
+            [-cx * sy * cz + sx * sz, cx * sy * sz + sx * cz, cx * cy] // Z-axis
+        ];
+    }
 }
