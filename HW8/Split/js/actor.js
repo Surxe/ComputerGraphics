@@ -7,18 +7,16 @@ class Actor {
     }
 
     move() {
-        // Update positions and rotations
-
+        // Get the new position data for the entity
         var new_position_data = this.entity.attempt_move();
-        if (!new_position_data) {
-            return;
-        }
+
+        // Move to it
         this.entity.positions = new_position_data[0];
         this.entity.rotations = new_position_data[1];
         this.entity.translations = new_position_data[2];
         this.entity.unit_vector = this.calc_unit_vector(1);
         
-        
+        // Move the trigger to its new position
         for (let trigger_box of this.trigger_boxes) {
             var new_position_data = trigger_box.attempt_move();
             trigger_box.positions = new_position_data[0];

@@ -119,8 +119,16 @@ class GameObject {
 
         // Check if its out of bounds
         if (this.is_out_of_bounds(new_positions)) {
-            console.log("Out of bounds.");
-            return false;
+            new_rotations[2] = (new_rotations[2] - 180) % 360; // Rotate 180 degrees around z
+            console.log(new_rotations);
+
+            //Reprocess the new positions
+            new_positions = this.process_transformations(
+                this.original_positions.map(vertex => [...vertex]), 
+                new_rotations,
+                [...this.scalars],
+                new_translations
+            );
         }
 
         return [new_positions, new_rotations, new_translations];
