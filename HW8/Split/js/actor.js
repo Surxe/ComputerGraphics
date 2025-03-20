@@ -11,7 +11,9 @@ class Actor {
         var new_position_data = this.entity.attempt_move();
         if (!new_position_data) { //on border and reversing direction still leaves me on border
             // Reverse entities velocity
-            this.entity.position_speed *= -1; // i hate this, and I tried it the better way but it was being obnoxious
+            if (this.entity.name == 'Villain') {
+                this.entity.position_speed *= -1; // i hate this, and I tried it the better way but it was being obnoxious
+            }
             return false;
         }
 
