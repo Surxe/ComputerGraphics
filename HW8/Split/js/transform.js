@@ -77,4 +77,39 @@ class Transform {
         }
         return Math.sqrt(sum);
     }
+
+    static dot_3d(v1, v2) {
+        return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
+    }
+
+    static normalize_3d(v) {
+        var magnitude = Math.sqrt(this.dot_3d(v, v));
+        return [v[0] / magnitude, v[1] / magnitude, v[2] / magnitude];
+    }
+
+    static rotate_3d(position, rotations) {
+        // Rotate a 3d position by the given rotations
+        var x = position[0];
+        var y = position[1];
+        var z = position[2];
+        var x_rads = rotations[0] * (Math.PI / 180); // Convert degrees to radians
+        var y_rads = rotations[1] * (Math.PI / 180); // Convert degrees to radians
+        var z_rads = rotations[2] * (Math.PI / 180); // Convert degrees to radians
+        // Rotation around X-axis
+        var x_cos = Math.cos(x_rads);
+        var x_sin = Math.sin(x_rads);
+        var y1 = y * x_cos - z * x_sin;
+        var z1 = y * x_sin + z * x_cos;
+        // Rotation around Y-axis
+        var y_cos = Math.cos(y_rads);
+        var y_sin = Math.sin(y_rads);
+        var x2 = x * y_cos + z1 * y_sin;
+        var new_z = -x * y_sin + z1 * y_cos;
+        // Rotation around Z-axis
+        var z_cos = Math.cos(z_rads);
+        var z_sin = Math.sin(z_rads);
+        var new_x = x2 * z_cos - y1 * z_sin;
+        var new_y = x2 * z_sin + y1 * z_cos;
+        return [new_x, new_y, new_z];
+    }
 }

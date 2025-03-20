@@ -160,6 +160,8 @@ class Main {
             game_engine.update_velocities(keys_pressed);
             game_engine.move();
             game_engine.render();
+
+            console.log(game_engine.actors[0].trigger_boxes[1].is_touching(game_engine.actors[0].trigger_boxes[0]));
         }
 
         // Wait till page loads to start ticking
