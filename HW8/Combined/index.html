@@ -1,0 +1,1292 @@
+<HTML>
+	<HEAD>
+		<TITLE>Test to see if I can do rotation matrices with point.</TITLE>
+        <style>
+            body {
+              background-color: black;
+              color: white;
+            }
+        </style>
+	</HEAD>
+	<BODY></BODY>
+		<script>
+            class Transform {
+                static num_dimensions = 3;
+
+                static translate_position(position, translation) {
+                    return position + translation;
+                }
+
+                static add_1d_arrays(array1, array2) {
+                    return array1.map((val, i) => val + array2[i]);
+                }
+
+                static translate_positions(positions, translations) {
+                    for (var vertex_i = 0; vertex_i < positions.length; vertex_i++) {
+                        for (var dimension_j = 0; dimension_j < Transform.num_dimensions; dimension_j++) {
+                            positions[vertex_i][dimension_j] = Transform.translate_position(positions[vertex_i][dimension_j], translations[dimension_j]);
+                        }
+                    }
+
+                    return positions;
+                }
+
+                static scale_position(position, scalar) {
+                    return position * scalar;
+                }
+
+                static scale_1d_array(array, scalar) {
+                    for (var i = 0; i < array.length; i++) {
+                        array[i] = Transform.scale_position(array[i], scalar);
+                    }
+
+                    return array;
+                }
+
+                static scale_positions(positions, scalars) {
+                    for (var vertex_i = 0; vertex_i < positions.length; vertex_i++) {
+                        for (var dimension_j = 0; dimension_j < Transform.num_dimensions; dimension_j++) {
+                            positions[vertex_i][dimension_j] = Transform.scale_position(positions[vertex_i][dimension_j], scalars[dimension_j]);
+                        }
+                    }
+
+                    return positions;
+                }
+
+                static rotate_axes(position, degrees=[0, 0, 0]) {
+                    let [x, y, z] = position;
+                    let [x_rads, y_rads, z_rads] = degrees.map(deg => deg * (Math.PI / 180)); // Convert degrees to radians
+
+                    // Rotation around X-axis
+                    let x_cos = Math.cos(x_rads), x_sin = Math.sin(x_rads);
+                    let y1 = y * x_cos - z * x_sin;
+                    let z1 = y * x_sin + z * x_cos;
+
+                    // Rotation around Y-axis
+                    let y_cos = Math.cos(y_rads), y_sin = Math.sin(y_rads);
+                    let x2 = x * y_cos + z1 * y_sin;
+                    let new_z = -x * y_sin + z1 * y_cos;
+
+                    // Rotation around Z-axis
+                    let z_cos = Math.cos(z_rads), z_sin = Math.sin(z_rads);
+                    let new_x = x2 * z_cos - y1 * z_sin;
+                    let new_y = x2 * z_sin + y1 * z_cos;
+
+                    return [new_x, new_y, new_z];
+                }
+
+                static rotate_positions(positions, degrees=[0, 0, 0]) {
+                    for (var vertex_i = 0; vertex_i < positions.length; vertex_i++) {
+                        positions[vertex_i] = Transform.rotate_axes(positions[vertex_i], degrees);
+                    }
+                    return positions;
+                }
+
+                static get_magnitude(array_1d) {
+                    var sum = 0;
+                    for (var i = 0; i < array_1d.length; i++) {
+                        sum += array_1d[i] ** 2;
+                    }
+                    return Math.sqrt(sum);
+                }
+
+                static dot_3d(v1, v2) {
+                    return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
+                }
+
+                static normalize_3d(v) {
+                    var magnitude = Math.sqrt(this.dot_3d(v, v));
+                    return [v[0] / magnitude, v[1] / magnitude, v[2] / magnitude];
+                }
+
+                static euler_to_rotation_matrix([rx, ry, rz]) {
+                    const toRadians = (deg) => (deg * Math.PI) / 180;
+                    const cx = Math.cos(toRadians(rx)), sx = Math.sin(toRadians(rx));
+                    const cy = Math.cos(toRadians(ry)), sy = Math.sin(toRadians(ry));
+                    const cz = Math.cos(toRadians(rz)), sz = Math.sin(toRadians(rz));
+
+                    return [
+                        [cy * cz, -cy * sz, sy], // X-axis
+                        [sx * sy * cz + cx * sz, -sx * sy * sz + cx * cz, -sx * cy], // Y-axis
+                        [-cx * sy * cz + sx * sz, cx * sy * sz + sx * cz, cx * cy] // Z-axis
+                    ];
+                }
+            }
+        </script>
+		<script>
+            class InitWebGLProgram {
+                constructor() {
+                    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+                    gl.clearColor(1, 1, 1, 1);
+                    gl.clear(gl.COLOR_BUFFER_BIT);
+                    gl.enable(gl.DEPTH_TEST);
+                }
+
+                createShader(type, source) {
+                    var shader = gl.createShader(type);
+                    gl.shaderSource(shader, source);
+                    gl.compileShader(shader);
+                    if (gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                        return shader;
+                    }
+                    console.error(gl.getShaderInfoLog(shader));
+                    gl.deleteShader(shader);
+                }
+
+                createProgram(vs, fs) {
+                    var program = gl.createProgram();
+                    gl.attachShader(program, vs);
+                    gl.attachShader(program, fs);
+                    gl.linkProgram(program);
+                    if (gl.getProgramParameter(program, gl.LINK_STATUS)) {
+                        return program;
+                    }
+                    console.error(gl.getProgramInfoLog(program));
+                    gl.deleteProgram(program);
+                }
+            }
+        </script>
+        <script>
+            var gl; // global
+
+            class GameEngine {
+                constructor() {
+                    // Create and append canvas with id canvas
+                    var canvas = document.createElement("canvas");
+                    canvas.width = 800;
+                    canvas.height = 800;
+                    canvas.id = "canvas";
+                    canvas.style.border = "1px solid";
+
+                    document.body.appendChild(canvas);
+
+                    // Initialize global WebGL context
+                    gl = canvas.getContext("webgl");
+                    if (!gl) {
+                        console.error("WebGL not supported.");
+                    }
+
+                    this.webGL = new InitWebGLProgram();
+                    var vertexShaderSource = document.getElementById("2DVertexShader").text;
+                    var fragmentShaderSource = document.getElementById("2DFragmentShader").text;
+                    var vertexShader = this.webGL.createShader(gl.VERTEX_SHADER, vertexShaderSource);
+                    var fragmentShader = this.webGL.createShader(gl.FRAGMENT_SHADER, fragmentShaderSource);
+
+                    // Create and use the shader program
+                    this.program = this.webGL.createProgram(vertexShader, fragmentShader);
+
+                    gl.useProgram(this.program);
+
+                    this.actors = [];
+                    this.obstacle_actors = [];
+                    this.score = 0;
+
+                    this.render()
+                }
+
+                add_actor(actor) {
+                    // If entity is an Entity
+                    if (actor instanceof Actor) {
+                        this.actors.push(actor);
+                    }
+                }
+
+                update_velocities(keys_pressed) {
+                    for (var actor of this.actors) {
+                        actor.update_velocities(keys_pressed);
+                        actor.copy_lead_entity_velocity_to_trigger_boxes();
+                    }
+                }
+
+                move() {
+                    for (var actor of this.actors) {
+                        var other_actors = this.actors.filter(other_actor => other_actor != actor);
+                        actor.move();
+                        var actions = actor.collision_checks(other_actors);
+                        for (var action of actions) {
+                            if (action == "add_score") {
+                                this.add_score();
+                            }
+                            else if (action == "game_over") {
+                                this.game_over();
+                            }
+                        }
+                    }
+                }
+
+                destroy() {
+                    for (var actor of this.actors) {
+                        if (actor.should_destroy) {
+                            this.actors = this.actors.filter(other_actor => other_actor != actor);
+                        }
+                    }
+                }
+
+                add_score() {
+                    this.score += 1;
+                    document.getElementById("score").innerText = "Score: " + this.score;
+                }
+
+                game_over() {
+                    document.getElementById("game_over").innerText = "Game Over!";
+                }
+
+                render() {
+                    gl.clearColor(0, 0, 0, 1.0);
+                    gl.clear(gl.COLOR_BUFFER_BIT);
+                    for (var actor of this.actors) {
+                        actor.render(this.program);
+                    }
+                }
+            }
+        </script>
+        <script>
+            class GameObject {
+                // GameObject represents any 3D object
+                constructor(
+                        name,
+                        positions,
+                        rotations=[0, 0, 0],
+                        scalars=[1, 1, 1],
+                        translations=[0, 0, 0],
+                        position_speed=0,
+                        rotation_speed=0,
+                        position_velocity=[0, 0, 0],
+                        rotation_velocity=[0, 0, 0],
+                        indices=null, // optional, will default to indices of array
+                    ) {
+
+                    this.name = name;
+                    this.original_positions = positions.map(vertex => [...vertex]); // List of [x, y, z] lists
+                    this.positions;
+                    this.rotations = [...rotations];
+                    this.scalars = [...scalars];
+                    this.translations = [...translations];
+                    this.position_speed = position_speed;
+                    this.rotation_speed = rotation_speed;
+                    this.position_velocity = [...position_velocity];
+                    this.rotation_velocity = [...rotation_velocity];
+                    this.indices = indices ? [...indices] : null;
+
+                    this.positions = this.process_transformations(
+                        this.original_positions.map(vertex => [...vertex]), 
+                        [...this.rotations],
+                        [...this.scalars],
+                        [...this.translations]
+                    );
+
+                    this.should_render = true;
+
+                    this.unit_vector = this.calc_unit_vector(1); // direction the game_object is facing
+                }
+
+                process_transformations(positions, rotations, scalars, translations) {
+                    positions = Transform.rotate_positions(positions, rotations);
+                    positions = Transform.scale_positions(positions, scalars);
+                    positions = Transform.translate_positions(positions, translations);
+                    return positions;
+                }
+
+                // Reformat to [x, y, z, r, g, b] format
+                // gl format is not very readable, and is not used to store the data, but is rather used in an intermediary step
+                reformat_positions_arr(positions) {
+                    var is_rgb_per_vertex;
+                    if (this.rgb.length == this.positions.length && this.rgb[0].length == 3) { // if num vertices in rgb and positions match and each rgb has 3 values
+                        is_rgb_per_vertex = true;
+                    }
+                    else if (this.rgb.length == 3) { // if rgb is a single color with 3 values, apply it to all vertices
+                        is_rgb_per_vertex = false 
+                    }
+                    else {
+                        console.error("Invalid rgb array length.");
+                        return;
+                    }
+
+                    var vertices = [];
+                    for (var vertex_i = 0; vertex_i < positions.length; vertex_i++) {
+                        for (var dimension_j = 0; dimension_j < 3; dimension_j++) {
+                            vertices.push(positions[vertex_i][dimension_j]);
+                        }
+                        
+                        if (is_rgb_per_vertex) {
+                            vertices.push(this.rgb[vertex_i][0]);
+                            vertices.push(this.rgb[vertex_i][1]);
+                            vertices.push(this.rgb[vertex_i][2]);
+                        } else {
+                            vertices.push(this.rgb[0]);
+                            vertices.push(this.rgb[1]);
+                            vertices.push(this.rgb[2]);
+                        }
+                    }
+
+                    return vertices;
+                }
+
+                copy_velocity(other_game_object) {
+                    this.position_velocity = [...other_game_object.position_velocity];
+                    this.rotation_velocity = [...other_game_object.rotation_velocity];
+                }
+                
+                is_out_of_bounds(positions) {
+                    for (var vertex_i = 0; vertex_i < positions.length; vertex_i++) {
+                        for (var dimension_j = 0; dimension_j < 3; dimension_j++) {
+                            if (positions[vertex_i][dimension_j] > 1 || positions[vertex_i][dimension_j] < -1) {
+                                return true;
+                            }
+                        }
+                    }
+
+                    return false;
+                }
+
+                get_next_position(rotation_shift=0) {
+                    // Deep copy positions and rotations
+                    var new_translations = [...this.translations];
+                    var new_rotations = [...this.rotations];
+
+                    // Apply rotation_velocity to rotations
+                    for (var dimension_i = 0; dimension_i < 3; dimension_i++) {
+                        new_rotations[dimension_i] += this.rotation_velocity[dimension_i];
+                    }
+                    new_rotations[2] = (new_rotations[2] - rotation_shift) % 360; // Rotate rs degrees around z
+
+                    // Apply position_velocity to translations
+                    // Translate in direction the object is facing
+                    for (var dimension_i = 0; dimension_i < 3; dimension_i++) {
+                        new_translations[dimension_i] += this.position_velocity[dimension_i];
+                    }
+
+                    var new_positions = this.process_transformations(
+                        this.original_positions.map(vertex => [...vertex]), 
+                        new_rotations,
+                        [...this.scalars],
+                        new_translations
+                    );
+
+                    var new_position_data = [new_positions, new_rotations, new_translations];
+                    return new_position_data;
+                }
+
+                attempt_move(attempts_remaining=2, rotation_shift=0) {
+                    var new_position_data = this.get_next_position(rotation_shift);
+
+                    if (!this.can_move(new_position_data[0])) {
+                        return false;
+                    }
+
+                    // Check if its out of bounds
+                    if (this.is_out_of_bounds(new_position_data[0])) {
+                        if (attempts_remaining <= 0) {
+                            return false;
+                        }
+                        return this.attempt_move(attempts_remaining-1, 180);
+                    }
+
+                    return new_position_data;
+                }
+
+                can_move(new_positions) {
+                    // Check if the new position is touching another game_object
+                    return true
+                }
+
+                update_rotation_velocity(unit_vector) {
+                    var rotation_velocity_arr = Transform.scale_1d_array(unit_vector, this.rotation_speed);
+                    this.rotation_velocity = rotation_velocity_arr;
+                }
+
+                update_position_velocity(unit_vector) {
+                    var position_velocity_arr = Transform.scale_1d_array(unit_vector, this.position_speed);
+                    this.position_velocity = position_velocity_arr
+                }
+
+                calc_unit_vector(sign) {
+                    // Calculate the unit vector of the direction the game_object is facing
+                    var current_rotation = this.rotations[2];
+                    var rotation_rads = current_rotation * Math.PI / 180;
+                    var dx = sign * Math.sin(rotation_rads);
+                    var dy = sign * Math.cos(rotation_rads);
+                    return [-dx, dy, 0];
+                }
+
+                // true/false if this is touching another game_object
+                is_touching(game_object) {
+                    // touching means 
+                }
+            }
+        </script>
+        <script>
+            class Entity extends GameObject {
+                // Entities are GameObjects that are drawn on the screen using WebGL
+                constructor(name, draw_mode, rgb, ...args) {
+                    super(name, ...args);
+                    this.draw_mode = draw_mode;
+                    this.rgb = rgb;
+                    console.log("Entity " + this.name + " created.");
+                }
+
+                buffer() {
+                    var reformatted_positions = this.reformat_positions_arr(this.positions);
+                    this.buffer_vertices(reformatted_positions)
+
+                    if (this.indices) {
+                        this.buffer_indices(this.indices);
+                    }
+                }
+
+                buffer_vertices(vertices) {
+                    this.positionBuffer = gl.createBuffer();
+                    gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
+                    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+                }
+
+                buffer_indices(indices) {
+                    this.indexBuffer = gl.createBuffer();
+                    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+                    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+                }
+
+                update_velocities(a) {
+
+                }
+
+                render(program) {
+                    if (!this.should_render) {
+                        return;
+                    }
+                    this.buffer();
+
+                    gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
+                    var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
+                    gl.enableVertexAttribArray(positionAttributeLocation);
+
+                    var size = 3;
+                    var type = gl.FLOAT;
+                    var normalize = false;
+                    var stride = 6 * Float32Array.BYTES_PER_ELEMENT;
+                    var offset = 0;
+                    gl.vertexAttribPointer(positionAttributeLocation, size, type, normalize, stride, offset);
+
+                    var colorAttributeLocation = gl.getAttribLocation(program, "a_color");
+                    gl.enableVertexAttribArray(colorAttributeLocation);
+                    gl.vertexAttribPointer(colorAttributeLocation, size, type, normalize, stride, 3 * Float32Array.BYTES_PER_ELEMENT);
+
+                    const draw_mode_map = {
+                        'LINE_LOOP': gl.LINE_LOOP,
+                        'TRIANGLES': gl.TRIANGLES,
+                        'TRIANGLE_FAN': gl.TRIANGLE_FAN,
+                        'LINES': gl.LINES,
+                        'POINTS': gl.POINTS
+                    }
+                    var gl_draw_mode = draw_mode_map[this.draw_mode];
+                    if (gl_draw_mode == undefined) {
+                        console.error("Invalid draw mode.");
+                        return;
+                    }
+
+                    if (this.indices) {
+                        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+                        gl.drawElements(gl_draw_mode, this.indices.length, gl.UNSIGNED_SHORT, 0);
+                    } else {
+                        gl.drawArrays(gl_draw_mode, 0, this.positions.length);
+                    }
+                }
+            }
+        </script>
+        <script>
+            class OrientedBoundingBox {
+                // Requirements:
+                // The OBB must have 8 vertices that form a perfect cube OR
+                // The OBB must have 4 vertices that form a perfect square
+
+                constructor(positions, rotations) {
+                    // Validate its a cube and not a square
+                    if (positions.length == 4) {
+                        // Convert 2D box to 3D box
+                        const [x1, y1, z1] = positions[0];
+                        const [x2, y2, z2] = positions[1];
+                        const [x3, y3, z3] = positions[2];
+                        const [x4, y4, z4] = positions[3];
+                        positions = [
+                            [x1, y1, z1],
+                            [x2, y2, z2],
+                            [x3, y3, z3],
+                            [x4, y4, z4],
+                            [x1, y1, z1],
+                            [x2, y2, z2],
+                            [x3, y3, z3],
+                            [x4, y4, z4]
+                        ];
+                    }
+                    if (positions.length != 8) {
+                        console.error("OrientedBoundingBox must have 8 vertices.");
+                        return;
+                    }
+
+                    this.positions = positions;
+                    this.rotation_matrix = OrientedBoundingBox.get_rotation_matrix(rotations);
+
+                    // Compute center and half-sizes from given positions
+                    this.center = OrientedBoundingBox.compute_center(positions);
+                    this.half_sizes = OrientedBoundingBox.compute_half_sizes(positions, this.center);
+                }
+
+                // Convert Euler angles (degrees) to a rotation matrix
+                static get_rotation_matrix([rx, ry, rz]) {
+                    const to_radians = Math.PI / 180;
+                    rx *= to_radians;
+                    ry *= to_radians;
+                    rz *= to_radians;
+
+                    const cos_x = Math.cos(rx), sin_x = Math.sin(rx);
+                    const cos_y = Math.cos(ry), sin_y = Math.sin(ry);
+                    const cos_z = Math.cos(rz), sin_z = Math.sin(rz);
+
+                    // Rotation matrices for each axis
+                    const rot_x = [
+                        [1, 0, 0],
+                        [0, cos_x, -sin_x],
+                        [0, sin_x, cos_x]
+                    ];
+                    const rot_y = [
+                        [cos_y, 0, sin_y],
+                        [0, 1, 0],
+                        [-sin_y, 0, cos_y]
+                    ];
+                    const rot_z = [
+                        [cos_z, -sin_z, 0],
+                        [sin_z, cos_z, 0],
+                        [0, 0, 1]
+                    ];
+
+                    // Combined rotation: R = Rz * Ry * Rx
+                    return OrientedBoundingBox.multiply_matrices(OrientedBoundingBox.multiply_matrices(rot_z, rot_y), rot_x);
+                }
+
+                // Multiply two 3x3 matrices
+                static multiply_matrices(A, B) {
+                    return A.map((row, i) =>
+                        row.map((_, j) => A[i][0] * B[0][j] + A[i][1] * B[1][j] + A[i][2] * B[2][j])
+                    );
+                }
+
+                // Compute the center of the cube
+                static compute_center(positions) {
+                    return positions.reduce((sum, p) => sum.map((v, i) => v + p[i]), [0, 0, 0])
+                        .map(v => v / positions.length);
+                }
+
+                // Compute half-sizes from the center
+                static compute_half_sizes(positions, center) {
+                    let max_diff = [0, 0, 0];
+                    positions.forEach(p => {
+                        max_diff = max_diff.map((v, i) => Math.max(v, Math.abs(p[i] - center[i])));
+                    });
+                    return max_diff;
+                }
+
+                // Project a set of points onto an axis
+                static project(vertices, axis) {
+                    let min = Infinity, max = -Infinity;
+                    vertices.forEach(v => {
+                        const projection = OrientedBoundingBox.dot(v, axis);
+                        min = Math.min(min, projection);
+                        max = Math.max(max, projection);
+                    });
+                    return [min, max];
+                }
+
+                // Compute the 8 vertices from the center, half-sizes, and rotation matrix
+                get_vertices() {
+                    const [hx, hy, hz] = this.half_sizes;
+                    const axes = this.rotation_matrix;
+                    const corners = [];
+
+                    for (let dx of [-1, 1]) {
+                        for (let dy of [-1, 1]) {
+                            for (let dz of [-1, 1]) {
+                                const offset = [
+                                    dx * hx * axes[0][0] + dy * hy * axes[1][0] + dz * hz * axes[2][0],
+                                    dx * hx * axes[0][1] + dy * hy * axes[1][1] + dz * hz * axes[2][1],
+                                    dx * hx * axes[0][2] + dy * hy * axes[1][2] + dz * hz * axes[2][2]
+                                ];
+                                corners.push([
+                                    this.center[0] + offset[0],
+                                    this.center[1] + offset[1],
+                                    this.center[2] + offset[2]
+                                ]);
+                            }
+                        }
+                    }
+                    return corners;
+                }
+
+                // Dot product of two vectors
+                static dot(a, b) {
+                    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+                }
+
+                // Cross product of two vectors
+                static cross(a, b) {
+                    return [
+                        a[1] * b[2] - a[2] * b[1],
+                        a[2] * b[0] - a[0] * b[2],
+                        a[0] * b[1] - a[1] * b[0]
+                    ];
+                }
+
+                // SAT Collision Detection
+                static is_touching(obb1, obb2) {
+                    const axes_a = obb1.rotation_matrix;
+                    const axes_b = obb2.rotation_matrix;
+
+                    // Separating axes
+                    const axes = [
+                        axes_a[0], axes_a[1], axes_a[2],  // Box A's axes
+                        axes_b[0], axes_b[1], axes_b[2],  // Box B's axes
+                        OrientedBoundingBox.cross(axes_a[0], axes_b[0]), OrientedBoundingBox.cross(axes_a[0], axes_b[1]), OrientedBoundingBox.cross(axes_a[0], axes_b[2]),
+                        OrientedBoundingBox.cross(axes_a[1], axes_b[0]), OrientedBoundingBox.cross(axes_a[1], axes_b[1]), OrientedBoundingBox.cross(axes_a[1], axes_b[2]),
+                        OrientedBoundingBox.cross(axes_a[2], axes_b[0]), OrientedBoundingBox.cross(axes_a[2], axes_b[1]), OrientedBoundingBox.cross(axes_a[2], axes_b[2])
+                    ];
+
+                    // Check projection overlap for each axis
+                    for (let axis of axes) {
+                        if (axis[0] === 0 && axis[1] === 0 && axis[2] === 0) continue; // Ignore zero vectors
+
+                        const [min_a, max_a] = OrientedBoundingBox.project(obb1.get_vertices(), axis);
+                        const [min_b, max_b] = OrientedBoundingBox.project(obb2.get_vertices(), axis);
+
+                        if (max_a < min_b || max_b < min_a) return false; // Found a separating axis
+                    }
+
+                    return true; // No separating axis found, so they overlap
+                }
+            }
+        </script>
+        <script>
+            class TriggerBox extends Entity{
+                constructor(positions, ...args) {
+                    // Ensure positions create's a box that is axis-aligned
+                    // Not a perfect validation yet
+                    if (positions.length != 4) {
+                        console.error("TriggerBox must have 4 positions.");
+                        return;
+                    }
+                    var draw_mode = 'LINE_LOOP';
+                    var rgb = [1, 1, 1];
+                    super('TRIGGER_BOX', draw_mode, rgb, positions, ...args);
+
+                    this.should_render = true;
+                }
+
+                is_touching(other_trigger_box) {
+                    var cube1 = new OrientedBoundingBox(this.positions, this.rotations);
+                    var cube2 = new OrientedBoundingBox(other_trigger_box.positions, this.rotations);
+                    return OrientedBoundingBox.is_touching(cube1, cube2);
+                }
+            }
+        </script>
+        <script>
+            class Actor {
+                // Actors are an Entity that have TriggerBoxes to detect collisions
+                constructor(entity, trigger_boxes) {
+                    this.entity = entity
+                    this.trigger_boxes = trigger_boxes;
+                    
+                    this.should_destroy = false;
+                    console.log("Actor " + this.entity.name + " created with " + this.trigger_boxes.length + " trigger_boxes.");
+                }
+
+                move() {
+                    // Get the new position data for the entity
+                    var new_position_data = this.entity.attempt_move();
+                    if (!new_position_data) { //on border and reversing direction still leaves me on border
+                        // Reverse entities velocity
+                        if (this.entity.name == 'Villain') {
+                            this.entity.position_speed *= -1; // i hate this, and I tried it the better way but it was being obnoxious
+                        }
+                        return false;
+                    }
+
+                    // Move to it
+                    this.entity.positions = new_position_data[0];
+                    this.entity.rotations = new_position_data[1];
+                    this.entity.translations = new_position_data[2];
+                    this.entity.unit_vector = this.calc_unit_vector(1);
+                    
+                    // Move the trigger to its new position
+                    for (let trigger_box of this.trigger_boxes) {
+                        var new_position_data = trigger_box.attempt_move();
+                        trigger_box.positions = new_position_data[0];
+                        trigger_box.rotations = new_position_data[1];
+                        trigger_box.translations = new_position_data[2];
+                        trigger_box.unit_vector = this.calc_unit_vector(1);
+                    }
+                }
+
+                copy_lead_entity_velocity_to_trigger_boxes() {
+                    for (let trigger_box of this.trigger_boxes) {
+                        trigger_box.copy_velocity(this.entity);
+                    }
+                }
+
+                update_velocities(p1) {
+                    this.entity.update_velocities(p1);
+                }
+
+                update_rotation_velocity(p1) {
+                    this.entity.update_rotation_velocity(p1);
+                }
+
+                update_position_velocity(p1) {
+                    this.entity.update_position_velocity(p1);
+                }
+
+                calc_unit_vector(p1) {
+                    return this.entity.calc_unit_vector(p1);
+                }
+
+                render(program) {
+                    this.entity.render(program);
+                    for (let trigger_box of this.trigger_boxes) {
+                        trigger_box.render(program);
+                    }
+                }
+
+                is_touching(other_actor) {
+                    for (let trigger_box of this.trigger_boxes) {
+                        for (let other_trigger_box of other_actor.trigger_boxes) {
+                            if (trigger_box.is_touching(other_trigger_box)) {
+                                return true;
+                            }
+                        }
+                    }
+                    return false;
+                }
+
+                collision_checks(other_actors) {
+                    var actions = [];
+                    for (var other_actor of other_actors) {
+                        if (this.is_touching(other_actor)) {
+                            var action = this.on_collision(other_actor);
+                            if (action) {
+                                actions.push(action);
+                            }
+                        }
+                    }
+                    return actions;
+                }
+
+                on_collision(other_actor) {
+                    console.log("Actor " + this.entity.name + " collided with " + other_actor.entity.name);
+                }
+
+                can_move(new_positions, obstacle_actors) {
+                    // Check if the new position is touching another game_object
+                    for (var other_actor of obstacle_actors) {
+                        if (this.is_touching(other_actor)) {
+                            return false;
+                        }
+                    }
+                    return true;
+                }
+
+                destroy() {
+                    // Remove the entity and trigger boxes from the game
+                    this.entity.destroy();
+                    for (let trigger_box of this.trigger_boxes) {
+                        trigger_box.destroy();
+                    }
+                }
+            }
+        </script>
+        <script>
+            class Character extends Actor {
+                constructor(...args) {
+                    super(...args);
+                }
+            }
+        </script>
+        <script>
+            class Obstacle extends Actor {
+                constructor(...args) {
+                    super(...args);
+                }
+            }
+        </script>
+        <script>
+            class Projectile extends Actor {
+                constructor(...args) {
+                    super(...args);
+                }
+
+                // Update movement/rotations based on pressed keys
+                //keys_pressed is a map with keys [W, A, S, D] and values [true, false]
+                update_velocities(p1) {
+                    // Projectile will not rotate
+
+                    // Position
+                    var unit_vector = this.calc_unit_vector(1);
+                    this.update_position_velocity(unit_vector);
+                }
+
+                on_collision(other_actor) {
+                    if (other_actor instanceof Hero) {
+                        console.log("Projectile collided with Hero!");
+                        return;
+                    }
+                    else if (other_actor instanceof Coin) {
+                        console.log("Projectile collided with Coin!");
+                        return;
+                    }
+                    else if (other_actor instanceof Obstacle) {
+                        console.log("Projectile collided with Wall!");
+                        this.should_destroy = true;
+                        return;
+                    }
+                    else if (other_actor instanceof Villain) {
+                        console.log("Projectile collided with Villain!");
+                        other_actor.should_destroy = true;
+                        this.should_destroy = true;
+                    }
+                }
+            }
+        </script>
+        <script>
+            class Hero extends Character {
+                constructor(...args) {
+                    super(...args);
+                }
+
+                // Update movement/rotations based on pressed keys
+                //keys_pressed is a map with keys [W, A, S, D] and values [true, false]
+                update_velocities(keys_pressed) {
+                    // (A/D) -> Rotate left/right
+                    var rotation_direction;
+                    if (keys_pressed.A) {
+                        rotation_direction = 1;
+                    } else if (keys_pressed.D) {
+                        rotation_direction = -1;
+                    }
+                    else {
+                        rotation_direction = 0;
+                    }
+                    var rotation_unit_vector = [0, 0, rotation_direction];
+                    this.update_rotation_velocity(rotation_unit_vector);
+
+                    // (W/S) -> Move forward/backward
+                    var position_direction;
+                    if (keys_pressed.W) {
+                        position_direction = 1;
+                        var unit_vector = this.calc_unit_vector(position_direction);
+                    } else if (keys_pressed.S) {
+                        position_direction = -1;
+                        var unit_vector = this.calc_unit_vector(position_direction);
+                    }
+                    else {
+                        position_direction = 0;
+                        var unit_vector = [0, 0, 0];
+                    }
+                    this.update_position_velocity(unit_vector);
+                }
+
+                create_bullet() {
+                    // Get hero's direction
+                    // Add pixels to hero's position in its direction
+                    const shift_magnitude = .08;
+                    const shift_direction = this.entity.unit_vector;
+                    var shift_vector = Transform.scale_1d_array(shift_direction, shift_magnitude);
+                    shift_vector[2] = -.5; // Move bullet to the front of the hero
+
+                    // Create bullet
+                    var bullet_draw_mode = 'TRIANGLE_FAN';
+                    var bullet_rgb = [120/255, 120/255, 120/255];
+                    var bullet_positions = [
+                        [-.25, -.5, 0], //bottom left
+                        [.25, -.5, 0], //bottom right
+                        [.25, .5, 0], //top right
+                        [-.25, .5, 0], //top left
+                    ]
+                    var bullet_rotations = this.entity.rotations;
+                    var bullet_scalars = [.05, .05, .05];
+                    var bullet_translations = Transform.add_1d_arrays(this.entity.translations, shift_vector);
+                    var trigger_box_translations = [...bullet_translations];
+                    trigger_box_translations[2] = -.5;
+                    var bullet_position_speed = Transform.get_magnitude(this.entity.position_velocity) + this.entity.position_speed * 2; //Bullet speed is 2x hero's speed + its current velocity
+                    var bullet_rotation_speed = 0;
+                    var bullet_position_velocities = this.entity.position_velocities;
+                    var bullet_rotation_velocities = [0, 0, 0];
+                    var bullet_indices = null
+                    var bullet_trigger_boxes = [new TriggerBox(                            bullet_positions, bullet_rotations, bullet_scalars, bullet_translations, bullet_position_speed, bullet_rotation_speed, bullet_position_velocities, bullet_rotation_velocities, null)];
+                    var bullet_entity = new Entity('Bullet', bullet_draw_mode, bullet_rgb, bullet_positions, bullet_rotations, bullet_scalars, bullet_translations, bullet_position_speed, bullet_rotation_speed, bullet_position_velocities, bullet_rotation_velocities, bullet_indices);
+                    var bullet_actor = new Projectile(bullet_entity, bullet_trigger_boxes);
+
+                    return bullet_actor;
+                }
+
+                on_collision(other_actor) {
+                    if (other_actor instanceof Projectile) {
+                        console.log("Hero collided with Projectile!");
+                        return;
+                    }
+                    else if (other_actor instanceof Coin) {
+                        console.log("Hero collided with Coin!");
+                        other_actor.should_destroy = true;
+                        return "add_score";
+                    }
+                    else if (other_actor instanceof Obstacle) {
+                        console.log("Hero collided with Wall!");
+                    }
+                    else if (other_actor instanceof Villain) {
+                        console.log("Hero collided with Villain!");
+                        this.should_destroy = true;
+                        return "game_over";
+                    }
+                }
+            }
+        </script>
+        <script>
+            class Villain extends Character {
+                constructor(...args) {
+                    super(...args);
+                }
+
+                update_velocities(position_direction=1) {
+                    // Ensure the parameter is a valid number (fallback to 1 if undefined)
+                    if (typeof position_direction !== "number") {
+                        position_direction = 1;
+                    }
+                    
+                    // Move forward
+                    var unit_vector = this.calc_unit_vector(position_direction);
+                    this.update_position_velocity(unit_vector);
+
+                    // Rotate left
+                    // 5% chance of setting to 'rotate 1 degrees in a random direction'
+                    var random_number = Math.random();
+                    if (random_number < .05) {
+                        var rotation_direction = Math.random() < .5 ? 1 : -1;
+                        var rotation_unit_vector = [0, 0, rotation_direction];
+                        this.update_rotation_velocity(rotation_unit_vector);
+                    }
+                }
+            }
+        </script>
+        <script>
+            class Coin extends Actor {
+                constructor(...args) {
+                    super(...args);
+                }
+
+                update_velocities() {
+                    // Rotate
+                    var rotation_unit_vector = [0, this.entity.rotation_speed, 0];
+                    this.update_rotation_velocity(rotation_unit_vector);
+                }
+            }
+        </script>
+
+        <section id="console">
+            <p>Section Title</p>
+        </section>
+        <script id="2DVertexShader" type="notjs">
+            attribute vec4 a_position;
+            attribute vec3 a_color;
+            varying vec3 v_color;
+            void main() {
+                v_color = a_color;
+                gl_Position = a_position;
+            }
+        </script>
+        <script id="2DFragmentShader" type="notjs">
+            precision mediump float;
+            varying vec3 v_color;
+            void main() {
+                gl_FragColor = vec4(v_color, 1.0);
+            }
+        </script>
+        <section id="score"></section>
+        <section id="game_over"></section>
+
+        
+        <script>
+            class Main {
+                constructor() {
+                    var game_engine = new GameEngine();
+
+                    function create_hero_actor() {
+                        // Initial game_objects' states
+                        // shape is square with triangle ontop
+                        //    **
+                        //   ****
+                        //  ******
+                        // ********
+                        // ********
+                        // ********
+                        // ********
+                        var positions = [
+                            // square base
+                            [-.5, -.5, 0], //bottom left
+                            [.5, -.5, 0], //bottom right
+                            [.5, .5, 0], //top right
+                            [-.5, .5, 0], //top left
+                            // triangle ontop
+                            [-.5, .5, 0],
+                            [.5, .5, 0],
+                            [0, 1, 0],
+                        ]
+                        var rgb = [
+                            // blue square base
+                            [0, 0, 1],
+                            [0, 0, 1],
+                            [0, 0, 1],
+                            [0, 0, 1],
+                            // purple triangle ontop
+                            [1, 0, 1],
+                            [1, 0, 1],
+                            [1, 0, 1],
+                        ]
+                        var rotations = [0, 0, 0]
+                        var position_speed = 0.015;
+                        var rotation_speed = 4;
+                        var position_velocity = [0, 0, 0];
+                        var rotation_velocity = [0, 0, 0];
+                        var indices = [
+                            // square base
+                            0, 1, 2, 
+                            0, 2, 3,
+                            // triangle ontop
+                            4, 5, 6,
+                        ]
+                        var hero_entity = new Entity('Hero', 'TRIANGLES', rgb, positions, rotations, [.15, .15, .15], [0, 0, 0], position_speed, rotation_speed, position_velocity, rotation_velocity, indices);
+                        var trigger_box1_positions = [
+                            [-.5, -.5, 0], //bottom left
+                            [.5, -.5, 0], //bottom right
+                            [.5, .5, 0], //top right
+                            [-.5, .5, 0], //top left
+                        ]
+                        var trigger_box2_positions = [
+                            [-.5, .5, 0],
+                            [0, 1, 0],
+                            [.5, .5, 0],
+                            [0, 0.5, 0],
+                        ]
+                        var hero_trigger_boxes = [
+                            new TriggerBox(trigger_box1_positions, rotations, [.15, .15, .15], [0, 0, -.5], position_speed, rotation_speed, position_velocity, rotation_velocity, null),
+                            new TriggerBox(trigger_box2_positions, rotations, [.15, .15, .15], [0, 0, -.5], position_speed, rotation_speed, position_velocity, rotation_velocity, null)
+                        ];
+                        var hero = new Hero(hero_entity, hero_trigger_boxes);
+                        return hero
+                    }
+
+                    // octagon villain
+                    function create_villain_actor(shifts=[0, 0, 0]) {
+                        var positions = [];
+                        var rotations = [0, 0, 0];
+                        var position_speed = 0.0075;
+                        var rotation_speed = 4;
+                        var position_velocity = [0, 0, 0];
+                        var rotation_velocity = [0, 0, 0];
+                        for (var i = 0; i < 8; i++) {
+                            var x = Math.cos(i * Math.PI / 4);
+                            var y = Math.sin(i * Math.PI / 4);
+                            positions.push([x, y, 0]);
+                        }
+                        var radius = 0.5;
+                        // Compute length of the octagon's sides
+                        var side_length = Math.sqrt(2) * radius;
+                        var villain_entity = new Entity('Villain', 'TRIANGLE_FAN', [0, 1, 0], positions, rotations, [.10, .10, .10], [shifts[0], shifts[1], shifts[2]], position_speed, rotation_speed, position_velocity, rotation_velocity, null);
+                        function travel_from_towards(p1, p2, distance) { //p1 and p2 are [x, y, z]
+                            // travel <distance> from p1 towards p2
+                            var x_diff = p2[0] - p1[0];
+                            var y_diff = p2[1] - p1[1];
+                            var z_diff = p2[2] - p1[2];
+                            var magnitude = Math.sqrt(x_diff**2 + y_diff**2 + z_diff**2);
+                            var unit_vector = [x_diff/magnitude, y_diff/magnitude, z_diff/magnitude];
+                            return [p1[0] + unit_vector[0]*distance, p1[1] + unit_vector[1]*distance, p1[2] + unit_vector[2]*distance];
+                        }
+                        function create_villain_tbox_positions(positions, i) {
+                            const corner0 = [positions[i][0],               positions[i][1], 0];
+                            const corner1 = [positions[(i + 1) % 8][0],     positions[(i + 1) % 8][1], 0];
+                            const corner4 = [positions[(i + 4) % 8][0],     positions[(i + 4) % 8][1], 0];
+                            const corner5 = [positions[(i + 1 + 4) % 8][0], positions[(i + 1 + 4) % 8][1], 0];
+                            return [
+                                corner0,
+                                corner1,
+                                travel_from_towards(corner1, corner4, side_length),
+                                travel_from_towards(corner0, corner5, side_length),
+                            ]
+                        }
+                        function create_villain_tbox(positions, scalar=.10) {
+                            return new TriggerBox(positions, rotations, [scalar, scalar, scalar], [shifts[0], 0+shifts[1], -.5+shifts[2]], position_speed, rotation_speed, position_velocity, rotation_velocity, null);
+                        }
+                        var villain_trigger_boxes = [];
+                        for (var i = 0; i < 8; i++) {
+                            villain_trigger_boxes.push(create_villain_tbox(create_villain_tbox_positions(positions, i)));
+                        }
+                        // add tbox to cover the middle
+                        var villain_middle_tbox_positions = [
+                            [-.5, -.5, 0], //bottom left
+                            [.5, -.5, 0], //bottom right
+                            [.5, .5, 0], //top right
+                            [-.5, .5, 0], //top left
+                        ]
+
+                        villain_trigger_boxes.push(create_villain_tbox(villain_middle_tbox_positions, (radius-side_length)*.1*2));
+                        var villain = new Villain(villain_entity, villain_trigger_boxes);
+                        return villain;
+                    }
+
+                    function create_wall_actor() {
+                        // red wall
+                        var positions = [
+                            [-1, -1, 0], //bottom left
+                            [1, -1, 0], //bottom right
+                            [1, 0, 0], //top right
+                            [-1, 0, 0], //top left
+                        ]
+                        var rotations = [0, 0, 0]
+                        var position_velocity = [0, 0, 0];
+                        var rotation_velocity = [0, 0, 0];
+                        var wall_entity =         new Entity    ('Wall', 'TRIANGLE_FAN', [1, 0, 0], positions, rotations, [.15, .15, .15], [.3, 0, 0], 0, 0, position_velocity, rotation_velocity, null);
+                        var trigger_box1_positions = [
+                            [-1, -1, 0], //bottom left
+                            [0, -1, 0], //bottom right
+                            [0, 0, 0], //top right
+                            [-1, 0, 0], //top left
+                        ]
+                        var wall_trigger_boxes = [
+                            new TriggerBox(trigger_box1_positions, rotations, [.15, .15, .15], [0.3, 0, -.5], 0, 0, position_velocity, rotation_velocity, null),
+                            new TriggerBox(trigger_box1_positions, rotations, [.15, .15, .15], [0.3+1*.15, 0, -.5], 0, 0, position_velocity, rotation_velocity, null)
+                        ];       
+                        var wall = new Obstacle(wall_entity, wall_trigger_boxes);
+                        return wall;
+                    }
+
+                    function create_coin_actor(shifts=[0, 0, 0]) {
+                        var positions = [];
+                        var rotations = [0, 0, 0];
+                        var position_velocity = [0, 0, 0];
+                        var rotation_velocity = [0, 0, 0];
+                        // Circle
+                        for (var i = 0; i < 20; i++) {
+                            var x = Math.cos(i * 2 * Math.PI / 20);
+                            var y = Math.sin(i * 2 * Math.PI / 20);
+                            positions.push([x, y, 0]);
+                        }
+                        var coin_scale = .05;
+                        var coin_rotation_speed = 1;
+                        var coin_entity = new Entity('Coin', 'TRIANGLE_FAN', [1, 1, 0], positions, rotations, [coin_scale, coin_scale, coin_scale], shifts, 0, coin_rotation_speed, position_velocity, rotation_velocity, null);
+                        var coin_trigger_box_positions = [
+                            [-1, -1, 0], //bottom left
+                            [1, -1, 0], //bottom right
+                            [1, 1, 0], //top right
+                            [-1, 1, 0], //top left
+                        ]
+                        var coin_trigger_boxes = [
+                            new TriggerBox(coin_trigger_box_positions, rotations, [coin_scale, coin_scale, coin_scale], [0+shifts[0], 0+shifts[1], -.5+shifts[2]], 0, coin_rotation_speed, position_velocity, rotation_velocity, null)
+                        ];
+                        var coin = new Coin(coin_entity, coin_trigger_boxes);
+                        return coin;
+                    }
+
+                    function random_vertex() {
+                        function random_position() {
+                            return Math.random() * 1.5 - 1.5/2; // Random from -.75 to .75
+                        }
+                        return [
+                            random_position(), 
+                            random_position(),
+                            0
+                        ];
+                    }
+
+                    var hero = create_hero_actor();
+                    game_engine.add_actor(hero);
+
+                    var wall = create_wall_actor();
+                    var obstacle_actors = [wall];
+                    game_engine.obstacle_actors = obstacle_actors;
+                    game_engine.add_actor(wall);
+
+                    game_engine.render();
+
+                    // WASD movement
+                    let keys_pressed = {
+                        W: false,  // Move Up (Y+)
+                        S: false,  // Move Down (Y-)
+                        A: false,  // Move Left (X-)
+                        D: false   // Move Right (X+)
+                    };
+
+                    // Handle keydown event
+                    document.addEventListener('keydown', function(event) {
+                        const key = event.key.toLowerCase(); // Normalize case to handle uppercase/lowercase keys
+
+                        if (key === 'w' && !keys_pressed.W) {
+                            keys_pressed.W = true;
+                        } else if (key === 's' && !keys_pressed.S) {
+                            keys_pressed.S = true;
+                        } else if (key === 'a' && !keys_pressed.A) {
+                            keys_pressed.A = true;
+                        } else if (key === 'd' && !keys_pressed.D) {
+                            keys_pressed.D = true;
+                        }
+                    });
+
+                    // Handle keyup event
+                    document.addEventListener('keyup', function(event) {
+                        const key = event.key.toLowerCase(); // Normalize case to handle uppercase/lowercase keys
+
+                        if (key == 'w') { // W
+                            keys_pressed.W = false;
+                        } else if (key == 's') { // S
+                            keys_pressed.S = false;
+                        } else if (key == 'a') { // A
+                            keys_pressed.A = false;
+                        } else if (key == 'd') { // D
+                            keys_pressed.D = false;
+                        }
+                    });
+
+                    // Handle space bar (shoot) event
+                    document.addEventListener('keydown', function(event) {
+                        if (event.key === ' ') {
+                            var bullet_actor = hero.create_bullet();
+                            game_engine.add_actor(bullet_actor);
+                        }
+                    });
+
+                    function tick() {
+                        game_engine.destroy();
+                        game_engine.update_velocities(keys_pressed);
+                        game_engine.move();
+                        game_engine.render();
+                    }
+
+                    function add_villain() {
+                        var villain = create_villain_actor(random_vertex());
+                        game_engine.add_actor(villain);
+                        console.log("Villain added");
+                    }
+                    function add_coin() {
+                        var coin = create_coin_actor(random_vertex());
+                        game_engine.add_actor(coin);
+                        console.log("Coin added");
+                    }
+
+                    // Wait till page loads to start ticking
+                    document.addEventListener('DOMContentLoaded', function () {
+                        const ticks_per_second = 30; //30tps
+                        const tick_iid = setInterval(tick, 1000/ticks_per_second);
+                        const new_villain_iid = setInterval(add_villain, 10000); //10s
+                        const new_coin_iid = setInterval(add_coin, 3000); //3s
+                    });
+                }
+            }
+        </script>
+        <script>
+            var main = new Main();
+        </script>
+	</BODY>
+</HTML>
