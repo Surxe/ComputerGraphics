@@ -41,7 +41,6 @@ class Actor {
 
     update_velocities(p1) {
         this.entity.update_velocities(p1);
-        this.copy_lead_entity_velocity_to_trigger_boxes();
     }
 
     update_rotation_velocity(p1) {

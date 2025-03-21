@@ -135,10 +135,31 @@ class Main {
         ];       
         var wall = new Obstacle(wall_entity, wall_trigger_boxes);
 
+        positions = []
+        // Circle
+        for (var i = 0; i < 20; i++) {
+            var x = Math.cos(i * 2 * Math.PI / 20);
+            var y = Math.sin(i * 2 * Math.PI / 20);
+            positions.push([x, y, 0]);
+        }
+        var coin_scale = .05;
+        var coin_rotation_speed = 1;
+        var coin_entity = new Entity('Coin', 'TRIANGLE_FAN', [1, 1, 0], positions, rotations, [coin_scale, coin_scale, coin_scale], [0, 0, 0], 0, coin_rotation_speed, position_velocity, rotation_velocity, null);
+        var coin_trigger_box_positions = [
+            [-1, -1, 0], //bottom left
+            [1, -1, 0], //bottom right
+            [1, 1, 0], //top right
+            [-1, 1, 0], //top left
+        ]
+        var coin_trigger_boxes = [
+            new TriggerBox(coin_trigger_box_positions, rotations, [coin_scale, coin_scale, coin_scale], [0, 0, -.5], 0, coin_rotation_speed, position_velocity, rotation_velocity, null)
+        ];
+        var coin = new Coin(coin_entity, coin_trigger_boxes);
 
         game_engine.add_actor(villain);
         game_engine.add_actor(hero);
         game_engine.add_actor(wall);
+        game_engine.add_actor(coin);
 
         game_engine.render();
 
