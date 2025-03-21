@@ -74,4 +74,22 @@ class Hero extends Character {
 
         console.log("Hero shoots!");
     }
+
+    on_collision(other_actor) {
+        if (other_actor instanceof Projectile) {
+            console.log("Hero collided with Projectile!");
+            return;
+        }
+        else if (other_actor instanceof Coin) {
+            return;
+            console.log("Hero collided with Coin!");
+        }
+        else if (other_actor instanceof Obstacle) {
+            console.log("Hero collided with Wall!");
+        }
+        else if (other_actor instanceof Villain) {
+            console.log("Hero collided with Villain!");
+        }
+        
+    }
 }
