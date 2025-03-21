@@ -32,7 +32,7 @@ class GameObject {
             [...this.translations]
         );
 
-        this.unit_vector = this.calc_unit_vector(1);; // direction the game_object is facing
+        this.unit_vector = this.calc_unit_vector(1); // direction the game_object is facing
     }
 
     process_transformations(positions, rotations, scalars, translations) {
