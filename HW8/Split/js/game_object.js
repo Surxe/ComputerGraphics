@@ -94,7 +94,7 @@ class GameObject {
         return false;
     }
 
-    attempt_move(attempts_remaining=2, rotation_shift=0) {
+    get_next_position(rotation_shift=0) {
         // Deep copy positions and rotations
         var new_translations = [...this.translations];
         var new_rotations = [...this.rotations];
@@ -118,15 +118,31 @@ class GameObject {
             new_translations
         );
 
+        var new_position_data = [new_positions, new_rotations, new_translations];
+        return new_position_data;
+    }
+
+    attempt_move(attempts_remaining=2, rotation_shift=0) {
+        var new_position_data = this.get_next_position(rotation_shift);
+
+        if (!this.can_move(new_position_data[0])) {
+            return false;
+        }
+
         // Check if its out of bounds
-        if (this.is_out_of_bounds(new_positions)) {
+        if (this.is_out_of_bounds(new_position_data[0])) {
             if (attempts_remaining <= 0) {
                 return false;
             }
-            return this.attempt_move(attempts_remaining-1, rotation_shift=180);
+            return this.attempt_move(attempts_remaining-1, 180);
         }
 
-        return [new_positions, new_rotations, new_translations];
+        return new_position_data;
+    }
+
+    can_move(new_positions) {
+        // Check if the new position is touching another game_object
+        return true
     }
 
     update_rotation_velocity(unit_vector) {

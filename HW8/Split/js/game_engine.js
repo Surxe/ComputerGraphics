@@ -29,6 +29,7 @@ class GameEngine {
         gl.useProgram(this.program);
 
         this.actors = [];
+        this.obstacle_actors = [];
 
         this.render()
     }
@@ -50,6 +51,7 @@ class GameEngine {
     move() {
         for (var actor of this.actors) {
             var other_actors = this.actors.filter(other_actor => other_actor != actor);
+            var new_position_data = actor.entity.get_next_position();
             actor.move();
             actor.collision_checks(other_actors);
         }

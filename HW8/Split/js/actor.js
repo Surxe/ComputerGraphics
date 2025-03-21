@@ -84,4 +84,14 @@ class Actor {
     on_collision(other_actor) {
         console.log("Actor " + this.entity.name + " collided with " + other_actor.entity.name);
     }
+
+    can_move(new_positions, obstacle_actors) {
+        // Check if the new position is touching another game_object
+        for (var other_actor of obstacle_actors) {
+            if (this.is_touching(other_actor)) {
+                return false;
+            }
+        }
+        return true;
+    }
 }

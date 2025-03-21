@@ -134,6 +134,8 @@ class Main {
             new TriggerBox(trigger_box1_positions, rotations, [.15, .15, .15], [0.3+1*.15, 0, -.5], 0, 0, position_velocity, rotation_velocity, null)
         ];       
         var wall = new Obstacle(wall_entity, wall_trigger_boxes);
+        var obstacle_actors = [wall];
+        game_engine.obstacle_actors = obstacle_actors;
 
         positions = []
         // Circle
