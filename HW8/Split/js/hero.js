@@ -84,6 +84,7 @@ class Hero extends Character {
         }
         else if (other_actor instanceof Villain) {
             console.log("Hero collided with Villain!");
+            this.should_destroy = true;
             return "game_over";
         }
     }
