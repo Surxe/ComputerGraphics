@@ -56,8 +56,10 @@ class GameEngine {
             var actions = actor.collision_checks(other_actors);
             for (var action of actions) {
                 if (action == "add_score") {
-                    console.log("Score added!");
                     this.add_score();
+                }
+                else if (action == "game_over") {
+                    this.game_over();
                 }
             }
         }
@@ -74,6 +76,10 @@ class GameEngine {
     add_score() {
         this.score += 1;
         document.getElementById("score").innerText = "Score: " + this.score;
+    }
+
+    game_over() {
+        document.getElementById("game_over").innerText = "Game Over!";
     }
 
     render() {

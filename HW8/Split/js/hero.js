@@ -69,12 +69,6 @@ class Hero extends Character {
         return bullet_actor;
     }
 
-    shoot(bullet_actor) {
-
-
-        console.log("Hero shoots!");
-    }
-
     on_collision(other_actor) {
         if (other_actor instanceof Projectile) {
             console.log("Hero collided with Projectile!");
@@ -90,7 +84,7 @@ class Hero extends Character {
         }
         else if (other_actor instanceof Villain) {
             console.log("Hero collided with Villain!");
+            return "game_over";
         }
-        
     }
 }

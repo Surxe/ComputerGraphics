@@ -207,7 +207,6 @@ class Main {
             if (event.key === ' ') {
                 var bullet_actor = hero.create_bullet();
                 game_engine.add_actor(bullet_actor);
-                hero.shoot(bullet_actor);
             }
         });
 
