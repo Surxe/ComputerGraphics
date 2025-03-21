@@ -81,8 +81,9 @@ class Hero extends Character {
             return;
         }
         else if (other_actor instanceof Coin) {
-            return;
             console.log("Hero collided with Coin!");
+            other_actor.should_destroy = true;
+            return "add_score";
         }
         else if (other_actor instanceof Obstacle) {
             console.log("Hero collided with Wall!");

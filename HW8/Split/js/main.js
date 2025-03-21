@@ -1,6 +1,5 @@
 class Main {
     constructor() {
-
         var game_engine = new GameEngine();
 
         // Initial game_objects' states
@@ -213,6 +212,7 @@ class Main {
         });
 
         function tick() {
+            game_engine.destroy();
             game_engine.update_velocities(keys_pressed);
             game_engine.move();
             game_engine.render();

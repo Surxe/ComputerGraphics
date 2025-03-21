@@ -30,6 +30,7 @@ class GameEngine {
 
         this.actors = [];
         this.obstacle_actors = [];
+        this.score = 0;
 
         this.render()
     }
@@ -51,10 +52,28 @@ class GameEngine {
     move() {
         for (var actor of this.actors) {
             var other_actors = this.actors.filter(other_actor => other_actor != actor);
-            var new_position_data = actor.entity.get_next_position();
             actor.move();
-            actor.collision_checks(other_actors);
+            var actions = actor.collision_checks(other_actors);
+            for (var action of actions) {
+                if (action == "add_score") {
+                    console.log("Score added!");
+                    this.add_score();
+                }
+            }
         }
+    }
+
+    destroy() {
+        for (var actor of this.actors) {
+            if (actor.should_destroy) {
+                this.actors = this.actors.filter(other_actor => other_actor != actor);
+            }
+        }
+    }
+
+    add_score() {
+        this.score += 1;
+        document.getElementById("score").innerText = "Score: " + this.score;
     }
 
     render() {

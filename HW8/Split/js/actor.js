@@ -3,6 +3,8 @@ class Actor {
     constructor(entity, trigger_boxes) {
         this.entity = entity
         this.trigger_boxes = trigger_boxes;
+        
+        this.should_destroy = false;
         console.log("Actor " + this.entity.name + " created with " + this.trigger_boxes.length + " trigger_boxes.");
     }
 
@@ -74,11 +76,16 @@ class Actor {
     }
 
     collision_checks(other_actors) {
+        var actions = [];
         for (var other_actor of other_actors) {
             if (this.is_touching(other_actor)) {
-                this.on_collision(other_actor);
+                var action = this.on_collision(other_actor);
+                if (action) {
+                    actions.push(action);
+                }
             }
         }
+        return actions;
     }
 
     on_collision(other_actor) {
@@ -93,5 +100,13 @@ class Actor {
             }
         }
         return true;
+    }
+
+    destroy() {
+        // Remove the entity and trigger boxes from the game
+        this.entity.destroy();
+        for (let trigger_box of this.trigger_boxes) {
+            trigger_box.destroy();
+        }
     }
 }
