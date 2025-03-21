@@ -33,6 +33,9 @@ class Entity extends GameObject {
     }
 
     render(program) {
+        if (!this.should_render) {
+            return;
+        }
         this.buffer();
 
         gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);

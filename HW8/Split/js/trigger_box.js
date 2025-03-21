@@ -9,6 +9,8 @@ class TriggerBox extends Entity{
         var draw_mode = 'LINE_LOOP';
         var rgb = [1, 1, 1];
         super('TRIGGER_BOX', draw_mode, rgb, positions, ...args);
+
+        this.should_render = true;
     }
 
     is_touching(other_trigger_box) {

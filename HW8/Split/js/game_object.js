@@ -32,6 +32,8 @@ class GameObject {
             [...this.translations]
         );
 
+        this.should_render = true;
+
         this.unit_vector = this.calc_unit_vector(1); // direction the game_object is facing
     }
 
