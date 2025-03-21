@@ -68,10 +68,10 @@ class Main {
         }
 
         // octagon villain
-        function create_villain_actor() {
+        function create_villain_actor(shifts=[0, 0, 0]) {
             var positions = [];
             var rotations = [0, 0, 0];
-            var position_speed = 0.015;
+            var position_speed = 0.0075;
             var rotation_speed = 4;
             var position_velocity = [0, 0, 0];
             var rotation_velocity = [0, 0, 0];
@@ -83,7 +83,7 @@ class Main {
             var radius = 0.5;
             // Compute length of the octagon's sides
             var side_length = Math.sqrt(2) * radius;
-            var villain_entity = new Entity('Villain', 'TRIANGLE_FAN', [0, 1, 0], positions, rotations, [.10, .10, .10], [-.5, 0, 0], position_speed, rotation_speed, position_velocity, rotation_velocity, null);
+            var villain_entity = new Entity('Villain', 'TRIANGLE_FAN', [0, 1, 0], positions, rotations, [.10, .10, .10], [shifts[0], shifts[1], shifts[2]], position_speed, rotation_speed, position_velocity, rotation_velocity, null);
             function travel_from_towards(p1, p2, distance) { //p1 and p2 are [x, y, z]
                 // travel <distance> from p1 towards p2
                 var x_diff = p2[0] - p1[0];
@@ -106,7 +106,7 @@ class Main {
                 ]
             }
             function create_villain_tbox(positions, scalar=.10) {
-                return new TriggerBox(positions, rotations, [scalar, scalar, scalar], [-.5, 0, -.5], position_speed, rotation_speed, position_velocity, rotation_velocity, null);
+                return new TriggerBox(positions, rotations, [scalar, scalar, scalar], [shifts[0], 0+shifts[1], -.5+shifts[2]], position_speed, rotation_speed, position_velocity, rotation_velocity, null);
             }
             var villain_trigger_boxes = [];
             for (var i = 0; i < 8; i++) {
@@ -151,7 +151,7 @@ class Main {
             return wall;
         }
 
-        function create_coin_actor() {
+        function create_coin_actor(shifts=[0, 0, 0]) {
             var positions = [];
             var rotations = [0, 0, 0];
             var position_velocity = [0, 0, 0];
@@ -164,7 +164,7 @@ class Main {
             }
             var coin_scale = .05;
             var coin_rotation_speed = 1;
-            var coin_entity = new Entity('Coin', 'TRIANGLE_FAN', [1, 1, 0], positions, rotations, [coin_scale, coin_scale, coin_scale], [0, 0, 0], 0, coin_rotation_speed, position_velocity, rotation_velocity, null);
+            var coin_entity = new Entity('Coin', 'TRIANGLE_FAN', [1, 1, 0], positions, rotations, [coin_scale, coin_scale, coin_scale], shifts, 0, coin_rotation_speed, position_velocity, rotation_velocity, null);
             var coin_trigger_box_positions = [
                 [-1, -1, 0], //bottom left
                 [1, -1, 0], //bottom right
@@ -172,17 +172,22 @@ class Main {
                 [-1, 1, 0], //top left
             ]
             var coin_trigger_boxes = [
-                new TriggerBox(coin_trigger_box_positions, rotations, [coin_scale, coin_scale, coin_scale], [0, 0, -.5], 0, coin_rotation_speed, position_velocity, rotation_velocity, null)
+                new TriggerBox(coin_trigger_box_positions, rotations, [coin_scale, coin_scale, coin_scale], [0+shifts[0], 0+shifts[1], -.5+shifts[2]], 0, coin_rotation_speed, position_velocity, rotation_velocity, null)
             ];
             var coin = new Coin(coin_entity, coin_trigger_boxes);
             return coin;
         }
 
-        var villain = create_villain_actor();
-        game_engine.add_actor(villain);
-
-        var coin = create_coin_actor();
-        game_engine.add_actor(coin);
+        function random_vertex() {
+            function random_position() {
+                return Math.random() * 1.5 - 1.5/2; // Random from -.75 to .75
+            }
+            return [
+                random_position(), 
+                random_position(),
+                0
+            ];
+        }
 
         var hero = create_hero_actor();
         game_engine.add_actor(hero);
@@ -247,10 +252,23 @@ class Main {
             game_engine.render();
         }
 
+        function add_villain() {
+            var villain = create_villain_actor(random_vertex());
+            game_engine.add_actor(villain);
+            console.log("Villain added");
+        }
+        function add_coin() {
+            var coin = create_coin_actor(random_vertex());
+            game_engine.add_actor(coin);
+            console.log("Coin added");
+        }
+
         // Wait till page loads to start ticking
         document.addEventListener('DOMContentLoaded', function () {
-            const ticks_per_second = 30;
-            const interval_id = setInterval(tick, 1000/ticks_per_second);
+            const ticks_per_second = 30; //30tps
+            const tick_iid = setInterval(tick, 1000/ticks_per_second);
+            const new_villain_iid = setInterval(add_villain, 10000); //10s
+            const new_coin_iid = setInterval(add_coin, 3000); //3s
         });
     }
 }
