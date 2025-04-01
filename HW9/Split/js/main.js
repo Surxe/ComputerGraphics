@@ -4,9 +4,10 @@ if (!gl) throw new Error("WebGL failed to initialize");
 // Vertex and fragment shader sources
 const vertex_shader_source = `
     attribute vec2 a_position;
-    uniform mat4 u_transform;
+    uniform mat4 u_projection;
+    uniform mat4 u_view;
     void main() {
-        gl_Position = u_transform * vec4(a_position, 0.0, 1.0);
+        gl_Position = u_projection * u_view * vec4(a_position, 0.0, 1.0);
     }
 `;
 
@@ -53,15 +54,21 @@ document.addEventListener("keydown", (event) => {
     if (event.key === "x") camera.move_down(speed);
 });
 
-// Main render loop
+const projection_uniform = gl.getUniformLocation(shader_program, "u_projection");
+const view_uniform = gl.getUniformLocation(shader_program, "u_view");
+
 function render() {
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.useProgram(shader_program);
 
-    const camera_matrix = camera.get_transform_matrix();
+    const projection_matrix = camera.get_projection_matrix();
+    const view_matrix = camera.get_view_matrix();
 
-    triangle1.draw(gl, position_attribute, color_uniform, transform_uniform, camera_matrix);
-    triangle2.draw(gl, position_attribute, color_uniform, transform_uniform, camera_matrix);
+    gl.uniformMatrix4fv(projection_uniform, false, projection_matrix);
+    gl.uniformMatrix4fv(view_uniform, false, view_matrix);
+
+    triangle1.draw(gl, position_attribute, color_uniform, transform_uniform, view_matrix);
+    triangle2.draw(gl, position_attribute, color_uniform, transform_uniform, view_matrix);
 
     requestAnimationFrame(render);
 }
