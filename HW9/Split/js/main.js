@@ -10,7 +10,6 @@ const vertex_shader_source = `
     }
 `;
 
-
 const fragment_shader_source = `
     precision mediump float;
     uniform vec3 u_color;
@@ -26,22 +25,24 @@ gl.useProgram(shader_program);
 
 const position_attribute = gl.getAttribLocation(shader_program, "a_position");
 const color_uniform = gl.getUniformLocation(shader_program, "u_color");
+const transform_uniform = gl.getUniformLocation(shader_program, "u_transform");
 
-// Create game objects
-const triangle1 = new GameObject(gl, [
+// Create entities (two triangles)
+const triangle1 = new Entity(gl, [
     -0.5, -0.5,
      0.5, -0.5,
      0.0,  0.5
-], [1.0, 0.0, 0.0]);
+], [1.0, 0.0, 0.0], -1, 0, 0);
 
-const triangle2 = new GameObject(gl, [
+const triangle2 = new Entity(gl, [
     -0.5,  0.5,
      0.5,  0.5,
      0.0, -0.5
-], [0.0, 1.0, 0.0]);
+], [0.0, 1.0, 0.0], 1, 0, 0);
 
 const camera = new Camera();
 
+// Handle key presses for camera movement
 document.addEventListener("keydown", (event) => {
     const speed = 0.1;
     if (event.key === "w") camera.move_forward(speed);
@@ -52,21 +53,15 @@ document.addEventListener("keydown", (event) => {
     if (event.key === "x") camera.move_down(speed);
 });
 
-const transform_uniform = gl.getUniformLocation(shader_program, "u_transform");
-
+// Main render loop
 function render() {
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.useProgram(shader_program);
 
-    // Get the camera's transformation matrix
-    const transform_matrix = camera.get_transform_matrix();
-    gl.uniformMatrix4fv(transform_uniform, false, transform_matrix);
+    const camera_matrix = camera.get_transform_matrix();
 
-    gl.uniform3fv(color_uniform, new Float32Array([1.0, 0.0, 0.0]));
-    triangle1.draw(gl, shader_program, position_attribute);
-
-    gl.uniform3fv(color_uniform, new Float32Array([0.0, 1.0, 0.0]));
-    triangle2.draw(gl, shader_program, position_attribute);
+    triangle1.draw(gl, position_attribute, color_uniform, transform_uniform, camera_matrix);
+    triangle2.draw(gl, position_attribute, color_uniform, transform_uniform, camera_matrix);
 
     requestAnimationFrame(render);
 }
