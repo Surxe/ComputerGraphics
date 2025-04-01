@@ -6,6 +6,7 @@
 </head>
 <body>
     <canvas id="glCanvas"></canvas>
+    <script src="js/game_object.js"></script>
     <script>
         const canvas = document.getElementById("glCanvas");
         const gl = canvas.getContext("webgl");
@@ -56,14 +57,11 @@
         }
         gl.useProgram(program);
         
-        const vertices = new Float32Array([0, 0.5, -0.5, -0.5, 0.5, -0.5]);
-        const buffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-        gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+        const triangle1 = new GameObject([0, 0.5, -0.5, -0.5, 0.5, -0.5]);
+        const triangle2 = new GameObject([0.5, 0.5, 0, -0.5, 1, -0.5]);
         
         const posAttrib = gl.getAttribLocation(program, "position");
         gl.enableVertexAttribArray(posAttrib);
-        gl.vertexAttribPointer(posAttrib, 2, gl.FLOAT, false, 0, 0);
         
         const angleLoc = gl.getUniformLocation(program, "angle");
         const cameraPosLoc = gl.getUniformLocation(program, "cameraPos");
@@ -85,7 +83,8 @@
             gl.clear(gl.COLOR_BUFFER_BIT);
             gl.uniform1f(angleLoc, angle);
             gl.uniform2f(cameraPosLoc, cameraX, cameraY);
-            gl.drawArrays(gl.TRIANGLES, 0, 3);
+            triangle1.draw();
+            triangle2.draw();
             requestAnimationFrame(render);
         }
         render();
