@@ -1,10 +1,11 @@
 class Entity extends GameObject {
-    constructor(gl, vertices, color, x = 0, y = 0, z = 0) {
-        super(gl, vertices);
+    constructor(gl, vertices, color, location) {
+        super(vertices, location);
         this.color = color;
-        this.x = x;
-        this.y = y;
-        this.z = z;
+
+        this.buffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
     }
 
     get_transform_matrix() {
@@ -12,7 +13,7 @@ class Entity extends GameObject {
             1,  0,  0,  0,
             0,  1,  0,  0,
             0,  0,  1,  0,
-            this.x, this.y, this.z, 1
+            this.location[0], this.location[1], this.location[2], 1
         ]);
     }
 

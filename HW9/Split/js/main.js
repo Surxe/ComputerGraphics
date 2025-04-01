@@ -12,13 +12,13 @@ const triangle1 = new Entity(gl, [
     -0.5, -0.5,
      0.5, -0.5,
      0.0,  0.5
-], [1.0, 0.0, 0.0], -1, 0, 0);
+], [1.0, 0.0, 0.0], [-1, 0, 0]);
 
 const triangle2 = new Entity(gl, [
     -0.5,  0.5,
      0.5,  0.5,
      0.0, -0.5
-], [0.0, 1.0, 0.0], 1, 0, 0);
+], [0.0, 1.0, 0.0], [1, 0, 0]);
 
 // Add entities to the game engine
 gameEngine.add_entity(triangle1);

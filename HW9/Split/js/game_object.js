@@ -1,10 +1,7 @@
 class GameObject {
-    constructor(gl, vertices) {
+    constructor(vertices, location=[0, 0, 0]) {
         this.gl = gl;
         this.vertices = vertices;
-
-        this.buffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+        this.location = location;
     }
 }
