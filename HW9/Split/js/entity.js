@@ -20,7 +20,6 @@ class Entity extends GameObject {
         gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
         gl.vertexAttribPointer(position_attribute, 2, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(position_attribute);
-
         gl.uniform3fv(color_uniform, new Float32Array(this.color));
 
         // Combine entity's transform with camera's matrix

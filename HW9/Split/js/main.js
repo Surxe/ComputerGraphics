@@ -1,32 +1,11 @@
 const gl = GLSetup.init_webgl("gl_canvas");
 if (!gl) throw new Error("WebGL failed to initialize");
 
-// Vertex and fragment shader sources
-const vertex_shader_source = `
-    attribute vec2 a_position;
-    uniform mat4 u_projection;
-    uniform mat4 u_view;
-    void main() {
-        gl_Position = u_projection * u_view * vec4(a_position, 0.0, 1.0);
-    }
-`;
+// Initialize camera
+const camera = new Camera();
 
-const fragment_shader_source = `
-    precision mediump float;
-    uniform vec3 u_color;
-    void main() {
-        gl_FragColor = vec4(u_color, 1.0);
-    }
-`;
-
-const shader_program = GLSetup.create_shader_program(gl, vertex_shader_source, fragment_shader_source);
-if (!shader_program) throw new Error("Shader program failed to initialize");
-
-gl.useProgram(shader_program);
-
-const position_attribute = gl.getAttribLocation(shader_program, "a_position");
-const color_uniform = gl.getUniformLocation(shader_program, "u_color");
-const transform_uniform = gl.getUniformLocation(shader_program, "u_transform");
+// Create game engine and pass the camera
+const gameEngine = new GameEngine(gl, camera);
 
 // Create entities (two triangles)
 const triangle1 = new Entity(gl, [
@@ -41,7 +20,9 @@ const triangle2 = new Entity(gl, [
      0.0, -0.5
 ], [0.0, 1.0, 0.0], 1, 0, 0);
 
-const camera = new Camera();
+// Add entities to the game engine
+gameEngine.add_entity(triangle1);
+gameEngine.add_entity(triangle2);
 
 // Handle key presses for camera movement
 document.addEventListener("keydown", (event) => {
@@ -54,22 +35,9 @@ document.addEventListener("keydown", (event) => {
     if (event.key === "x") camera.move_down(speed);
 });
 
-const projection_uniform = gl.getUniformLocation(shader_program, "u_projection");
-const view_uniform = gl.getUniformLocation(shader_program, "u_view");
-
+// Main render loop
 function render() {
-    gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.useProgram(shader_program);
-
-    const projection_matrix = camera.get_projection_matrix();
-    const view_matrix = camera.get_view_matrix();
-
-    gl.uniformMatrix4fv(projection_uniform, false, projection_matrix);
-    gl.uniformMatrix4fv(view_uniform, false, view_matrix);
-
-    triangle1.draw(gl, position_attribute, color_uniform, transform_uniform, view_matrix);
-    triangle2.draw(gl, position_attribute, color_uniform, transform_uniform, view_matrix);
-
+    gameEngine.render(); // Let the game engine handle rendering
     requestAnimationFrame(render);
 }
 
