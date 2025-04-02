@@ -11,6 +11,29 @@ class Camera {
         this.far = far;
     }
 
+    move(keys_down) {
+        const move_amount = 0.1;
+        const rotate_amount = 0.05;
+
+        const key_to_move = {
+            "w": () => this.move_forward(move_amount),
+            "s": () => this.move_backward(move_amount),
+            "a": () => this.rotate_left(rotate_amount),
+            "d": () => this.rotate_right(rotate_amount),
+            "z": () => this.move_up(move_amount),
+            "x": () => this.move_down(move_amount),
+        }
+
+        for (const key in keys_down) {
+            if (keys_down[key]) {
+                const move_function = key_to_move[key];
+                if (move_function) {
+                    move_function();
+                }
+            }
+        }
+    }
+
     move_forward(amount) {
         this.z -= amount * Math.cos(this.rotation);
         this.x -= amount * Math.sin(this.rotation);

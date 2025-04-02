@@ -39,21 +39,27 @@ const actor2 = new Actor(gl, actor_entity2, trigger_box2);
 game_engine.add_actor(actor1);
 game_engine.add_actor(actor2);
 
+var keys_down = {};
+const valid_keys = ["w", "s", "a", "d", "z", "x"];
+
 // Handle key presses for camera movement
 document.addEventListener("keydown", (event) => {
-    const speed = 0.1;
-    if (event.key === "w") camera.move_forward(speed);
-    if (event.key === "s") camera.move_backward(speed);
-    if (event.key === "a") camera.rotate_left(0.05);
-    if (event.key === "d") camera.rotate_right(0.05);
-    if (event.key === "z") camera.move_up(speed);
-    if (event.key === "x") camera.move_down(speed);
+    if (valid_keys.includes(event.key)) {
+        keys_down[event.key] = true;
+    }
+});
+// Handle key releases for camera movement
+document.addEventListener("keyup", (event) => {
+    if (valid_keys.includes(event.key)) {
+        keys_down[event.key] = false;
+    }
 });
 
 // Main render loop
-function render() {
+function tick() {
+    camera.move(keys_down);
     game_engine.render();
-    requestAnimationFrame(render);
+    requestAnimationFrame(tick);
 }
 
-render();
+tick();
