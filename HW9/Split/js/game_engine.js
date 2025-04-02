@@ -2,7 +2,7 @@ class GameEngine {
     constructor(gl, camera) {
         this.gl = gl;
         this.camera = camera;
-        this.entities = [];
+        this.actors = [];
 
         // Initialize shaders and uniforms
         this.shader_program = this.create_shader_program();
@@ -36,8 +36,8 @@ class GameEngine {
         return GLSetup.create_shader_program(this.gl, vertex_shader_source, fragment_shader_source);
     }
 
-    add_entity(entity) {
-        this.entities.push(entity);
+    add_actor(entity) {
+        this.actors.push(entity);
     }
 
     render() {
@@ -51,8 +51,8 @@ class GameEngine {
         this.gl.uniformMatrix4fv(this.projection_uniform, false, projection_matrix);
         this.gl.uniformMatrix4fv(this.view_uniform, false, view_matrix);
 
-        // Render all entities
-        for (const entity of this.entities) {
+        // Render all actors
+        for (const entity of this.actors) {
             entity.draw(this.gl, this.position_attribute, this.color_uniform, this.transform_uniform, view_matrix);
         }
     }

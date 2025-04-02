@@ -1,28 +1,28 @@
+// Initialize WebGL
 const gl = GLSetup.init_webgl("gl_canvas");
 if (!gl) throw new Error("WebGL failed to initialize");
 
 // Initialize camera
 const camera = new Camera();
 
-// Create game engine and pass the camera
-const gameEngine = new GameEngine(gl, camera);
+// Create a game_engine
+const game_engine = new GameEngine(gl, camera);
 
-// Create entities (two triangles)
-const triangle1 = new Entity(gl, [
-    -0.5, -0.5,
-     0.5, -0.5,
-     0.0,  0.5
-], [1.0, 0.0, 0.0], [-1, 0, 0]);
+// Create an Entity for the Actor
+const actor_entity = new Entity(gl, [
+    -0.5, -0.5, 0.0,
+     0.5, -0.5, 0.0,
+     0.0,  0.5, 0.0,
+], [1.0, 0.0, 0.0], [0, 0, 0]);
 
-const triangle2 = new Entity(gl, [
-    -0.5,  0.5,
-     0.5,  0.5,
-     0.0, -0.5
-], [0.0, 1.0, 0.0], [1, 0, 0]);
+// Create a trigger_box (cube)
+const trigger_box = new TriggerBox(gl, [0, 0, 0], [1, 1, 1]);
 
-// Add entities to the game engine
-gameEngine.add_entity(triangle1);
-gameEngine.add_entity(triangle2);
+// Create an Actor with the Entity and trigger_box
+const actor = new Actor(gl, actor_entity, trigger_box);
+
+// Add the Actor as an entity in the game engine
+game_engine.add_actor(actor);
 
 // Handle key presses for camera movement
 document.addEventListener("keydown", (event) => {
@@ -37,7 +37,7 @@ document.addEventListener("keydown", (event) => {
 
 // Main render loop
 function render() {
-    gameEngine.render(); // Let the game engine handle rendering
+    game_engine.render();
     requestAnimationFrame(render);
 }
 
