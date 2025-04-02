@@ -2,16 +2,20 @@ class GLSetup {
     static init_webgl(canvas_id) {
         const canvas = document.getElementById(canvas_id);
         const gl = canvas.getContext("webgl");
+    
         if (!gl) {
-            console.error("WebGL not supported");
+            console.error("WebGL initialization failed.");
             return null;
         }
-
-        gl.clearColor(0, 0, 0, 1);
-        gl.clear(gl.COLOR_BUFFER_BIT);
-
+    
+        // Set canvas resolution to match display resolution
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        gl.viewport(0, 0, canvas.width, canvas.height);
+    
         return gl;
     }
+    
 
     static create_shader(gl, type, source) {
         const shader = gl.createShader(type);
