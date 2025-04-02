@@ -35,22 +35,6 @@ const actor2 = new Actor(gl, actor_entity2, trigger_box2);
 game_engine.add_actor(actor1);
 game_engine.add_actor(actor2);
 
-var keys_down = {};
-const valid_keys = ["w", "s", "a", "d", "z", "x"];
-
-// Handle key presses for camera movement
-document.addEventListener("keydown", (event) => {
-    if (valid_keys.includes(event.key)) {
-        keys_down[event.key] = true;
-    }
-});
-// Handle key releases for camera movement
-document.addEventListener("keyup", (event) => {
-    if (valid_keys.includes(event.key)) {
-        keys_down[event.key] = false;
-    }
-});
-
 // Main render loop
 function tick() {
     camera.move(keys_down);
