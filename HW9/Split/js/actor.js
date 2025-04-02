@@ -6,7 +6,6 @@ class Actor {
 
     draw(gl, position_attribute, color_uniform, transform_uniform, view_matrix) {
         this.entity.draw(gl, position_attribute, color_uniform, transform_uniform, view_matrix);
-        this.trigger_box.draw(gl, position_attribute); // Draw the trigger box (cube)
     }
 
     check_trigger_collision(point) {

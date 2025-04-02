@@ -1,5 +1,5 @@
 class TriggerBox {
-    constructor(gl, location=[0, 0, 0], size=[1, 1, 1]) {
+    constructor(location=[0, 0, 0], size=[1, 1, 1]) {
         // Define the 8 vertices of a cube, assuming the center of the box is at the location
         const [x, y, z] = location;
         const [width, height, depth] = size;
@@ -17,13 +17,6 @@ class TriggerBox {
             x + width / 2, y + height / 2, z - depth / 2,
             x - width / 2, y + height / 2, z - depth / 2,
         ];
-
-        this.gl = gl;
-
-        // Create and bind the buffer
-        this.buffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.vertices), gl.STATIC_DRAW);
     }
 
     // Simple AABB collision check (if a point is inside the box)
@@ -37,15 +30,5 @@ class TriggerBox {
                                        Math.max(...this.vertices.filter((_, idx) => (idx - 2) % 3 === 0))];
 
         return px >= x_min && px <= x_max && py >= y_min && py <= y_max && pz >= z_min && pz <= z_max;
-    }
-
-    draw(gl, position_attribute) {
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
-        gl.vertexAttribPointer(position_attribute, 3, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(position_attribute);
-
-        // Draw the cube (8 vertices)
-        gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);  // Front face
-        gl.drawArrays(gl.TRIANGLE_FAN, 4, 4);  // Back face
     }
 }

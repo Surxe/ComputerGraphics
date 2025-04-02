@@ -19,7 +19,7 @@ class Entity extends GameObject {
 
     draw(gl, position_attribute, color_uniform, transform_uniform, camera_matrix) {
         gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
-        gl.vertexAttribPointer(position_attribute, 2, gl.FLOAT, false, 0, 0);
+        gl.vertexAttribPointer(position_attribute, 3, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(position_attribute);
         gl.uniform3fv(color_uniform, new Float32Array(this.color));
 
@@ -28,7 +28,7 @@ class Entity extends GameObject {
         const final_matrix = this.multiply_matrices(camera_matrix, entity_matrix);
         gl.uniformMatrix4fv(transform_uniform, false, final_matrix);
 
-        gl.drawArrays(gl.TRIANGLES, 0, this.vertices.length / 2);
+        gl.drawArrays(gl.TRIANGLES, 0, this.vertices.length / 3);
     }
 
     multiply_matrices(a, b) {
