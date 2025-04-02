@@ -10,17 +10,18 @@ const game_engine = new GameEngine(gl, camera);
 
 const vertices = [
     -0.5, -0.5, 0.0, //bottom left
-     0.5, -0.5, 0.0, //bottom right
-     0.5,  0.5, 0.0, //top right
-
-     0.5,  0.5, 0.0, //top right
-     -0.5, -0.5, 0.0, //bottom left
-     -0.5, 0.5, 0.0, //top left
+    0.5, -0.5, 0.0, //bottom right
+    0.5,  0.5, 0.0, //top right
+    -0.5, 0.5, 0.0, //top left
+]
+const indices = [
+    0, 1, 2,
+    2, 0, 3,
 ]
 
 // Create Entities for the Actor
-const actor_entity1 = new Entity(gl, vertices.slice(0), [1.0, 0.0, 0.0], [0, 0, 0]);
-const actor_entity2 = new Entity(gl, vertices.slice(0), [0.0, 1.0, 0.0], [1, 1, 0]);
+const actor_entity1 = new Entity(gl, vertices.slice(0), [1.0, 0.0, 0.0], [0, 0, 0], indices.slice(0));
+const actor_entity2 = new Entity(gl, vertices.slice(0), [0.0, 1.0, 0.0], [1, 1, 0], indices.slice(0));
 
 // Create a trigger_box (cube)
 const trigger_box1 = new TriggerBox([0, 0, 0], [1, 1, 1]);

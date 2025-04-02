@@ -1,12 +1,9 @@
 class Entity extends GameObject {
-    constructor(gl, vertices, color, location) {
+    constructor(gl, vertices, color, location, indices=[]) {
         super(vertices, location);
         this.gl = gl;
         this.color = color;
-
-        this.buffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+        this.indices = indices ? [...indices] : null;
     }
 
     get_transform_matrix() {
@@ -18,8 +15,29 @@ class Entity extends GameObject {
         ]);
     }
 
+    buffer() {
+        this.buffer_vertices(this.vertices);
+
+        if (this.indices) {
+            this.buffer_indices(this.indices);
+        }
+    }
+
+    buffer_vertices(vertices) {
+        this.position_buffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.position_buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+    }
+
+    buffer_indices(indices) {
+        this.index_buffer = gl.createBuffer();
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.index_buffer);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+    }
+
     draw(gl, position_attribute, color_uniform, transform_uniform, camera_matrix) {
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
+        this.buffer();
+
         gl.vertexAttribPointer(position_attribute, 3, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(position_attribute);
         gl.uniform3fv(color_uniform, new Float32Array(this.color));
@@ -30,6 +48,11 @@ class Entity extends GameObject {
         gl.uniformMatrix4fv(transform_uniform, false, final_matrix);
 
         gl.drawArrays(gl.TRIANGLES, 0, this.vertices.length / 3);
+        if (this.indices) {
+            gl.drawElements(gl.TRIANGLES, this.indices.length, gl.UNSIGNED_SHORT, 0);
+        } else {
+            gl.drawArrays(gl.TRIANGLES, 0, this.vertices.length / 3);
+        }
     }
 
     multiply_matrices(a, b) {
