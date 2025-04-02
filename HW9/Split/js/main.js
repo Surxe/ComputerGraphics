@@ -8,8 +8,7 @@ const camera = new Camera();
 // Create a game_engine
 const game_engine = new GameEngine(gl, camera);
 
-// Create an Entity for the Actor
-const actor_entity1 = new Entity(gl, [
+const vertices = [
     -0.5, -0.5, 0.0, //bottom left
      0.5, -0.5, 0.0, //bottom right
      0.5,  0.5, 0.0, //top right
@@ -17,15 +16,11 @@ const actor_entity1 = new Entity(gl, [
      0.5,  0.5, 0.0, //top right
      -0.5, -0.5, 0.0, //bottom left
      -0.5, 0.5, 0.0, //top left
-], [1.0, 0.0, 0.0], [0, 0, 0]);
+]
 
-var actor_entity2_vertices = actor_entity1.vertices.slice(0); // Copy vertices from actor_entity1
-// Move the second entity to the right
-for (let i = 0; i < actor_entity2_vertices.length; i += 3) {
-    actor_entity2_vertices[i] += 1.1; // Move x coordinate to the right
-}
-
-const actor_entity2 = new Entity(gl, actor_entity2_vertices, [0.0, 1.0, 0.0], [.55, 0, 0]);
+// Create Entities for the Actor
+const actor_entity1 = new Entity(gl, vertices.slice(0), [1.0, 0.0, 0.0], [0, 0, 0]);
+const actor_entity2 = new Entity(gl, vertices.slice(0), [0.0, 1.0, 0.0], [1, 1, 0]);
 
 // Create a trigger_box (cube)
 const trigger_box1 = new TriggerBox([0, 0, 0], [1, 1, 1]);
