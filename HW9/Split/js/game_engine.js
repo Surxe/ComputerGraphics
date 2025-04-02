@@ -41,7 +41,7 @@ class GameEngine {
     }
 
     render() {
-        this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+        this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
         this.gl.useProgram(this.shader_program);
 
         const projection_matrix = this.camera.get_projection_matrix();
