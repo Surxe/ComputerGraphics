@@ -22,10 +22,10 @@ const actor_entity1 = new Entity(gl, [
 var actor_entity2_vertices = actor_entity1.vertices.slice(0); // Copy vertices from actor_entity1
 // Move the second entity to the right
 for (let i = 0; i < actor_entity2_vertices.length; i += 3) {
-    actor_entity2_vertices[i] += 1.0; // Move x coordinate to the right
+    actor_entity2_vertices[i] += 1.1; // Move x coordinate to the right
 }
 
-const actor_entity2 = new Entity(gl, actor_entity2_vertices, [0.0, 1.0, 0.0], [1, 1, 1]);
+const actor_entity2 = new Entity(gl, actor_entity2_vertices, [0.0, 1.0, 0.0], [.55, 0, 0]);
 
 // Create a trigger_box (cube)
 const trigger_box1 = new TriggerBox([0, 0, 0], [1, 1, 1]);
@@ -59,6 +59,9 @@ document.addEventListener("keyup", (event) => {
 function tick() {
     camera.move(keys_down);
     game_engine.render();
+    if (actor1.check_trigger_collision(actor2)) {
+        console.log("Collision detected!");
+    }
     requestAnimationFrame(tick);
 }
 
