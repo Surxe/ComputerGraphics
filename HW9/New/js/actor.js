@@ -11,11 +11,12 @@ class Actor {
     }
 
     check_trigger_collision(other_actor) {
-        const entity_global_location = this.entity.location;
+        const this_entity_global_location = this.entity.location;
+        const other_entity_global_location = other_actor.entity.location;
         for (var this_trigger_box of this.trigger_boxes) {
             for (var other_trigger_box of other_actor.trigger_boxes) {
-                const my_global_verts = this_trigger_box.get_global_verts(entity_global_location);
-                const other_global_verts = other_trigger_box.get_global_verts(entity_global_location);
+                const my_global_verts = this_trigger_box.get_global_verts(this_entity_global_location);
+                const other_global_verts = other_trigger_box.get_global_verts(other_entity_global_location);
                 if (is_overlapping(my_global_verts, other_global_verts)) {
                     return true; // Collision detected
                 }
@@ -27,7 +28,7 @@ class Actor {
     move() {
         this.entity.move(this.position_velocities, this.rotation_velocities); // Move the entity based on its position velocities and rotation velocities
         for (var trigger_box of this.trigger_boxes) {
-            trigger_box.move(this.position_velocities, this.rotation_velocities); // Move the trigger box based on its position velocities and rotation velocities
+            trigger_box.move(this.position_velocities, [0, 0, 0]); // tboxes will never rotate to ensure AABB alignment
         }
     }
 }
