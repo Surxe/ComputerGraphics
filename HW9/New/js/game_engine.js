@@ -10,9 +10,10 @@ class GameEngine {
     }
 
     move_actors() {
-        for (const actor of this.actors) {
-            actor.move();
-        }
+        this.actors[0].move([this.actors[1]])
+        // for (const actor of this.actors) {
+        //     actor.move();
+        // }
     }
 
     render() {

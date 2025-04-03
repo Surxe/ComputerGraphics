@@ -6,14 +6,14 @@ const game_engine = new GameEngine(camera);
 
 const vertices = [
     // Top vertex
-    0,  1,  0,  
+    0,  .5,  0,  
     // Side vertices
-    1,  0,  0,  
-    0,  0,  1,  
-    -1,  0,  0,  
-    0,  0, -1,  
+    .5,  0,  0,  
+    0,  0,  .5,  
+    -.5,  0,  0,  
+    0,  0, -.5,  
     // Bottom vertex
-    0, -1,  0   
+    0, -.5,  0   
     ];
   
   
@@ -45,11 +45,11 @@ const e1 = new Entity(
 )
 const e2 = new Entity(
     [...vertices], [...indices], [...colors],
-    [3, 0, 0],
+    [1.25, 0, 0],
 )
 
-const tb1 = new TriggerBox([0, 0, 0], [1, 1, 0])
-const tb2 = new TriggerBox([0, 0, 0], [1, 1, 0])
+const tb1 = new TriggerBox([0, 0, 0], [1, 1, 1])
+const tb2 = new TriggerBox([0, 0, 0], [1, 1, 1])
 
 const a1 = new Actor(e1, [tb1], [.001, 0, 0], [0, 0, 0]) 
 const a2 = new Actor(e2, [tb2], [0, 0, 0], [0, 0, 0])
@@ -59,10 +59,6 @@ game_engine.add_actor(a2)
 
 function tick() {
     game_engine.tick();
-
-    if (a1.check_trigger_collision(a2)) {
-        console.log("Collision detected!");
-    }
 
     requestAnimationFrame(tick); // Start loop
 }

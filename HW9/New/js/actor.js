@@ -10,25 +10,51 @@ class Actor {
         this.entity.render();
     }
 
-    check_trigger_collision(other_actor) {
-        const this_entity_global_location = this.entity.location;
+    check_trigger_collision(my_global_verts, other_actor) {
         const other_entity_global_location = other_actor.entity.location;
-        for (var this_trigger_box of this.trigger_boxes) {
-            for (var other_trigger_box of other_actor.trigger_boxes) {
-                const my_global_verts = this_trigger_box.get_global_verts(this_entity_global_location);
-                const other_global_verts = other_trigger_box.get_global_verts(other_entity_global_location);
-                if (is_overlapping(my_global_verts, other_global_verts)) {
-                    return true; // Collision detected
-                }
+        
+        for (var other_trigger_box of other_actor.trigger_boxes) {
+            const other_global_verts = other_trigger_box.get_global_verts(other_entity_global_location);
+            if (is_overlapping(my_global_verts, other_global_verts)) {
+                return true; // Collision detected
             }
         }
+        
         return false; // No collision detected
     }
 
-    move() {
-        this.entity.move(this.position_velocities, this.rotation_velocities); // Move the entity based on its position velocities and rotation velocities
-        for (var trigger_box of this.trigger_boxes) {
-            trigger_box.move(this.position_velocities, [0, 0, 0]); // tboxes will never rotate to ensure AABB alignment
+    move(other_actors) {
+        var will_collide = false;
+
+        for (var other_actor of other_actors) {
+            // Get next position for all tboxes
+            var next_tbox_positions = [];
+            for (var trigger_box of this.trigger_boxes) {
+                next_tbox_positions.push(trigger_box.get_next_position(this.position_velocities));
+            }
+
+            // Check for collisions with other actors
+            for (var i = 0; i < this.trigger_boxes.length; i++) {
+                const next_tbox_position = next_tbox_positions[i];
+                const this_entity_global_location = this.entity.location;
+                const next_tbox_global_verts = this.trigger_boxes[i].get_global_verts(this_entity_global_location, next_tbox_position);
+                if (this.check_trigger_collision(next_tbox_global_verts, other_actor)) {
+                    will_collide = true; // Collision detected
+                    break;
+                }
+            }
+
+            if (will_collide) {
+                break; // Exit the loop if a collision is detected
+            }
+        }
+
+        // Move entity and all tboxes
+        if (!will_collide) {
+            this.entity.move(this.position_velocities, this.rotation_velocities); // Move the entity based on its position velocities and rotation velocities
+            for (var j = 0; j < this.trigger_boxes.length; j++) {
+                this.trigger_boxes[j].move(this.position_velocities, 0); // Move the trigger boxes based on the same velocities
+            }
         }
     }
 }
