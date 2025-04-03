@@ -47,11 +47,11 @@ class Camera {
     }
 
     rotate_left() {
-        this.angle += this.rotation_speed;
+        this.angle -= this.rotation_speed;
     }
 
     rotate_right() {
-        this.angle -= this.rotation_speed;
+        this.angle += this.rotation_speed;
     }
 
     get_view_matrix() {
