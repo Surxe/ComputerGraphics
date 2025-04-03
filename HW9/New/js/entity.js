@@ -10,8 +10,6 @@ class Entity extends GameObject {
         gl.bindBuffer(gl.ARRAY_BUFFER, this.color_buffer);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
 
-        console.log(this.vertices)
-
         this.vertex_count = this.vertices.length / 3;
     }
 
