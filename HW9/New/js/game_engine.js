@@ -1,12 +1,12 @@
 class GameEngine {
     constructor(camera) {
         this.camera = camera;
-        this.entities = [];
+        this.actors = [];
         this.matrix_location = gl.getUniformLocation(program, "u_matrix");
     }
 
-    add_entity(entity) {
-        this.entities.push(entity);
+    add_actor(actor) {
+        this.actors.push(actor);
     }
 
     render() {
@@ -25,8 +25,8 @@ class GameEngine {
     
         gl.uniformMatrix4fv(this.matrix_location, false, new Float32Array(final_matrix));
     
-        for (const entity of this.entities) {
-            entity.render();
+        for (const actor of this.actors) {
+            actor.render();
         }
     }
 }

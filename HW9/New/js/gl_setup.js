@@ -7,7 +7,7 @@ class GLSetup {
         gl.viewport(0, 0, canvas.width, canvas.height);
 
         // Shader Sources
-        const vsSource = `
+        const vs_source = `
             attribute vec3 a_position;
             attribute vec3 a_color;
             varying vec3 v_color;
@@ -18,7 +18,7 @@ class GLSetup {
             }
         `;
 
-        const fsSource = `
+        const fs_source = `
             precision mediump float;
             varying vec3 v_color;
             void main() {
@@ -27,7 +27,7 @@ class GLSetup {
         `;
 
         // Compile Shader
-        function compileShader(source, type) {
+        function compile_shader(source, type) {
             const shader = gl.createShader(type);
             gl.shaderSource(shader, source);
             gl.compileShader(shader);
@@ -39,8 +39,8 @@ class GLSetup {
         }
 
         // Initialize WebGL Program
-        const vertex_shader = compileShader(vsSource, gl.VERTEX_SHADER);
-        const fragment_shader = compileShader(fsSource, gl.FRAGMENT_SHADER);
+        const vertex_shader = compile_shader(vs_source, gl.VERTEX_SHADER);
+        const fragment_shader = compile_shader(fs_source, gl.FRAGMENT_SHADER);
         const program = gl.createProgram();
         gl.attachShader(program, vertex_shader);
         gl.attachShader(program, fragment_shader);
@@ -48,9 +48,5 @@ class GLSetup {
         gl.useProgram(program);
 
         return [gl, program, canvas];
-
-        this.gl = gl
-        this.program = program;
-        this.canvas = canvas;
     }
 }
