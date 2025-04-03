@@ -1,6 +1,6 @@
 class Entity extends GameObject {
-    constructor(vertices, indices, colors, location, position_velocities, rotation_velocities) {
-        super(vertices, location, position_velocities, rotation_velocities);
+    constructor(vertices, indices, colors, location) {
+        super(vertices, location);
         this.colors = colors;
 
         this.position_buffer = gl.createBuffer();

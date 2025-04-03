@@ -1,5 +1,5 @@
 class TriggerBox extends GameObject{
-    constructor(location=[0, 0, 0], size=[1, 1, 1], position_velocities=[0, 0, 0], rotation_velocities=[0, 0, 0]) {
+    constructor(location=[0, 0, 0], size=[1, 1, 1]) {
         // Define the 8 vertices of a cube, assuming the center of the box is at the location
         const [x, y, z] = location; //location relative to entity's location
         const [width, height, depth] = size;
@@ -18,7 +18,7 @@ class TriggerBox extends GameObject{
             x - width / 2, y + height / 2, z - depth / 2,
         ];
 
-        super(vertices, location, position_velocities, rotation_velocities); // Call the parent constructor
+        super(vertices, location); // Call the parent constructor
     }
 
     get_global_verts(entity_global_location) {

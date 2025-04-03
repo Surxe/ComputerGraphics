@@ -1,7 +1,9 @@
 class Actor {
-    constructor(entity, trigger_boxes) {
+    constructor(entity, trigger_boxes, position_velocities=[0, 0, 0], rotation_velocities=[0, 0, 0]) {
         this.entity = entity; // The graphical representation (Entity)
         this.trigger_boxes = trigger_boxes; // The bounding box (TriggerBox)
+        this.position_velocities = position_velocities; // Position velocities
+        this.rotation_velocities = rotation_velocities; // Rotation velocities
     }
 
     render() {
@@ -23,7 +25,10 @@ class Actor {
     }
 
     move() {
-        this.entity.move(); // Move the entity based on its position velocities and rotation velocities
+        this.entity.move(this.position_velocities, this.rotation_velocities); // Move the entity based on its position velocities and rotation velocities
+        for (var trigger_box of this.trigger_boxes) {
+            trigger_box.move(this.position_velocities, this.rotation_velocities); // Move the trigger box based on its position velocities and rotation velocities
+        }
     }
 }
 
