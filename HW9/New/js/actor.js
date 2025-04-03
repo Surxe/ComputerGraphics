@@ -10,11 +10,10 @@ class Actor {
 
     check_trigger_collision(other_actor) {
         const entity_global_location = this.entity.location;
-        for (let i = 0; i < this.trigger_boxes.length; i++) {
-            for (let j = 0; j < other_actor.trigger_boxes.length; j++) {
-                // add tbox loc to entity loc
-                const my_global_verts = this.trigger_boxes[i].get_tbox_global_verts(entity_global_location);
-                const other_global_verts = other_actor.trigger_boxes[j].get_tbox_global_verts(entity_global_location);
+        for (var this_trigger_box of this.trigger_boxes) {
+            for (var other_trigger_box of other_actor.trigger_boxes) {
+                const my_global_verts = this_trigger_box.get_tbox_global_verts(entity_global_location);
+                const other_global_verts = other_trigger_box.get_tbox_global_verts(entity_global_location);
                 if (is_overlapping(my_global_verts, other_global_verts)) {
                     return true; // Collision detected
                 }
