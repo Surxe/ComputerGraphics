@@ -9,10 +9,18 @@ class Actor {
     }
 
     get_tbox_global_verts() {
-        // Get the global location of the trigger box by adding its local location to the entity's location
-        const entity_vertices = this.entity.vertices;
-        const trigger_box_local_location = this.trigger_box.location;
-        return entity_vertices.map((v, i) => v + trigger_box_local_location[i % 3]);
+        // Get the global location of the trigger box by adding entity's location to its local vertices
+        const entity_global_location = this.entity.location;
+        const trigger_box_local_vertices = this.trigger_box.vertices;
+        return trigger_box_local_vertices.map((v, i) => {
+            if (i % 3 === 0) { // x coordinate
+                return v + entity_global_location[0];
+            } else if (i % 3 === 1) { // y coordinate
+                return v + entity_global_location[1];
+            } else { // z coordinate
+                return v + entity_global_location[2];
+            }
+        });
     }
 
     check_trigger_collision(other_actor) {
@@ -23,8 +31,7 @@ class Actor {
     }
 }
 
-function is_overlapping(a, b) { // where a and b are axis aligned arrays of 8 verts
-    console.log("a: ", a, "b: ", b);
+function is_overlapping(a, b) { // where a and b are axis aligned arrays of 8 verts (length 24)
     return (
         a[0] <= b[3] && a[3] >= b[0] && // x-axis overlap
         a[1] <= b[7] && a[7] >= b[1] && // y-axis overlap
