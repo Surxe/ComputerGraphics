@@ -64,13 +64,10 @@ class Camera {
         const sin_r = Math.sin(-this.rotation);
 
         return new Float32Array([
-            cos_r, 0, sin_r, 0,
+            cos_r, 0, -sin_r, 0,
             0, 1, 0, 0,
-            -sin_r, 0, cos_r, 0,
-            -this.x * cos_r - this.z * sin_r,
-            -this.y,
-            this.x * sin_r - this.z * cos_r,
-            1
+            sin_r, 0, cos_r, 0,
+            -this.x * cos_r - this.z * sin_r, -this.y, this.x * sin_r - this.z * cos_r, 1
         ]);
     }
 
