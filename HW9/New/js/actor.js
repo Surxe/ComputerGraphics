@@ -1,33 +1,26 @@
 class Actor {
-    constructor(entity, trigger_box) {
+    constructor(entity, trigger_boxes) {
         this.entity = entity; // The graphical representation (Entity)
-        this.trigger_box = trigger_box; // The bounding box (TriggerBox)
+        this.trigger_boxes = trigger_boxes; // The bounding box (TriggerBox)
     }
 
     render() {
         this.entity.render();
     }
 
-    get_tbox_global_verts() {
-        // Get the global location of the trigger box by adding entity's location to its local vertices
-        const entity_global_location = this.entity.location;
-        const trigger_box_local_vertices = this.trigger_box.vertices;
-        return trigger_box_local_vertices.map((v, i) => {
-            if (i % 3 === 0) { // x coordinate
-                return v + entity_global_location[0];
-            } else if (i % 3 === 1) { // y coordinate
-                return v + entity_global_location[1];
-            } else { // z coordinate
-                return v + entity_global_location[2];
-            }
-        });
-    }
-
     check_trigger_collision(other_actor) {
-        // add tbox loc to entity loc
-        const my_global_verts = this.get_tbox_global_verts();
-        const other_global_verts = other_actor.get_tbox_global_verts();
-        return is_overlapping(my_global_verts, other_global_verts);
+        const entity_global_location = this.entity.location;
+        for (let i = 0; i < this.trigger_boxes.length; i++) {
+            for (let j = 0; j < other_actor.trigger_boxes.length; j++) {
+                // add tbox loc to entity loc
+                const my_global_verts = this.trigger_boxes[i].get_tbox_global_verts(entity_global_location);
+                const other_global_verts = other_actor.trigger_boxes[j].get_tbox_global_verts(entity_global_location);
+                if (is_overlapping(my_global_verts, other_global_verts)) {
+                    return true; // Collision detected
+                }
+            }
+        }
+        return false; // No collision detected
     }
 }
 

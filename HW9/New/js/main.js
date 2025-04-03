@@ -30,14 +30,14 @@ const e2 = new Entity(
        [ 1.0, 0, 0.0, 1.0, 0, 0.0, 1.0, 0, 0.0 ,
            1.0, 0, 0.0, 1.0, 0, 0.0, 1.0, 0, 0.0
        ],
-    [0, 0, 1]
+    [0.5, 0, 0]
 )
 
 const tb1 = new TriggerBox([0, 0, 0], [1, 1, 0])
 const tb2 = new TriggerBox([0, 0, 0], [1, 1, 0])
 
-const a1 = new Actor(e1, tb1)
-const a2 = new Actor(e2, tb2)
+const a1 = new Actor(e1, [tb1])
+const a2 = new Actor(e2, [tb2])
 
 game_engine.add_actor(a1)
 game_engine.add_actor(a2)

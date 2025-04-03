@@ -20,4 +20,18 @@ class TriggerBox extends GameObject{
 
         super(vertices, location); // Call the parent constructor
     }
+
+    get_tbox_global_verts(entity_global_location) {
+        // Get the global location of the trigger box by adding entity's location to its local vertices
+        const trigger_box_local_vertices = this.vertices;
+        return trigger_box_local_vertices.map((v, i) => {
+            if (i % 3 === 0) { // x coordinate
+                return v + entity_global_location[0];
+            } else if (i % 3 === 1) { // y coordinate
+                return v + entity_global_location[1];
+            } else { // z coordinate
+                return v + entity_global_location[2];
+            }
+        });
+    }
 }
