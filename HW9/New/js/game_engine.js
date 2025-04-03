@@ -9,6 +9,12 @@ class GameEngine {
         this.actors.push(actor);
     }
 
+    move_actors() {
+        for (const actor of this.actors) {
+            actor.move();
+        }
+    }
+
     render() {
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         
@@ -29,5 +35,10 @@ class GameEngine {
             this.camera.move(keys_down);
             actor.render();
         }
+    }
+
+    tick() {
+        this.move_actors();
+        this.render();
     }
 }

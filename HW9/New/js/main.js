@@ -16,7 +16,9 @@ const e1 = new Entity(
     [ 1.0, 0.5, 0.0, 1.0, 0.5, 0.0, 1.0, 0.5, 0.0 ,
         1.0, 0.5, 0.0, 1.0, 0.5, 0.0, 1.0, 0.5, 0.0
     ],
-    [0, 0, 0]
+    [0, 0, 0],
+    [0.01, 0, 0], // position velocities
+    [0, 0, 0] // rotation velocities
 )
 const e2 = new Entity(
     [ -.5, 0.5, -2.0, 
@@ -30,7 +32,9 @@ const e2 = new Entity(
        [ 1.0, 0, 0.0, 1.0, 0, 0.0, 1.0, 0, 0.0 ,
            1.0, 0, 0.0, 1.0, 0, 0.0, 1.0, 0, 0.0
        ],
-    [0.5, 0, 0]
+    [0.5, 0, 0],
+    [0, 0, 0], // position velocities
+    [0, 0, 0] // rotation velocities
 )
 
 const tb1 = new TriggerBox([0, 0, 0], [1, 1, 0])
@@ -43,11 +47,13 @@ game_engine.add_actor(a1)
 game_engine.add_actor(a2)
 
 function tick() {
-    game_engine.render();
-    requestAnimationFrame(tick);
+    game_engine.tick();
+
     if (a1.check_trigger_collision(a2)) {
         console.log("Collision detected!");
     }
+
+    requestAnimationFrame(tick); // Start loop
 }
 
 // Initialize WebGL

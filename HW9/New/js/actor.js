@@ -21,6 +21,10 @@ class Actor {
         }
         return false; // No collision detected
     }
+
+    move() {
+        this.entity.move(); // Move the entity based on its position velocities and rotation velocities
+    }
 }
 
 function is_overlapping(a, b) { // where a and b are axis aligned arrays of 8 verts (length 24)
