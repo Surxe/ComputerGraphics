@@ -26,6 +26,7 @@ class GameEngine {
         gl.uniformMatrix4fv(this.matrix_location, false, new Float32Array(final_matrix));
     
         for (const actor of this.actors) {
+            this.camera.move(keys_down);
             actor.render();
         }
     }

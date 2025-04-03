@@ -1,7 +1,8 @@
 const [gl, program, canvas] = GLSetup.init("glcanvas")
 
-const game_engine = new GameEngine(camera);
 
+const camera = new Camera();
+const game_engine = new GameEngine(camera);
 
 e1 = new Entity(
     [ 0.0, 0.5, -2.0, -0.5, -0.5, -2.0, 0.5, -0.5, -2.0 ], // Orange Triangle

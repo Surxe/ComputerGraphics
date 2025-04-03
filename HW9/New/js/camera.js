@@ -5,7 +5,27 @@ class Camera {
         this.z = 5;
         this.angle = 0;
         this.speed = 0.1;
-        this.rotation_speed = 0.05;
+        this.rotation_speed = 0.01;
+    }
+
+    move(keys_down) {
+        const key_to_move = {
+            "w": () => this.move_forward(),
+            "s": () => this.move_backward(),
+            "a": () => this.rotate_left(),
+            "d": () => this.rotate_right(),
+            "z": () => this.move_up(),
+            "x": () => this.move_down(),
+        }
+
+        for (const key in keys_down) {
+            if (keys_down[key]) {
+                const move_function = key_to_move[key];
+                if (move_function) {
+                    move_function();
+                }
+            }
+        }
     }
 
     move_forward() {
@@ -54,5 +74,3 @@ class Camera {
         ];
     }
 }
-
-const camera = new Camera();
