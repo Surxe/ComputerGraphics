@@ -1,14 +1,18 @@
-class Entity {
-    constructor(vertices, colors) {
+class Entity extends GameObject {
+    constructor(vertices, colors, location) {
+        super(vertices, location)
+
         this.position_buffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, this.position_buffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.vertices), gl.STATIC_DRAW);
 
         this.color_buffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, this.color_buffer);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
 
-        this.vertex_count = vertices.length / 3;
+        console.log(this.vertices)
+
+        this.vertex_count = this.vertices.length / 3;
     }
 
     render() {
