@@ -17,21 +17,33 @@ class GameObject {
             }
         });
 
-        this.vertices = globalized_verts;
+        this.vertices = [...globalized_verts];
     }
 
-    get_next_position(position_velocities) {
-        var new_vertices = [];
-        for (let i = 0; i < this.local_vertices.length; i += 3) {
-            new_vertices.push(this.local_vertices[i] + position_velocities[0]);
-            new_vertices.push(this.local_vertices[i + 1] + position_velocities[1]);
-            new_vertices.push(this.local_vertices[i + 2] + position_velocities[2]);
+    get_next_position(position_velocities, rotation_velocities=null) {
+        var new_vertices = [...this.local_vertices];
+
+        // Rotate
+        // Assuming rotation_velocities is an array of [x, y, z] angles in radians
+        if (rotation_velocities) {
+            console.log('Before rotation: ', new_vertices);
+            new_vertices = Transform.rotate_positions(new_vertices, rotation_velocities);
+            console.log('After rotation: ', new_vertices);
         }
+
+        // Translate
+        for (let i = 0; i < new_vertices.length; i += 3) {
+            new_vertices[i] += position_velocities[0];
+            new_vertices[i+1] += position_velocities[1];
+            new_vertices[i+2] += position_velocities[2];
+        }
+
         return new_vertices;
     }
 
     move(position_velocities, rotation_velocities) {
         this.local_vertices = this.get_next_position(position_velocities, rotation_velocities);
+        console.log('Moved vertices: ', this.local_vertices);
         this.globalize_vertices();
     }
 }
