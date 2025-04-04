@@ -1,27 +1,21 @@
 class Camera {
-    constructor(fov = 60, aspect_ratio = 1.0, near = 0.1, far = 100.0) {
-        this.x = 0;
+    constructor() {
+        this.x = 5;
         this.y = 0;
-        this.z = 2;
-        this.rotation = 0;
-
-        this.fov = fov;
-        this.aspect_ratio = aspect_ratio;
-        this.near = near;
-        this.far = far;
+        this.z = 0;
+        this.angle = 0;
+        this.speed = 0.5;
+        this.rotation_speed = 0.05;
     }
 
     move(keys_down) {
-        const move_amount = 0.1;
-        const rotate_amount = 0.05;
-
         const key_to_move = {
-            "w": () => this.move_forward(move_amount),
-            "s": () => this.move_backward(move_amount),
-            "a": () => this.rotate_left(rotate_amount),
-            "d": () => this.rotate_right(rotate_amount),
-            "z": () => this.move_up(move_amount),
-            "x": () => this.move_down(move_amount),
+            "w": () => this.move_forward(),
+            "s": () => this.move_backward(),
+            "a": () => this.rotate_left(),
+            "d": () => this.rotate_right(),
+            "z": () => this.move_up(),
+            "x": () => this.move_down(),
         }
 
         for (const key in keys_down) {
@@ -34,53 +28,49 @@ class Camera {
         }
     }
 
-    move_forward(amount) {
-        this.z -= amount * Math.cos(this.rotation);
-        this.x -= amount * Math.sin(this.rotation);
+    move_forward() {
+        this.x += this.speed * Math.sin(this.angle);
+        this.z -= this.speed * Math.cos(this.angle);
     }
 
-    move_backward(amount) {
-        this.move_forward(-amount);
+    move_backward() {
+        this.x -= this.speed * Math.sin(this.angle);
+        this.z += this.speed * Math.cos(this.angle);
     }
 
-    move_up(amount) {
-        this.y += amount;
+    move_up() {
+        this.y += this.speed;
     }
 
-    move_down(amount) {
-        this.y -= amount;
+    move_down() {
+        this.y -= this.speed;
     }
 
-    rotate_left(amount) {
-        this.rotation += amount;
+    rotate_left() {
+        this.angle -= this.rotation_speed;
     }
 
-    rotate_right(amount) {
-        this.rotation -= amount;
+    rotate_right() {
+        this.angle += this.rotation_speed;
     }
 
     get_view_matrix() {
-        const cos_r = Math.cos(-this.rotation);
-        const sin_r = Math.sin(-this.rotation);
-
-        return new Float32Array([
-            cos_r, 0, -sin_r, 0,
-            0, 1, 0, 0,
-            sin_r, 0, cos_r, 0,
-            -this.x * cos_r - this.z * sin_r, -this.y, this.x * sin_r - this.z * cos_r, 1
-        ]);
+        const cosA = Math.cos(this.angle), sinA = Math.sin(this.angle);
+        return [
+            cosA, 0, sinA, -this.x * cosA - this.z * sinA,
+            0,    1, 0,    -this.y,
+            -sinA, 0, cosA, -this.x * -sinA - this.z * cosA,
+            0,    0, 0,    1
+        ];
     }
 
-    get_projection_matrix() {
-        const fov_rad = (this.fov * Math.PI) / 180;
-        const f = 1.0 / Math.tan(fov_rad / 2);
-        const range_inv = 1.0 / (this.near - this.far);
-
-        return new Float32Array([
-            f / this.aspect_ratio, 0,  0,  0,
+    perspective(fov, aspect, near, far) {
+        const f = 1.0 / Math.tan(fov / 2);
+        return [
+            f / aspect, 0,  0,  0,
             0,  f,  0,  0,
-            0,  0,  (this.far + this.near) * range_inv, -1,
-            0,  0,  (2 * this.far * this.near) * range_inv, 0
-        ]);
+            0,  0,  (far + near) / (near - far), -1,
+            0,  0,  (2 * far * near) / (near - far),  0
+        ];
     }
 }

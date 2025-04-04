@@ -1,59 +1,46 @@
 class GameEngine {
-    constructor(gl, camera) {
-        this.gl = gl;
+    constructor(camera) {
         this.camera = camera;
         this.actors = [];
-
-        // Initialize shaders and uniforms
-        this.shader_program = this.create_shader_program();
-        this.position_attribute = gl.getAttribLocation(this.shader_program, "a_position");
-        this.color_uniform = gl.getUniformLocation(this.shader_program, "u_color");
-        this.transform_uniform = gl.getUniformLocation(this.shader_program, "u_transform");
-        this.projection_uniform = gl.getUniformLocation(this.shader_program, "u_projection");
-        this.view_uniform = gl.getUniformLocation(this.shader_program, "u_view");
-
-        gl.useProgram(this.shader_program);
+        this.matrix_location = gl.getUniformLocation(program, "u_matrix");
     }
 
-    create_shader_program() {
-        const vertex_shader_source = `
-            attribute vec2 a_position;
-            uniform mat4 u_projection;
-            uniform mat4 u_view;
-            void main() {
-                gl_Position = u_projection * u_view * vec4(a_position, 0.0, 1.0);
-            }
-        `;
-        
-        const fragment_shader_source = `
-            precision mediump float;
-            uniform vec3 u_color;
-            void main() {
-                gl_FragColor = vec4(u_color, 1.0);
-            }
-        `;
-
-        return GLSetup.create_shader_program(this.gl, vertex_shader_source, fragment_shader_source);
+    add_actor(actor) {
+        this.actors.push(actor);
     }
 
-    add_actor(entity) {
-        this.actors.push(entity);
+    move_actors() {
+        for (const actor of this.actors) {
+            var other_actors = this.actors.filter(a => a !== actor);
+            actor.move(other_actors);
+        }
     }
 
     render() {
-        this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
-        this.gl.useProgram(this.shader_program);
-
-        const projection_matrix = this.camera.get_projection_matrix();
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        
+        const proj_matrix = this.camera.perspective(Math.PI / 4, canvas.width / canvas.height, 0.1, 100);
         const view_matrix = this.camera.get_view_matrix();
-
-        // Pass the projection and view matrices to the shader
-        this.gl.uniformMatrix4fv(this.projection_uniform, false, projection_matrix);
-        this.gl.uniformMatrix4fv(this.view_uniform, false, view_matrix);
-
-        // Render all actors
-        for (const entity of this.actors) {
-            entity.draw(this.gl, this.position_attribute, this.color_uniform, this.transform_uniform, view_matrix);
+    
+        let final_matrix = [];
+        for (let i = 0; i < 16; i++) {
+            final_matrix[i] = proj_matrix[i % 4] * view_matrix[Math.floor(i / 4)] +
+                             proj_matrix[(i % 4) + 4] * view_matrix[Math.floor(i / 4) + 4] +
+                             proj_matrix[(i % 4) + 8] * view_matrix[Math.floor(i / 4) + 8] +
+                             proj_matrix[(i % 4) + 12] * view_matrix[Math.floor(i / 4) + 12];
         }
+    
+        gl.uniformMatrix4fv(this.matrix_location, false, new Float32Array(final_matrix));
+    
+        for (const actor of this.actors) {
+            actor.render();
+        }
+
+        this.camera.move(keys_down);
+    }
+
+    tick() {
+        this.move_actors();
+        this.render();
     }
 }

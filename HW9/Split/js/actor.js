@@ -1,29 +1,66 @@
 class Actor {
-    constructor(gl, entity, trigger_box) {
+    constructor(entity, trigger_boxes, position_velocities=[0, 0, 0], rotation_velocities=[0, 0, 0]) {
         this.entity = entity; // The graphical representation (Entity)
-        this.trigger_box = trigger_box; // The bounding box (TriggerBox)
+        this.trigger_boxes = trigger_boxes; // The bounding box (TriggerBox)
+        this.position_velocities = position_velocities; // Position velocities
+        this.rotation_velocities = rotation_velocities; // Rotation velocities
+        this.name = "Actor"; // Name of the actor
     }
 
-    draw(gl, position_attribute, color_uniform, transform_uniform, view_matrix) {
-        this.entity.draw(gl, position_attribute, color_uniform, transform_uniform, view_matrix);
+    render() {
+        this.entity.render();
     }
 
-    get_tbox_global_verts() {
-        // Get the global location of the trigger box by adding its local location to the entity's location
-        const entity_vertices = this.entity.vertices;
-        const trigger_box_local_location = this.trigger_box.location;
-        return entity_vertices.map((v, i) => v + trigger_box_local_location[i % 3]);
+    check_trigger_collision(my_global_verts, other_actor) {
+        const other_entity_global_location = other_actor.entity.location;
+        
+        for (var other_trigger_box of other_actor.trigger_boxes) {
+            const other_global_verts = other_trigger_box.get_global_verts(other_entity_global_location);
+            if (is_overlapping(my_global_verts, other_global_verts)) {
+                return true; // Collision detected
+            }
+        }
+        
+        return false; // No collision detected
     }
 
-    check_trigger_collision(other_actor) {
-        // add tbox loc to entity loc
-        const my_global_verts = this.get_tbox_global_verts();
-        const other_global_verts = other_actor.get_tbox_global_verts();
-        return is_overlapping(my_global_verts, other_global_verts);
+    move(other_actors) {
+        var will_collide = false;
+
+        for (var other_actor of other_actors) {
+            // Get next position for all tboxes
+            var next_tbox_positions = [];
+            for (var trigger_box of this.trigger_boxes) {
+                next_tbox_positions.push(trigger_box.get_next_position(this.position_velocities));
+            }
+
+            // Check for collisions with other actors
+            for (var i = 0; i < this.trigger_boxes.length; i++) {
+                const next_tbox_position = next_tbox_positions[i];
+                const this_entity_global_location = this.entity.location;
+                const next_tbox_global_verts = this.trigger_boxes[i].get_global_verts(this_entity_global_location, next_tbox_position);
+                if (this.check_trigger_collision(next_tbox_global_verts, other_actor)) {
+                    will_collide = true; // Collision detected
+                    break;
+                }
+            }
+
+            if (will_collide) {
+                break; // Exit the loop if a collision is detected
+            }
+        }
+
+        // Move entity and all tboxes
+        if (!will_collide) {
+            this.entity.move(this.position_velocities, this.rotation_velocities); // Move the entity based on its position velocities and rotation velocities
+            for (var j = 0; j < this.trigger_boxes.length; j++) {
+                this.trigger_boxes[j].move(this.position_velocities, 0); // Move the trigger boxes based on the same velocities
+            }
+        }
     }
 }
 
-function is_overlapping(a, b) { // where a and b are axis aligned arrays of 8 verts
+function is_overlapping(a, b) { // where a and b are axis aligned arrays of 8 verts (length 24)
     return (
         a[0] <= b[3] && a[3] >= b[0] && // x-axis overlap
         a[1] <= b[7] && a[7] >= b[1] && // y-axis overlap

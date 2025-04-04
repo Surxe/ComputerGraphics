@@ -1,71 +1,57 @@
 class Entity extends GameObject {
-    constructor(gl, vertices, color, location, indices=[]) {
+    constructor(vertices, indices, colors, location) {
         super(vertices, location);
-        this.gl = gl;
-        this.color = color;
-        this.indices = indices ? [...indices] : null;
-    }
+        this.colors = colors;
 
-    get_transform_matrix() {
-        return new Float32Array([
-            1,  0,  0,  0,
-            0,  1,  0,  0,
-            0,  0,  1,  0,
-            this.location[0], this.location[1], this.location[2], 1
-        ]);
+        this.position_buffer = gl.createBuffer();
+        this.color_buffer = gl.createBuffer();
+        this.indices = indices ? [...indices] : null;
+        if (this.indices) {
+            this.index_buffer = gl.createBuffer();
+        }
+
+        this.vertex_count = this.vertices.length / 3;
     }
 
     buffer() {
-        this.buffer_vertices(this.vertices);
-
+        this.buffer_vertices();
+        this.buffer_colors();
         if (this.indices) {
-            this.buffer_indices(this.indices);
+            this.buffer_indices();
         }
     }
 
-    buffer_vertices(vertices) {
-        this.position_buffer = gl.createBuffer();
+    buffer_vertices() {
         gl.bindBuffer(gl.ARRAY_BUFFER, this.position_buffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.vertices), gl.STATIC_DRAW);
     }
-
-    buffer_indices(indices) {
-        this.index_buffer = gl.createBuffer();
+    buffer_colors() {
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.color_buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.colors), gl.STATIC_DRAW);
+    }
+    buffer_indices() {
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.index_buffer);
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(this.indices), gl.STATIC_DRAW);
     }
 
-    draw(gl, position_attribute, color_uniform, transform_uniform, camera_matrix) {
+    render() {
         this.buffer();
 
-        gl.vertexAttribPointer(position_attribute, 3, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(position_attribute);
-        gl.uniform3fv(color_uniform, new Float32Array(this.color));
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.position_buffer); //if this extra line is removed it will not work for some reason
+        const position_location = gl.getAttribLocation(program, "a_position");
+        gl.enableVertexAttribArray(position_location);
+        gl.vertexAttribPointer(position_location, 3, gl.FLOAT, false, 0, 0);
 
-        // Combine entity's transform with camera's matrix
-        const entity_matrix = this.get_transform_matrix();
-        const final_matrix = this.multiply_matrices(camera_matrix, entity_matrix);
-        gl.uniformMatrix4fv(transform_uniform, false, final_matrix);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.color_buffer); //if this extra line is removed it will not work for some reason
+        const color_location = gl.getAttribLocation(program, "a_color");
+        gl.enableVertexAttribArray(color_location);
+        gl.vertexAttribPointer(color_location, 3, gl.FLOAT, false, 0, 0);
 
-        gl.drawArrays(gl.TRIANGLES, 0, this.vertices.length / 3);
         if (this.indices) {
             gl.drawElements(gl.TRIANGLES, this.indices.length, gl.UNSIGNED_SHORT, 0);
-        } else {
-            gl.drawArrays(gl.TRIANGLES, 0, this.vertices.length / 3);
         }
-    }
-
-    multiply_matrices(a, b) {
-        let result = new Float32Array(16);
-        for (let row = 0; row < 4; row++) {
-            for (let col = 0; col < 4; col++) {
-                result[row * 4 + col] =
-                    a[row * 4] * b[col] +
-                    a[row * 4 + 1] * b[col + 4] +
-                    a[row * 4 + 2] * b[col + 8] +
-                    a[row * 4 + 3] * b[col + 12];
-            }
+        else {
+            gl.drawArrays(gl.TRIANGLES, 0, this.vertex_count);
         }
-        return result;
     }
 }
