@@ -119,10 +119,16 @@ function create_bullet(camera_location, camera_angle) {
         ],
         [...camera_location], // Bullet location
     )
+    const speed = 0.1 * tick_rate_scale; // Bullet speed
+    const velocities = [
+        Math.sin(-camera_angle[1]) * speed,
+        0,
+        -Math.cos(-camera_angle[1]) * speed
+    ];
     const bullet = new Projectile(
         b1, 
         [new TriggerBox([0, 0, 0], [1, 1, 1])], // Bullet entity with trigger box
-        [-0.2 * tick_rate_scale, 0, 0], 
+        velocities, 
         [0, 0, 0]
     ) // Bullet entity with no trigger boxes
 

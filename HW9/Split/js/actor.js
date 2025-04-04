@@ -70,6 +70,6 @@ function is_overlapping(a, b) { // where a and b are axis aligned arrays of 8 ve
     return (
         a[0] <= b[3] && a[3] >= b[0] && // x-axis overlap
         a[1] <= b[7] && a[7] >= b[1] && // y-axis overlap
-        a[2] <= b[11] //&& a[11] >= b[2] // z-axis overlap
+        a[2] <= b[11] && a[11] >= b[2] // z-axis overlap
     );
 }
