@@ -4,6 +4,7 @@ const [gl, program, canvas] = GLSetup.init("glcanvas")
 const camera = new Camera();
 const game_engine = new GameEngine(camera);
 
+// Create asteroids
 const vertices = [
     // Top vertex
     0,  .5,  0,  
@@ -53,10 +54,10 @@ const tb2 = new TriggerBox([0, 0, 0], [1, 1, 1])
 const a1 = new Actor(e1, [tb1], [.000, 0, 0], [.01, 0, 0]) 
 const a2 = new Actor(e2, [tb2], [0, 0, 0], [0, 0, 0])
 
-
 game_engine.add_actor(a1)
 game_engine.add_actor(a2)
 
+// Create bullet
 function create_bullet(camera_location, camera_angle) {
     // Create a bullet entity
     var bullet_vertices = [
@@ -77,9 +78,7 @@ function create_bullet(camera_location, camera_angle) {
         bullet_vertices[i] *= .01;
     }
     // rotate the bullet to match the camera angle
-    console.log("Before rotation:", bullet_vertices);
     bullet_vertices = Transform.rotate_positions(bullet_vertices, camera_angle);
-    console.log("After rotation:", bullet_vertices);
 
     const b1 = new Entity(
         bullet_vertices,
@@ -141,6 +140,8 @@ document.addEventListener("keypress", (event) => {
     }
 });
 
+
+// Main loop
 function tick() {
     game_engine.tick();
 
