@@ -52,7 +52,9 @@ const tb1 = new TriggerBox([0, 0, 0], [1, 1, 1])
 const tb2 = new TriggerBox([0, 0, 0], [1, 1, 1])
 
 const a1 = new Actor(e1, [tb1], [.000, 0, 0], [.01, 0, 0]) 
+a1.name = "a1"
 const a2 = new Actor(e2, [tb2], [0, 0, 0], [0, 0, 0])
+a2.name = "a2"
 
 game_engine.add_actor(a1)
 game_engine.add_actor(a2)
@@ -62,21 +64,17 @@ function create_bullet(camera_location, camera_angle) {
     // Create a bullet entity
     var bullet_vertices = [
         // Front face
-        -0.5, -0.5,  1.0, // 0
-        0.5, -0.5,  1.0, // 1
-        0.5,  0.5,  1.0, // 2
-        -0.5,  0.5,  1.0, // 3
+        -0.5, -0.5,  .5, // 0
+        0.5, -0.5,  .5, // 1
+        0.5,  0.5,  .5, // 2
+        -0.5,  0.5,  .5, // 3
 
         // Back face
-        -0.5, -0.5, -1.0, // 4
-        0.5, -0.5, -1.0, // 5
-        0.5,  0.5, -1.0, // 6
-        -0.5,  0.5, -1.0  // 7
+        -0.5, -0.5, -.5, // 4
+        0.5, -0.5, -.5, // 5
+        0.5,  0.5, -.5, // 6
+        -0.5,  0.5, -.5  // 7
     ]
-    // scale down the bullet vertices
-    for (let i = 0; i < bullet_vertices.length; i++) {
-        bullet_vertices[i] *= .01;
-    }
     // rotate the bullet to match the camera angle
     bullet_vertices = Transform.rotate_positions(bullet_vertices, camera_angle);
 
@@ -117,12 +115,12 @@ function create_bullet(camera_location, camera_angle) {
             .5, .5, .5,
             .5, .5, .5,
         ],
-        camera_location, // Bullet location
+        [...camera_location], // Bullet location
     )
     const bullet = new Projectile(
         b1, 
         [new TriggerBox([0, 0, 0], [1, 1, 1])], // Bullet entity with trigger box
-        [0, 0, 0], 
+        [-0.01, 0, 0], 
         [0, 0, 0]
     ) // Bullet entity with no trigger boxes
 
@@ -139,7 +137,6 @@ document.addEventListener("keypress", (event) => {
         game_engine.add_actor(bullet);
     }
 });
-
 
 // Main loop
 function tick() {

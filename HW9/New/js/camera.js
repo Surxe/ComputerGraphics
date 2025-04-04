@@ -1,8 +1,8 @@
 class Camera {
     constructor() {
-        this.x = 0;
+        this.x = 5;
         this.y = 0;
-        this.z = 5;
+        this.z = 0;
         this.angle = 0;
         this.speed = 0.01;
         this.rotation_speed = 0.01;

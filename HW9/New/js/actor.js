@@ -4,6 +4,7 @@ class Actor {
         this.trigger_boxes = trigger_boxes; // The bounding box (TriggerBox)
         this.position_velocities = position_velocities; // Position velocities
         this.rotation_velocities = rotation_velocities; // Rotation velocities
+        this.name = "Actor"; // Name of the actor
     }
 
     render() {
