@@ -26,9 +26,7 @@ class GameObject {
         // Rotate
         // Assuming rotation_velocities is an array of [x, y, z] angles in radians
         if (rotation_velocities) {
-            console.log('Before rotation: ', new_vertices);
             new_vertices = Transform.rotate_positions(new_vertices, rotation_velocities);
-            console.log('After rotation: ', new_vertices);
         }
 
         // Translate
@@ -43,7 +41,6 @@ class GameObject {
 
     move(position_velocities, rotation_velocities) {
         this.local_vertices = this.get_next_position(position_velocities, rotation_velocities);
-        console.log('Moved vertices: ', this.local_vertices);
         this.globalize_vertices();
     }
 }
