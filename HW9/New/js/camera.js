@@ -4,7 +4,7 @@ class Camera {
         this.y = 0;
         this.z = 5;
         this.angle = 0;
-        this.speed = 0.1;
+        this.speed = 0.01;
         this.rotation_speed = 0.01;
     }
 

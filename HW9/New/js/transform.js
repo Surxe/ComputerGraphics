@@ -2,7 +2,7 @@ class Transform {
     // position = [x, y, z]
     static rotate_axes(position, degrees=[0, 0, 0]) {
         let [x, y, z] = position;
-        let [x_rads, y_rads, z_rads] = degrees.map(deg => deg * (Math.PI / 180)); // Convert degrees to radians
+        let [x_rads, y_rads, z_rads] = degrees//degrees.map(deg => deg * (Math.PI / 180)); // Convert degrees to radians
 
         // Rotation around X-axis
         let x_cos = Math.cos(x_rads), x_sin = Math.sin(x_rads);
