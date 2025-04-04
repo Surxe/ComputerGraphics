@@ -6,16 +6,16 @@ class TriggerBox extends GameObject{
 
         var vertices = [
             // Front face
-            x - width / 2, y - height / 2, z + depth / 2,
-            x + width / 2, y - height / 2, z + depth / 2,
+            x - width / 2, y - height / 2, z - depth / 2,
+            x + width / 2, y - height / 2, z - depth / 2,
             x + width / 2, y + height / 2, z + depth / 2,
             x - width / 2, y + height / 2, z + depth / 2,
 
             // Back face
             x - width / 2, y - height / 2, z - depth / 2,
             x + width / 2, y - height / 2, z - depth / 2,
-            x + width / 2, y + height / 2, z - depth / 2,
-            x - width / 2, y + height / 2, z - depth / 2,
+            x + width / 2, y + height / 2, z + depth / 2,
+            x - width / 2, y + height / 2, z + depth / 2,
         ];
 
         super(vertices, location); // Call the parent constructor
