@@ -56,7 +56,7 @@ function create_asteroid() {
     const ry = Math.random()*.1 * tick_rate_scale//[0, .. 0.1]
     const rz = Math.random()*.1 * tick_rate_scale//[0, .. 0.1]
     const rotation_speed = [rx, ry, rz]
-    const a1 = new Actor(e1, [tb1], [.000, 0, 0], rotation_speed)
+    const a1 = new Character(3, e1, [tb1], [.000, 0, 0], rotation_speed)
 
     game_engine.add_actor(a1);
 }

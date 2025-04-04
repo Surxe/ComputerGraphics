@@ -2,16 +2,37 @@ class GameEngine {
     constructor(camera) {
         this.camera = camera;
         this.actors = [];
+        this.asteroids = [];
+        this.projectiles = [];
         this.matrix_location = gl.getUniformLocation(program, "u_matrix");
     }
 
     add_actor(actor) {
         this.actors.push(actor);
+        if (actor instanceof Projectile) {
+            this.projectiles.push(actor);
+        } else if (actor instanceof Character) {
+            this.asteroids.push(actor);
+        }
     }
 
     move_actors() {
         for (const actor of this.actors) {
-            var other_actors = this.actors.filter(a => a !== actor);
+            // Make list of other actors that could collide with it. Don't bother checking collisions between same classes
+            var other_actors;
+            if (actor instanceof Projectile) {
+                other_actors = this.asteroids;
+            }
+            else if (actor instanceof Character) {
+                other_actors = this.projectiles;
+            } else {
+                other_actors = this.actors;
+            }
+
+            // Remove self
+            var other_actors = other_actors.filter(a => a !== actor);
+
+            // Move actor
             actor.move(other_actors);
         }
     }

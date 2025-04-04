@@ -17,11 +17,16 @@ class Actor {
         for (var other_trigger_box of other_actor.trigger_boxes) {
             const other_global_verts = other_trigger_box.get_global_verts(other_entity_global_location);
             if (is_overlapping(my_global_verts, other_global_verts)) {
+                this.on_collision(other_actor); // Call the collision handler
                 return true; // Collision detected
             }
         }
         
         return false; // No collision detected
+    }
+
+    on_collision(other_actor) {
+        console.log("Collision detected with " + other_actor.name + "!");
     }
 
     move(other_actors) {
@@ -41,6 +46,7 @@ class Actor {
                 const next_tbox_global_verts = this.trigger_boxes[i].get_global_verts(this_entity_global_location, next_tbox_position);
                 if (this.check_trigger_collision(next_tbox_global_verts, other_actor)) {
                     will_collide = true; // Collision detected
+                    console.log("Collision detected with another actor!");
                     break;
                 }
             }
@@ -64,6 +70,6 @@ function is_overlapping(a, b) { // where a and b are axis aligned arrays of 8 ve
     return (
         a[0] <= b[3] && a[3] >= b[0] && // x-axis overlap
         a[1] <= b[7] && a[7] >= b[1] && // y-axis overlap
-        a[2] <= b[11] && a[11] >= b[2] // z-axis overlap
+        a[2] <= b[11] //&& a[11] >= b[2] // z-axis overlap
     );
 }
