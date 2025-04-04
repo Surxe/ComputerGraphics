@@ -4,60 +4,62 @@ const [gl, program, canvas] = GLSetup.init("glcanvas")
 const camera = new Camera();
 const game_engine = new GameEngine(camera);
 
-// Create asteroids
-const vertices = [
-    // Top vertex
-    0,  .5,  0,  
-    // Side vertices
-    .5,  0,  0,  
-    0,  0,  .5,  
-    -.5,  0,  0,  
-    0,  0, -.5,  
-    // Bottom vertex
-    0, -.5,  0   
-];
+function create_asteroid() {
+    const x = Math.random()*200-100 // [-100, .. 100]
+    const y = Math.random()*200-100 // [-100, .. 100]
+    const z = Math.random()*200-100 // [-100, .. 100]
 
-const indices = [
-    0, 1, 2,  // Top front-right
-    0, 2, 3,  // Top front-left
-    0, 3, 4,  // Top back-left
-    0, 4, 1,  // Top back-right
-    5, 2, 1,  // Bottom front-right
-    5, 3, 2,  // Bottom front-left
-    5, 4, 3,  // Bottom back-left
-    5, 1, 4   // Bottom back-right
-];
-  
-const colors = [
-    1, 0, 0,  // Red (Top front-right)
-    0, 1, 0,  // Green (Top front-left)
-    0, 0, 1,  // Blue (Top back-left)
-    1, 1, 0,  // Yellow (Top back-right)
-    1, 0, 1,  // Magenta (Bottom front-right)
-    0, 1, 1,  // Cyan (Bottom front-left)
-    1, 1, 1,  // White (Bottom back-left)
-    0, 0, 0   // Black (Bottom back-right)
-];
-      
-const e1 = new Entity(
-    [...vertices], [...indices], [...colors],
-    [0, 0, 0],
-)
-const e2 = new Entity(
-    [...vertices], [...indices], [...colors],
-    [1.25, 0, 0],
-)
+    // Create asteroids
+    const vertices = [
+        // Top vertex
+        0,  .5,  0,  
+        // Side vertices
+        .5,  0,  0,  
+        0,  0,  .5,  
+        -.5,  0,  0,  
+        0,  0, -.5,  
+        // Bottom vertex
+        0, -.5,  0   
+    ];
 
-const tb1 = new TriggerBox([0, 0, 0], [1, 1, 1])
-const tb2 = new TriggerBox([0, 0, 0], [1, 1, 1])
+    const indices = [
+        0, 1, 2,  // Top front-right
+        0, 2, 3,  // Top front-left
+        0, 3, 4,  // Top back-left
+        0, 4, 1,  // Top back-right
+        5, 2, 1,  // Bottom front-right
+        5, 3, 2,  // Bottom front-left
+        5, 4, 3,  // Bottom back-left
+        5, 1, 4   // Bottom back-right
+    ];
+    
+    const colors = [
+        1, 0, 0,  // Red (Top front-right)
+        0, 1, 0,  // Green (Top front-left)
+        0, 0, 1,  // Blue (Top back-left)
+        1, 1, 0,  // Yellow (Top back-right)
+        1, 0, 1,  // Magenta (Bottom front-right)
+        0, 1, 1,  // Cyan (Bottom front-left)
+        1, 1, 1,  // White (Bottom back-left)
+        0, 0, 0   // Black (Bottom back-right)
+    ];
+        
+    const e1 = new Entity(
+        [...vertices], [...indices], [...colors],
+        [x, y, z],
+    )
 
-const a1 = new Actor(e1, [tb1], [.000, 0, 0], [.01, 0, 0]) 
-a1.name = "a1"
-const a2 = new Actor(e2, [tb2], [0, 0, 0], [0, 0, 0])
-a2.name = "a2"
+    const tb1 = new TriggerBox([0, 0, 0], [1, 1, 1])
 
-game_engine.add_actor(a1)
-game_engine.add_actor(a2)
+    // Random rotation speed 
+    const rx = Math.random()*.25//[0, .. 0.25]
+    const ry = Math.random()*.25//[0, .. 0.25]
+    const rz = Math.random()*.25//[0, .. 0.25]
+    const rotation_speed = [rx, ry, rz]
+    const a1 = new Actor(e1, [tb1], [.000, 0, 0], rotation_speed)
+
+    game_engine.add_actor(a1);
+}
 
 // Create bullet
 function create_bullet(camera_location, camera_angle) {
@@ -120,7 +122,7 @@ function create_bullet(camera_location, camera_angle) {
     const bullet = new Projectile(
         b1, 
         [new TriggerBox([0, 0, 0], [1, 1, 1])], // Bullet entity with trigger box
-        [-0.01, 0, 0], 
+        [-0.2, 0, 0], 
         [0, 0, 0]
     ) // Bullet entity with no trigger boxes
 
@@ -137,6 +139,12 @@ document.addEventListener("keypress", (event) => {
         game_engine.add_actor(bullet);
     }
 });
+
+// Create many asteroids
+const num_asteroids = 300;
+for (let i = 0; i < num_asteroids; i++) {
+    create_asteroid();
+}
 
 // Main loop
 function tick() {
