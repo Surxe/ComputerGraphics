@@ -130,7 +130,7 @@ function create_bullet(camera_location, camera_angle) {
         [new TriggerBox([0, 0, 0], [1, 1, 1])], // Bullet entity with trigger box
         velocities, 
         [0, 0, 0]
-    ) // Bullet entity with no trigger boxes
+    )
 
     return bullet;
 }
