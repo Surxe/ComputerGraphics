@@ -5,7 +5,7 @@ const camera = new Camera();
 const game_engine = new GameEngine(camera);
 
 function create_asteroid() {
-    const dist = 1;
+    const dist = 100;
     const x = Math.random()*dist*2-dist // [-100, .. 100]
     const y = Math.random()*dist*2-dist // [-100, .. 100]
     const z = Math.random()*dist*2-dist // [-100, .. 100]
@@ -148,7 +148,7 @@ document.addEventListener("keypress", (event) => {
 });
 
 // Create many asteroids
-const num_asteroids = 1;
+const num_asteroids = 100;
 for (let i = 0; i < num_asteroids; i++) {
     create_asteroid();
 }
