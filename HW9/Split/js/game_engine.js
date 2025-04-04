@@ -37,6 +37,28 @@ class GameEngine {
         }
     }
 
+    destroy_actors() {
+        for (var actor of this.actors) {
+            if (actor.should_destroy) {
+                // Remove
+                this.actors = this.actors.filter(a => a !== actor); // Remove the actor from the list
+                console.log("Actor destroyed!");
+            }
+        }
+        for (var character of this.asteroids) {
+            if (character.should_destroy) {
+                this.asteroids = this.asteroids.filter(a => a !== character); // Remove the actor from the list
+                console.log("Character destroyed!");
+            }
+        }
+        for (var projectile of this.projectiles) {
+            if (projectile.should_destroy) {
+                this.projectiles = this.projectiles.filter(a => a !== projectile); // Remove the actor from the list
+                console.log("Projectile destroyed!");
+            }
+        }
+    }
+
     render() {
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         
@@ -62,6 +84,7 @@ class GameEngine {
 
     tick() {
         this.move_actors();
+        this.destroy_actors();
         this.render();
     }
 }

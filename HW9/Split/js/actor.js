@@ -4,7 +4,7 @@ class Actor {
         this.trigger_boxes = trigger_boxes; // The bounding box (TriggerBox)
         this.position_velocities = position_velocities; // Position velocities
         this.rotation_velocities = rotation_velocities; // Rotation velocities
-        this.name = "Actor"; // Name of the actor
+        this.should_destroy = false;
     }
 
     render() {
@@ -18,6 +18,7 @@ class Actor {
             const other_global_verts = other_trigger_box.get_global_verts(other_entity_global_location);
             if (is_overlapping(my_global_verts, other_global_verts)) {
                 this.on_collision(other_actor); // Call the collision handler
+                other_actor.on_collision(this); // Call the collision handler for the other actor
                 return true; // Collision detected
             }
         }
@@ -26,7 +27,7 @@ class Actor {
     }
 
     on_collision(other_actor) {
-        console.log("Collision detected with " + other_actor.name + "!");
+        console.log("Collision detected with " + other_actor + "!");
     }
 
     move(other_actors) {
@@ -46,7 +47,6 @@ class Actor {
                 const next_tbox_global_verts = this.trigger_boxes[i].get_global_verts(this_entity_global_location, next_tbox_position);
                 if (this.check_trigger_collision(next_tbox_global_verts, other_actor)) {
                     will_collide = true; // Collision detected
-                    console.log("Collision detected with another actor!");
                     break;
                 }
             }
