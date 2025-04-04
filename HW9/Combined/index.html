@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebGL First-Person Camera</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <canvas id="glcanvas"></canvas>
+
+    <script>
+        class GLSetup {
+            static init(canvas_id) {
+                const canvas = document.getElementById(canvas_id);
+                const gl = canvas.getContext("webgl");
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                gl.viewport(0, 0, canvas.width, canvas.height);
+
+                // Shader Sources
+                const vs_source = `
+                    attribute vec3 a_position;
+                    attribute vec3 a_color;
+                    varying vec3 v_color;
+                    uniform mat4 u_matrix;
+                    void main() {
+                        gl_Position = u_matrix * vec4(a_position, 1.0);
+                        v_color = a_color;
+                    }
+                `;
+
+                const fs_source = `
+                    precision mediump float;
+                    varying vec3 v_color;
+                    void main() {
+                        gl_FragColor = vec4(v_color, 1.0);
+                    }
+                `;
+
+                // Compile Shader
+                function compile_shader(source, type) {
+                    const shader = gl.createShader(type);
+                    gl.shaderSource(shader, source);
+                    gl.compileShader(shader);
+                    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                        console.error(gl.getShaderInfoLog(shader));
+                        return null;
+                    }
+                    return shader;
+                }
+
+                // Initialize WebGL Program
+                const vertex_shader = compile_shader(vs_source, gl.VERTEX_SHADER);
+                const fragment_shader = compile_shader(fs_source, gl.FRAGMENT_SHADER);
+                const program = gl.createProgram();
+                gl.attachShader(program, vertex_shader);
+                gl.attachShader(program, fragment_shader);
+                gl.linkProgram(program);
+                gl.useProgram(program);
+
+                return [gl, program, canvas];
+            }
+        }
+    </script>
+    <script>
+        class Transform {
+            // position = [x, y, z]
+            static rotate_axes(position, degrees=[0, 0, 0]) {
+                let [x, y, z] = position;
+                let [x_rads, y_rads, z_rads] = degrees//degrees.map(deg => deg * (Math.PI / 180)); // Convert degrees to radians
+
+                // Rotation around X-axis
+                let x_cos = Math.cos(x_rads), x_sin = Math.sin(x_rads);
+                let y1 = y * x_cos - z * x_sin;
+                let z1 = y * x_sin + z * x_cos;
+
+                // Rotation around Y-axis
+                let y_cos = Math.cos(y_rads), y_sin = Math.sin(y_rads);
+                let x2 = x * y_cos + z1 * y_sin;
+                let new_z = -x * y_sin + z1 * y_cos;
+
+                // Rotation around Z-axis
+                let z_cos = Math.cos(z_rads), z_sin = Math.sin(z_rads);
+                let new_x = x2 * z_cos - y1 * z_sin;
+                let new_y = x2 * z_sin + y1 * z_cos;
+
+                return [new_x, new_y, new_z];
+            }
+
+            // positions = [[x1, y1, z1], [x2, y2, z2], ...]
+            static rotate_positions(positions, degrees=[0, 0, 0]) {
+                var positions = Transform.flat_to_threes([...positions]); // Convert flat array to 3D array
+                for (var vertex_i = 0; vertex_i < positions.length; vertex_i++) {
+                    positions[vertex_i] = Transform.rotate_axes(positions[vertex_i], degrees);
+                }
+                return this.threes_to_flat(positions);
+            }
+
+            // [a, b, c, d, e, f] -> [[a, b, c], [d, e, f]]
+            static flat_to_threes(array) {
+                var threes = [];
+                for (var i = 0; i < array.length; i += 3) {
+                    threes.push([array[i], array[i + 1], array[i + 2]]);
+                }
+                return threes;
+            }
+
+            // [[a, b, c], [d, e, f]] -> [a, b, c, d, e, f]
+            static threes_to_flat(array) {
+                var flat = [];
+                for (var i = 0; i < array.length; i++) {
+                    flat.push(...array[i]);
+                }
+                return flat;
+            }
+        }
+    </script>
+    <script>
+        class GameObject {
+            constructor(local_vertices, location=[0, 0, 0]) {
+                this.local_vertices = local_vertices; // local vertices relative to the object
+                this.location = location;
+                this.globalize_vertices();
+            }
+
+            globalize_vertices() {
+                // Get the global location of the object by adding entity's location to its local vertices
+                const globalized_verts = this.local_vertices.map((v, i) => {
+                    if (i % 3 === 0) { // x coordinate
+                        return v + this.location[0];
+                    } else if (i % 3 === 1) { // y coordinate
+                        return v + this.location[1];
+                    } else { // z coordinate
+                        return v + this.location[2];
+                    }
+                });
+
+                this.vertices = [...globalized_verts];
+            }
+
+            get_next_position(position_velocities, rotation_velocities=null) {
+                var new_vertices = [...this.local_vertices];
+
+                // Rotate
+                // Assuming rotation_velocities is an array of [x, y, z] angles in radians
+                if (rotation_velocities) {
+                    new_vertices = Transform.rotate_positions(new_vertices, rotation_velocities);
+                }
+
+                // Translate
+                for (let i = 0; i < new_vertices.length; i += 3) {
+                    new_vertices[i] += position_velocities[0];
+                    new_vertices[i+1] += position_velocities[1];
+                    new_vertices[i+2] += position_velocities[2];
+                }
+
+                return new_vertices;
+            }
+
+            move(position_velocities, rotation_velocities) {
+                this.local_vertices = this.get_next_position(position_velocities, rotation_velocities);
+                this.globalize_vertices();
+            }
+        }
+    </script>
+    <script>
+        class Entity extends GameObject {
+            constructor(vertices, indices, colors, location) {
+                super(vertices, location);
+                this.colors = colors;
+
+                this.position_buffer = gl.createBuffer();
+                this.color_buffer = gl.createBuffer();
+                this.indices = indices ? [...indices] : null;
+                if (this.indices) {
+                    this.index_buffer = gl.createBuffer();
+                }
+
+                this.vertex_count = this.vertices.length / 3;
+            }
+
+            buffer() {
+                this.buffer_vertices();
+                this.buffer_colors();
+                if (this.indices) {
+                    this.buffer_indices();
+                }
+            }
+
+            buffer_vertices() {
+                gl.bindBuffer(gl.ARRAY_BUFFER, this.position_buffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.vertices), gl.STATIC_DRAW);
+            }
+            buffer_colors() {
+                gl.bindBuffer(gl.ARRAY_BUFFER, this.color_buffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.colors), gl.STATIC_DRAW);
+            }
+            buffer_indices() {
+                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.index_buffer);
+                gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(this.indices), gl.STATIC_DRAW);
+            }
+
+            render() {
+                this.buffer();
+
+                gl.bindBuffer(gl.ARRAY_BUFFER, this.position_buffer); //if this extra line is removed it will not work for some reason
+                const position_location = gl.getAttribLocation(program, "a_position");
+                gl.enableVertexAttribArray(position_location);
+                gl.vertexAttribPointer(position_location, 3, gl.FLOAT, false, 0, 0);
+
+                gl.bindBuffer(gl.ARRAY_BUFFER, this.color_buffer); //if this extra line is removed it will not work for some reason
+                const color_location = gl.getAttribLocation(program, "a_color");
+                gl.enableVertexAttribArray(color_location);
+                gl.vertexAttribPointer(color_location, 3, gl.FLOAT, false, 0, 0);
+
+                if (this.indices) {
+                    gl.drawElements(gl.TRIANGLES, this.indices.length, gl.UNSIGNED_SHORT, 0);
+                }
+                else {
+                    gl.drawArrays(gl.TRIANGLES, 0, this.vertex_count);
+                }
+            }
+        }
+    </script>
+    <script>
+        class TriggerBox extends GameObject{
+            constructor(location=[0, 0, 0], size=[1, 1, 1]) {
+                // Define the 8 vertices of a cube, assuming the center of the box is at the location
+                const [x, y, z] = location; //location relative to entity's location
+                const [width, height, depth] = size;
+
+                var vertices = [
+                    // Front face
+                    x - width / 2, y - height / 2, z - depth / 2,
+                    x + width / 2, y - height / 2, z - depth / 2,
+                    x + width / 2, y + height / 2, z + depth / 2,
+                    x - width / 2, y + height / 2, z + depth / 2,
+
+                    // Back face
+                    x - width / 2, y - height / 2, z - depth / 2,
+                    x + width / 2, y - height / 2, z - depth / 2,
+                    x + width / 2, y + height / 2, z + depth / 2,
+                    x - width / 2, y + height / 2, z + depth / 2,
+                ];
+
+                super(vertices, location); // Call the parent constructor
+            }
+
+            get_global_verts(entity_global_location, vertices=this.vertices) {
+                // Get the global location of the trigger box by adding entity's location to its local vertices
+                // Default vertices to the instance's *current* vertices
+                const trigger_box_local_vertices = vertices;
+                return trigger_box_local_vertices.map((v, i) => {
+                    if (i % 3 === 0) { // x coordinate
+                        return v + entity_global_location[0];
+                    } else if (i % 3 === 1) { // y coordinate
+                        return v + entity_global_location[1];
+                    } else { // z coordinate
+                        return v + entity_global_location[2];
+                    }
+                });
+            }
+        }
+    </script>
+    <script>
+        class Actor {
+            constructor(entity, trigger_boxes, position_velocities=[0, 0, 0], rotation_velocities=[0, 0, 0]) {
+                this.entity = entity; // The graphical representation (Entity)
+                this.trigger_boxes = trigger_boxes; // The bounding box (TriggerBox)
+                this.position_velocities = position_velocities; // Position velocities
+                this.rotation_velocities = rotation_velocities; // Rotation velocities
+                this.should_destroy = false;
+            }
+
+            render() {
+                this.entity.render();
+            }
+
+            check_trigger_collision(my_global_verts, other_actor) {
+                const other_entity_global_location = other_actor.entity.location;
+                
+                for (var other_trigger_box of other_actor.trigger_boxes) {
+                    const other_global_verts = other_trigger_box.get_global_verts(other_entity_global_location);
+                    if (is_overlapping(my_global_verts, other_global_verts)) {
+                        this.on_collision(other_actor); // Call the collision handler
+                        other_actor.on_collision(this); // Call the collision handler for the other actor
+                        return true; // Collision detected
+                    }
+                }
+                
+                return false; // No collision detected
+            }
+
+            on_collision(other_actor) {
+                console.log("Collision detected with " + other_actor + "!");
+            }
+
+            move(other_actors) {
+                var will_collide = false;
+
+                for (var other_actor of other_actors) {
+                    // Get next position for all tboxes
+                    var next_tbox_positions = [];
+                    for (var trigger_box of this.trigger_boxes) {
+                        next_tbox_positions.push(trigger_box.get_next_position(this.position_velocities));
+                    }
+
+                    // Check for collisions with other actors
+                    for (var i = 0; i < this.trigger_boxes.length; i++) {
+                        const next_tbox_position = next_tbox_positions[i];
+                        const this_entity_global_location = this.entity.location;
+                        const next_tbox_global_verts = this.trigger_boxes[i].get_global_verts(this_entity_global_location, next_tbox_position);
+                        if (this.check_trigger_collision(next_tbox_global_verts, other_actor)) {
+                            will_collide = true; // Collision detected
+                            break;
+                        }
+                    }
+
+                    if (will_collide) {
+                        break; // Exit the loop if a collision is detected
+                    }
+                }
+
+                // Move entity and all tboxes
+                if (!will_collide) {
+                    this.entity.move(this.position_velocities, this.rotation_velocities); // Move the entity based on its position velocities and rotation velocities
+                    for (var j = 0; j < this.trigger_boxes.length; j++) {
+                        this.trigger_boxes[j].move(this.position_velocities, 0); // Move the trigger boxes based on the same velocities
+                    }
+                }
+            }
+        }
+
+        function is_overlapping(a, b) { // where a and b are axis aligned arrays of 8 verts (length 24)
+            return (
+                a[0] <= b[3] && a[3] >= b[0] && // x-axis overlap
+                a[1] <= b[7] && a[7] >= b[1] && // y-axis overlap
+                a[2] <= b[11] && a[11] >= b[2] // z-axis overlap
+            );
+        }
+    </script>
+    <script>
+        class Character extends Actor {
+            constructor(health, ...args) {
+                super(...args); // Call the parent constructor
+                this.health = health; // Initial health of the character
+            }
+
+            on_collision(other_actor) {
+                // Character collided with a Projectile, decrease health, destroy if dead
+                if (other_actor instanceof Projectile) {
+                    this.health -= 1; // Decrease health on collision with a projectile
+                    console.log("Health decreased! Current health: " + this.health);
+                    if (this.health <= 0) {
+                        this.should_destroy = true; // Mark the character for destruction if health is 0 or less
+                        console.log("Character is dead!");
+                    }
+                }
+            }
+        }
+    </script>
+    <script>
+        class Projectile extends Actor {
+            constructor(...args) {
+                super(...args);
+            }
+
+            on_collision(other_actor) {
+                // Projectile collided with an asteroid, destroy the projectile
+                if (other_actor instanceof Character) {
+                    console.log("Projectile hit an asteroid!");
+                    this.should_destroy = true;
+                }
+            }
+        }
+    </script>
+    <script>
+        class Camera {
+            constructor() {
+                this.x = 5;
+                this.y = 0;
+                this.z = 0;
+                this.angle = 0;
+                this.speed = 0.2 * tick_rate_scale;
+                this.rotation_speed = 0.02 * tick_rate_scale;
+            }
+
+            move(keys_down) {
+                const key_to_move = {
+                    "w": () => this.move_forward(),
+                    "s": () => this.move_backward(),
+                    "a": () => this.rotate_left(),
+                    "d": () => this.rotate_right(),
+                    "z": () => this.move_up(),
+                    "x": () => this.move_down(),
+                }
+
+                for (const key in keys_down) {
+                    if (keys_down[key]) {
+                        const move_function = key_to_move[key];
+                        if (move_function) {
+                            move_function();
+                        }
+                    }
+                }
+            }
+
+            move_forward() {
+                this.x += this.speed * Math.sin(this.angle);
+                this.z -= this.speed * Math.cos(this.angle);
+            }
+
+            move_backward() {
+                this.x -= this.speed * Math.sin(this.angle);
+                this.z += this.speed * Math.cos(this.angle);
+            }
+
+            move_up() {
+                this.y += this.speed;
+            }
+
+            move_down() {
+                this.y -= this.speed;
+            }
+
+            rotate_left() {
+                this.angle -= this.rotation_speed;
+            }
+
+            rotate_right() {
+                this.angle += this.rotation_speed;
+            }
+
+            get_view_matrix() {
+                const cosA = Math.cos(this.angle), sinA = Math.sin(this.angle);
+                return [
+                    cosA, 0, sinA, -this.x * cosA - this.z * sinA,
+                    0,    1, 0,    -this.y,
+                    -sinA, 0, cosA, -this.x * -sinA - this.z * cosA,
+                    0,    0, 0,    1
+                ];
+            }
+
+            perspective(fov, aspect, near, far) {
+                const f = 1.0 / Math.tan(fov / 2);
+                return [
+                    f / aspect, 0,  0,  0,
+                    0,  f,  0,  0,
+                    0,  0,  (far + near) / (near - far), -1,
+                    0,  0,  (2 * far * near) / (near - far),  0
+                ];
+            }
+        }
+    </script>
+    <script>
+        var keys_down = {};
+        const valid_keys = ["w", "s", "a", "d", "z", "x"];
+
+        // Handle key presses for camera movement
+        document.addEventListener("keydown", (event) => {
+            if (valid_keys.includes(event.key)) {
+                keys_down[event.key] = true;
+            }
+        });
+        document.addEventListener("keyup", (event) => {
+            if (valid_keys.includes(event.key)) {
+                keys_down[event.key] = false;
+            }
+        });
+    </script>
+    <script>
+        class GameEngine {
+            constructor(camera) {
+                this.camera = camera;
+                this.actors = [];
+                this.asteroids = [];
+                this.projectiles = [];
+                this.matrix_location = gl.getUniformLocation(program, "u_matrix");
+            }
+
+            add_actor(actor) {
+                this.actors.push(actor);
+                if (actor instanceof Projectile) {
+                    this.projectiles.push(actor);
+                } else if (actor instanceof Character) {
+                    this.asteroids.push(actor);
+                }
+            }
+
+            move_actors() {
+                for (const actor of this.actors) {
+                    // Make list of other actors that could collide with it. Don't bother checking collisions between same classes
+                    var other_actors;
+                    if (actor instanceof Projectile) {
+                        other_actors = this.asteroids;
+                    }
+                    else if (actor instanceof Character) {
+                        other_actors = this.projectiles;
+                    } else {
+                        other_actors = this.actors;
+                    }
+
+                    // Remove self
+                    var other_actors = other_actors.filter(a => a !== actor);
+
+                    // Move actor
+                    actor.move(other_actors);
+                }
+            }
+
+            destroy_actors() {
+                for (var actor of this.actors) {
+                    if (actor.should_destroy) {
+                        // Remove
+                        this.actors = this.actors.filter(a => a !== actor); // Remove the actor from the list
+                        console.log("Actor destroyed!");
+                    }
+                }
+                for (var character of this.asteroids) {
+                    if (character.should_destroy) {
+                        this.asteroids = this.asteroids.filter(a => a !== character); // Remove the actor from the list
+                        console.log("Character destroyed!");
+                    }
+                }
+                for (var projectile of this.projectiles) {
+                    if (projectile.should_destroy) {
+                        this.projectiles = this.projectiles.filter(a => a !== projectile); // Remove the actor from the list
+                        console.log("Projectile destroyed!");
+                    }
+                }
+            }
+
+            render() {
+                gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+                
+                const proj_matrix = this.camera.perspective(Math.PI / 4, canvas.width / canvas.height, 0.1, 100);
+                const view_matrix = this.camera.get_view_matrix();
+            
+                let final_matrix = [];
+                for (let i = 0; i < 16; i++) {
+                    final_matrix[i] = proj_matrix[i % 4] * view_matrix[Math.floor(i / 4)] +
+                                    proj_matrix[(i % 4) + 4] * view_matrix[Math.floor(i / 4) + 4] +
+                                    proj_matrix[(i % 4) + 8] * view_matrix[Math.floor(i / 4) + 8] +
+                                    proj_matrix[(i % 4) + 12] * view_matrix[Math.floor(i / 4) + 12];
+                }
+            
+                gl.uniformMatrix4fv(this.matrix_location, false, new Float32Array(final_matrix));
+            
+                for (const actor of this.actors) {
+                    actor.render();
+                }
+
+                this.camera.move(keys_down);
+            }
+
+            tick() {
+                this.move_actors();
+                this.destroy_actors();
+                this.render();
+            }
+        }
+    </script>
+    <script>
+        const [gl, program, canvas] = GLSetup.init("glcanvas")
+
+        const tick_rate_scale = .5;
+        const camera = new Camera();
+        const game_engine = new GameEngine(camera);
+
+        function create_asteroid() {
+            const dist = 100;
+            const x = Math.random()*dist*2-dist // [-100, .. 100]
+            const y = Math.random()*dist*2-dist // [-100, .. 100]
+            const z = Math.random()*dist*2-dist // [-100, .. 100]
+
+            // Create asteroids
+            const vertices = [
+                // Top vertex
+                0,  .5,  0,  
+                // Side vertices
+                .5,  0,  0,  
+                0,  0,  .5,  
+                -.5,  0,  0,  
+                0,  0, -.5,  
+                // Bottom vertex
+                0, -.5,  0   
+            ];
+
+            const indices = [
+                0, 1, 2,  // Top front-right
+                0, 2, 3,  // Top front-left
+                0, 3, 4,  // Top back-left
+                0, 4, 1,  // Top back-right
+                5, 2, 1,  // Bottom front-right
+                5, 3, 2,  // Bottom front-left
+                5, 4, 3,  // Bottom back-left
+                5, 1, 4   // Bottom back-right
+            ];
+            
+            const colors = [
+                1, 0, 0,  // Red (Top front-right)
+                0, 1, 0,  // Green (Top front-left)
+                0, 0, 1,  // Blue (Top back-left)
+                1, 1, 0,  // Yellow (Top back-right)
+                1, 0, 1,  // Magenta (Bottom front-right)
+                0, 1, 1,  // Cyan (Bottom front-left)
+                1, 1, 1,  // White (Bottom back-left)
+                0, 0, 0   // Black (Bottom back-right)
+            ];
+                
+            const e1 = new Entity(
+                [...vertices], [...indices], [...colors],
+                [x, y, z],
+            )
+
+            const tb1 = new TriggerBox([0, 0, 0], [1, 1, 1])
+
+            // Random rotation speed 
+            const rx = Math.random()*.1 * tick_rate_scale//[0, .. 0.1]
+            const ry = Math.random()*.1 * tick_rate_scale//[0, .. 0.1]
+            const rz = Math.random()*.1 * tick_rate_scale//[0, .. 0.1]
+            const rotation_speed = [rx, ry, rz]
+            const a1 = new Character(3, e1, [tb1], [.000, 0, 0], rotation_speed)
+
+            game_engine.add_actor(a1);
+        }
+
+        // Create bullet
+        function create_bullet(camera_location, camera_angle) {
+            // Create a bullet entity
+            var bullet_vertices = [
+                // Front face
+                -0.5, -0.5,  .5, // 0
+                0.5, -0.5,  .5, // 1
+                0.5,  0.5,  .5, // 2
+                -0.5,  0.5,  .5, // 3
+
+                // Back face
+                -0.5, -0.5, -.5, // 4
+                0.5, -0.5, -.5, // 5
+                0.5,  0.5, -.5, // 6
+                -0.5,  0.5, -.5  // 7
+            ]
+            // rotate the bullet to match the camera angle
+            bullet_vertices = Transform.rotate_positions(bullet_vertices, camera_angle);
+
+            const b1 = new Entity(
+                bullet_vertices,
+                [
+                    // Front face
+                    0, 1, 2,
+                    0, 2, 3,
+
+                    // Back face
+                    4, 6, 5,
+                    4, 7, 6,
+
+                    // Top face
+                    3, 2, 6,
+                    3, 6, 7,
+
+                    // Bottom face
+                    0, 5, 1,
+                    0, 4, 5,
+
+                    // Right face
+                    1, 5, 6,
+                    1, 6, 2,
+
+                    // Left face
+                    0, 3, 7,
+                    0, 7, 4
+                ],
+                [
+                    .5, .5, .5,
+                    .5, .5, .5,
+                    .5, .5, .5,
+                    .5, .5, .5,
+                    .5, .5, .5,
+                    .5, .5, .5,
+                    .5, .5, .5,
+                    .5, .5, .5,
+                ],
+                [...camera_location], // Bullet location
+            )
+            const speed = 0.1 * tick_rate_scale; // Bullet speed
+            const velocities = [
+                Math.sin(-camera_angle[1]) * speed,
+                0,
+                -Math.cos(-camera_angle[1]) * speed
+            ];
+            const bullet = new Projectile(
+                b1, 
+                [new TriggerBox([0, 0, 0], [1, 1, 1])], // Bullet entity with trigger box
+                velocities, 
+                [0, 0, 0]
+            )
+
+            return bullet;
+        }
+
+        // Space key pressed
+        document.addEventListener("keypress", (event) => {
+            if (event.code === "Space") {
+                bullet = create_bullet(
+                    [camera.x, camera.y, camera.z],
+                    [0, -camera.angle, 0]
+                );
+                game_engine.add_actor(bullet);
+            }
+        });
+
+        // Create many asteroids
+        const num_asteroids = 100;
+        for (let i = 0; i < num_asteroids; i++) {
+            create_asteroid();
+        }
+
+        // Main loop
+        function tick() {
+            game_engine.tick();
+
+            requestAnimationFrame(tick); // Start loop
+        }
+
+        // Initialize WebGL
+        gl.clearColor(0, 0, 0, 1);
+        gl.enable(gl.DEPTH_TEST);
+        tick();
+    </script>
+</body>
+</html>
