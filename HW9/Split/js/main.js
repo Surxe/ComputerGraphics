@@ -1,6 +1,6 @@
 const [gl, program, canvas] = GLSetup.init("glcanvas")
 
-
+const tick_rate_scale = 1;
 const camera = new Camera();
 const game_engine = new GameEngine(camera);
 
@@ -52,9 +52,9 @@ function create_asteroid() {
     const tb1 = new TriggerBox([0, 0, 0], [1, 1, 1])
 
     // Random rotation speed 
-    const rx = Math.random()*.25//[0, .. 0.25]
-    const ry = Math.random()*.25//[0, .. 0.25]
-    const rz = Math.random()*.25//[0, .. 0.25]
+    const rx = Math.random()*.1 * tick_rate_scale//[0, .. 0.1]
+    const ry = Math.random()*.1 * tick_rate_scale//[0, .. 0.1]
+    const rz = Math.random()*.1 * tick_rate_scale//[0, .. 0.1]
     const rotation_speed = [rx, ry, rz]
     const a1 = new Actor(e1, [tb1], [.000, 0, 0], rotation_speed)
 
@@ -122,7 +122,7 @@ function create_bullet(camera_location, camera_angle) {
     const bullet = new Projectile(
         b1, 
         [new TriggerBox([0, 0, 0], [1, 1, 1])], // Bullet entity with trigger box
-        [-0.2, 0, 0], 
+        [-0.2 * tick_rate_scale, 0, 0], 
         [0, 0, 0]
     ) // Bullet entity with no trigger boxes
 
@@ -141,7 +141,7 @@ document.addEventListener("keypress", (event) => {
 });
 
 // Create many asteroids
-const num_asteroids = 300;
+const num_asteroids = 100;
 for (let i = 0; i < num_asteroids; i++) {
     create_asteroid();
 }
