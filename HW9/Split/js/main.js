@@ -140,7 +140,7 @@ function create_bullet(camera_location, camera_angle) {
 document.addEventListener("keypress", (event) => {
     if (event.code === "Space") {
         bullet = create_bullet(
-            [camera.x, camera.y, camera.z],
+            camera.location,
             [0, -camera.angle, 0]
         );
         game_engine.add_actor(bullet);

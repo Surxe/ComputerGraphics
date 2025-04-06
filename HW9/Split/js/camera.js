@@ -1,11 +1,10 @@
 class Camera {
     constructor() {
-        this.x = 5;
-        this.y = 0;
-        this.z = 0;
+        this.location = [5, 0, 0];
         this.angle = 0;
-        this.speed = 0.2 * tick_rate_scale;
-        this.rotation_speed = 0.02 * tick_rate_scale;
+        this.position_speed = 0.2 * tick_rate_scale; //position speed
+        const rotation_speed = 0.02 * tick_rate_scale;
+        this.rotation_velocities = [0, rotation_speed, 0]; // Rotation velocities
     }
 
     move(keys_down) {
@@ -29,37 +28,37 @@ class Camera {
     }
 
     move_forward() {
-        this.x += this.speed * Math.sin(this.angle);
-        this.z -= this.speed * Math.cos(this.angle);
+        this.location[0] += this.position_speed * Math.sin(this.angle);
+        this.location[2] -= this.position_speed * Math.cos(this.angle);
     }
 
     move_backward() {
-        this.x -= this.speed * Math.sin(this.angle);
-        this.z += this.speed * Math.cos(this.angle);
+        this.location[0] -= this.position_speed * Math.sin(this.angle);
+        this.location[2] += this.position_speed * Math.cos(this.angle);
     }
 
     move_up() {
-        this.y += this.speed;
+        this.location[1] += this.position_speed;
     }
 
     move_down() {
-        this.y -= this.speed;
+        this.location[1] -= this.position_speed;
     }
 
     rotate_left() {
-        this.angle -= this.rotation_speed;
+        this.angle -= this.rotation_velocities[1];
     }
 
     rotate_right() {
-        this.angle += this.rotation_speed;
+        this.angle += this.rotation_velocities[1];
     }
 
     get_view_matrix() {
         const cosA = Math.cos(this.angle), sinA = Math.sin(this.angle);
         return [
-            cosA, 0, sinA, -this.x * cosA - this.z * sinA,
-            0,    1, 0,    -this.y,
-            -sinA, 0, cosA, -this.x * -sinA - this.z * cosA,
+            cosA, 0, sinA, -this.location[0] * cosA - this.location[2] * sinA,
+            0,    1, 0,    -this.location[1],
+            -sinA, 0, cosA, -this.location[0] * -sinA - this.location[2] * cosA,
             0,    0, 0,    1
         ];
     }
