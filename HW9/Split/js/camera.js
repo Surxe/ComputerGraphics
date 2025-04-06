@@ -1,64 +1,63 @@
-class Camera {
+class Camera extends GameObject {
     constructor() {
-        this.location = [5, 0, 0];
+        const location = [0, 0, 0]; // Initial location of the camera
+        super([5, 0, 0], location); // No local vertices for the camera
         this.angle = 0;
-        this.position_speed = 0.2 * tick_rate_scale; //position speed
-        const rotation_speed = 0.02 * tick_rate_scale;
-        this.rotation_velocities = [0, rotation_speed, 0]; // Rotation velocities
+
+        this.position_speed = 0.2 * tick_rate_scale;
+        this.rotation_speed = 0.02 * tick_rate_scale;
+
+        this.position_velocities = [0, 0, 0];
+        this.rotation_velocities = [0, 0, 0];
     }
 
     move(keys_down) {
-        const key_to_move = {
-            "w": () => this.move_forward(),
-            "s": () => this.move_backward(),
-            "a": () => this.rotate_left(),
-            "d": () => this.rotate_right(),
-            "z": () => this.move_up(),
-            "x": () => this.move_down(),
+        // Reset velocities each frame
+        this.position_velocities = [0, 0, 0];
+        this.rotation_velocities = [0, 0, 0];
+
+        const angle = this.angle;
+
+        if (keys_down["w"]) {
+            this.position_velocities[0] += this.position_speed * Math.sin(angle);
+            this.position_velocities[2] -= this.position_speed * Math.cos(angle);
         }
 
-        for (const key in keys_down) {
-            if (keys_down[key]) {
-                const move_function = key_to_move[key];
-                if (move_function) {
-                    move_function();
-                }
-            }
+        if (keys_down["s"]) {
+            this.position_velocities[0] -= this.position_speed * Math.sin(angle);
+            this.position_velocities[2] += this.position_speed * Math.cos(angle);
         }
-    }
 
-    move_forward() {
-        this.location[0] += this.position_speed * Math.sin(this.angle);
-        this.location[2] -= this.position_speed * Math.cos(this.angle);
-    }
+        if (keys_down["z"]) {
+            this.position_velocities[1] += this.position_speed;
+        }
 
-    move_backward() {
-        this.location[0] -= this.position_speed * Math.sin(this.angle);
-        this.location[2] += this.position_speed * Math.cos(this.angle);
-    }
+        if (keys_down["x"]) {
+            this.position_velocities[1] -= this.position_speed;
+        }
 
-    move_up() {
-        this.location[1] += this.position_speed;
-    }
+        if (keys_down["a"]) {
+            this.rotation_velocities[1] -= this.rotation_speed;
+        }
 
-    move_down() {
-        this.location[1] -= this.position_speed;
-    }
+        if (keys_down["d"]) {
+            this.rotation_velocities[1] += this.rotation_speed;
+        }
 
-    rotate_left() {
-        this.angle -= this.rotation_velocities[1];
-    }
-
-    rotate_right() {
+        //this.apply_velocities();
+        super.move(this.position_velocities, null); // Move the camera based on its position velocities and rotation velocities
         this.angle += this.rotation_velocities[1];
+        console.log(this.vertices)
     }
 
     get_view_matrix() {
         const cosA = Math.cos(this.angle), sinA = Math.sin(this.angle);
+        const [x, y, z] = this.vertices;
+
         return [
-            cosA, 0, sinA, -this.location[0] * cosA - this.location[2] * sinA,
-            0,    1, 0,    -this.location[1],
-            -sinA, 0, cosA, -this.location[0] * -sinA - this.location[2] * cosA,
+            cosA, 0, sinA, -x * cosA - z * sinA,
+            0,    1, 0,    -y,
+            -sinA, 0, cosA, -x * -sinA - z * cosA,
             0,    0, 0,    1
         ];
     }
