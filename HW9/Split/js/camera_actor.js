@@ -41,4 +41,8 @@ class CameraActor extends Actor {
         this.position_velocities = position_velocities;
         this.rotation_velocities = rotation_velocities;
     }
+
+    on_collision(other_actor) {
+        console.log("Camera collided with " + other_actor + "!");
+    }
 }

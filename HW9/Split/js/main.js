@@ -2,11 +2,11 @@ const [gl, program, canvas] = GLSetup.init("glcanvas")
 
 const tick_rate_scale = .5;
 const camera = new Camera();
-const camera_actor = new CameraActor(camera, [])
+const camera_actor = new CameraActor(camera, [new TriggerBox([0, 0, 0], [1, 1, 1])])
 const game_engine = new GameEngine(camera_actor);
 
 function create_asteroid() {
-    const dist = 100;
+    const dist = 0;
     const x = Math.random()*dist*2-dist // [-100, .. 100]
     const y = Math.random()*dist*2-dist // [-100, .. 100]
     const z = Math.random()*dist*2-dist // [-100, .. 100]
@@ -149,10 +149,12 @@ document.addEventListener("keypress", (event) => {
 });
 
 // Create many asteroids
-const num_asteroids = 100;
+const num_asteroids = 1;
 for (let i = 0; i < num_asteroids; i++) {
     create_asteroid();
 }
+
+console.log("Asteroid 1's vertices", game_engine.asteroids[0].entity.vertices);
 
 // Main loop
 function tick() {
