@@ -1,6 +1,6 @@
 class GameEngine {
-    constructor(camera) {
-        this.camera = camera;
+    constructor(camera_actor) {
+        this.camera_actor = camera_actor;
         this.actors = [];
         this.asteroids = [];
         this.projectiles = [];
@@ -62,8 +62,8 @@ class GameEngine {
     render() {
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         
-        const proj_matrix = this.camera.perspective(Math.PI / 4, canvas.width / canvas.height, 0.1, 100);
-        const view_matrix = this.camera.get_view_matrix();
+        const proj_matrix = this.camera_actor.entity.perspective(Math.PI / 4, canvas.width / canvas.height, 0.1, 100);
+        const view_matrix = this.camera_actor.entity.get_view_matrix();
     
         let final_matrix = [];
         for (let i = 0; i < 16; i++) {
@@ -79,7 +79,8 @@ class GameEngine {
             actor.render();
         }
 
-        this.camera.move(keys_down);
+        this.camera_actor.update_velocities(keys_down);
+        this.camera_actor.move(this.asteroids);
     }
 
     tick() {
