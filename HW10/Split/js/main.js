@@ -25,7 +25,11 @@ const ground_entity = new Entity(
         .5, .35, .1
     ]
     )
-const ground_actor = new Ground(ground_entity, [])
+const ground_y_location = -ground_radius/2-1+.5 // //tbox is secretly a massive cube, shift its center down by half its height. Down 1 more so the camera isn't inside it. Shift up by half the camera height.
+const ground_actor = new Ground(
+    ground_entity, 
+    [new TriggerBox([0, ground_y_location, 0], [2*ground_radius, 2*ground_radius, 2*ground_radius])]
+)
 game_engine.add_actor(ground_actor);
 
 function create_asteroid() {
