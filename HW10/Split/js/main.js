@@ -5,6 +5,29 @@ const camera = new CameraObject();
 const camera_actor = new CameraActor(camera, [new TriggerBox([0, 0, 0], [1, 1, 1])])
 const game_engine = new GameEngine(camera_actor);
 
+// Create ground
+const ground_radius = 100; // Cube w/ radius n will have area (2n)^2 not pi*r^2
+const ground_entity = new Entity(
+    [
+        -ground_radius, -1, -ground_radius, 
+        -ground_radius, -1, ground_radius, 
+        ground_radius , -1, ground_radius, 
+        ground_radius , -1, -ground_radius
+    ], // Vertices
+    [
+        0, 1, 2, // Triangle 1
+        0, 2, 3  // Triangle 2
+    ],
+    [
+        .5, .35, .1,
+        .5, .35, .1,
+        .5, .35, .1,
+        .5, .35, .1
+    ]
+    )
+const ground_actor = new Ground(ground_entity, [])
+game_engine.add_actor(ground_actor);
+
 function create_asteroid() {
     const dist = 100;
     const x = Math.random()*dist*2-dist // [-100, .. 100]
