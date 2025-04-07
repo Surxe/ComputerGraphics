@@ -8,7 +8,6 @@ class Camera extends GameObject {
     move(position_velocities, rotation_velocities) {
         super.move(position_velocities, null); // translate
         this.angle += rotation_velocities[1]; // rotate (not using the super class for rotation atm)
-        console.log("Camera vertices: ", this.vertices);
     }
 
     get_view_matrix() {
