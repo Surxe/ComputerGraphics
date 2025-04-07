@@ -43,6 +43,6 @@ class CameraActor extends Actor {
     }
 
     on_collision(other_actor) {
-        console.log("Camera collided with " + other_actor + "!");
+        console.log("Camera collided with " + other_actor.constructor.name + "!");
     }
 }

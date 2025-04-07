@@ -27,7 +27,7 @@ class Actor {
     }
 
     on_collision(other_actor) {
-        console.log("Collision detected with " + other_actor + "!");
+        // by default, do nothing. can be overridden by subclasses
     }
 
     move(other_actors) {
