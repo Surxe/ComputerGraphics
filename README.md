@@ -52,3 +52,9 @@ Create a 2D scene where the user rotates relative to the direction they are faci
 **Navigating Asteroids**
 
 Create a 3D asteroid field where the camera gets blocked by asteroids and can shoot them down with projectiles
+
+
+## HW10
+**Spooky Forest**
+
+Create a 3D spooky forest with trees and rocks that block movement along with ambient, spot, point, and directional lighting
