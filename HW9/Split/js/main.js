@@ -1,8 +1,9 @@
 const [gl, program, canvas] = GLSetup.init("glcanvas")
 
 const tick_rate_scale = .5;
-const camera = new Camera();
-const game_engine = new GameEngine(camera);
+const camera = new CameraObject();
+const camera_actor = new CameraActor(camera, [new TriggerBox([0, 0, 0], [1, 1, 1])])
+const game_engine = new GameEngine(camera_actor);
 
 function create_asteroid() {
     const dist = 100;
@@ -140,7 +141,7 @@ function create_bullet(camera_location, camera_angle) {
 document.addEventListener("keypress", (event) => {
     if (event.code === "Space") {
         bullet = create_bullet(
-            [camera.x, camera.y, camera.z],
+            camera.vertices,
             [0, -camera.angle, 0]
         );
         game_engine.add_actor(bullet);

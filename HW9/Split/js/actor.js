@@ -45,6 +45,7 @@ class Actor {
                 const next_tbox_position = next_tbox_positions[i];
                 const this_entity_global_location = this.entity.location;
                 const next_tbox_global_verts = this.trigger_boxes[i].get_global_verts(this_entity_global_location, next_tbox_position);
+                
                 if (this.check_trigger_collision(next_tbox_global_verts, other_actor)) {
                     will_collide = true; // Collision detected
                     break;
