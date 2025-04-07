@@ -137,6 +137,21 @@ function create_bullet(camera_location, camera_angle) {
     return bullet;
 }
 
+var keys_down = {};
+const valid_keys = ["w", "s", "a", "d", "z", "x"];
+
+// Handle key presses for camera movement
+document.addEventListener("keydown", (event) => {
+    if (valid_keys.includes(event.key)) {
+        keys_down[event.key] = true;
+    }
+});
+document.addEventListener("keyup", (event) => {
+    if (valid_keys.includes(event.key)) {
+        keys_down[event.key] = false;
+    }
+});
+
 // Space key pressed
 document.addEventListener("keypress", (event) => {
     if (event.code === "Space") {
