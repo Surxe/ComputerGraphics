@@ -1,4 +1,4 @@
-class Camera extends GameObject {
+class CameraObject extends GameObject {
     constructor() {
         const location = [0, 0, 0]; // Initial location of the camera
         super([0, 0, 0], location); // No local vertices for the camera
