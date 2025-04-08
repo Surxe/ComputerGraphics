@@ -1,4 +1,5 @@
-const [gl, program, canvas] = GLSetup.init("glcanvas")
+const gl_setup = new GLSetup("glcanvas");
+const [gl, program, canvas] = gl_setup.init()
 
 const tick_rate_scale = .5;
 const camera = new CameraObject();
