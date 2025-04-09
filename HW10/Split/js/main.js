@@ -41,6 +41,12 @@ for (let i = 0; i < num_trees; i++) {
     game_engine.add_actor(new Tree());
 }
 
+// Guard flashlights
+const num_flashlights = 3;
+for (let i = 0; i < num_flashlights; i++) {
+    game_engine.add_actor(new GuardFlashlight());
+}
+
 // Bullet shooting
 document.addEventListener("keypress", (event) => {
     if (event.code === "Space") {
