@@ -92,14 +92,10 @@ class Tree extends Actor {
             ...leaves_colors
         ];
 
-        console.log("leaves_vertices", combined_vertices)
-        console.log("leaves_indices", combined_indices)
-        console.log("leaves_colors", combined_colors)
-
         const tree_entity = new Entity(
-            combined_vertices,//[...root_vertices, ...leaves_vertices], 
-            combined_indices,//[...root_indices, ...leaves_indices], 
-            combined_colors,//[...root_colors, ...leaves_colors],
+            combined_vertices,
+            combined_indices, 
+            combined_colors,
             [x, y, z],
         )
 
