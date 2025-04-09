@@ -55,8 +55,15 @@ document.addEventListener("keypress", (event) => {
 });
 
 // Main loop
+var first = true;
 function tick() {
-    gl_setup.update();
+    if (first) {
+        const spot_light = new SpotLight([0, 3, 0], [0, -1, 0], [.5, 1, .5], 30);
+        gl_setup.add_spot_light(spot_light);
+        gl_setup.update_spot_light(0, [0, 10, 0])
+        first = false;
+    }
+    
     game_engine.tick();
 
     requestAnimationFrame(tick); // Start loop
