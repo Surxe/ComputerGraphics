@@ -124,16 +124,40 @@ class GLSetup {
     }
 
     update() {
-        // Move each spot light 1 unit in z
         const gl = this.gl;
         const program = gl.getParameter(gl.CURRENT_PROGRAM);
         const u_positions = gl.getUniformLocation(program, "u_spot_positions");
         const u_directions = gl.getUniformLocation(program, "u_spot_directions");
         const u_cutoffs = gl.getUniformLocation(program, "u_spot_cutoffs");
-        const time = performance.now() / 1000;
-        const position = [Math.sin(time), 3, Math.cos(time)];
+
+        const time = performance.now() / 1000; // seconds
+        // Move along edge of a square as pathing
+        const total_loop_time = 60; // seconds for a full loop
+        const edge_length = 30; // length of each edge of the square
+        const percent_path_traveled = (time % total_loop_time) / total_loop_time;
+        var position;
+        if (percent_path_traveled < 0.25) {
+            // Move along the first edge (0, 0) to (1, 0)
+            const x = percent_path_traveled * 4 * edge_length;
+            position = [x, 3, 0];
+        }
+        else if (percent_path_traveled < 0.5) {
+            // Move along the second edge (1, 0) to (1, 1)
+            const y = (percent_path_traveled - 0.25) * 4 * edge_length;
+            position = [edge_length, 3, y];
+        }
+        else if (percent_path_traveled < 0.75) {
+            // Move along the third edge (1, 1) to (0, 1)
+            const x = (percent_path_traveled - 0.5) * 4 * edge_length;
+            position = [edge_length - x, 3, edge_length];
+        }
+        else {
+            // Move along the fourth edge (0, 1) to (0, 0)
+            const y = (percent_path_traveled - 0.75) * 4 * edge_length;
+            position = [0, 3, edge_length - y];
+        }
         const direction = [0, -1, 0];
-        const cutoff = 30 + 10 * Math.sin(time); // Varying cutoff angle
+        const cutoff = 30; // Varying cutoff angle
         gl.uniform3fv(u_positions, new Float32Array(position));
         gl.uniform3fv(u_directions, new Float32Array(direction));
         gl.uniform1f(u_cutoffs, Math.cos(cutoff * Math.PI / 180)); // Convert to radians
