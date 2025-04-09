@@ -123,6 +123,22 @@ class GLSetup {
         return [gl, program, canvas];
     }
 
+    update() {
+        // Move each spot light 1 unit in z
+        const gl = this.gl;
+        const program = gl.getParameter(gl.CURRENT_PROGRAM);
+        const u_positions = gl.getUniformLocation(program, "u_spot_positions");
+        const u_directions = gl.getUniformLocation(program, "u_spot_directions");
+        const u_cutoffs = gl.getUniformLocation(program, "u_spot_cutoffs");
+        const time = performance.now() / 1000;
+        const position = [Math.sin(time), 3, Math.cos(time)];
+        const direction = [0, -1, 0];
+        const cutoff = 30 + 10 * Math.sin(time); // Varying cutoff angle
+        gl.uniform3fv(u_positions, new Float32Array(position));
+        gl.uniform3fv(u_directions, new Float32Array(direction));
+        gl.uniform1f(u_cutoffs, Math.cos(cutoff * Math.PI / 180)); // Convert to radians
+    }
+
     compile_shader(source, type) {
         const shader = this.gl.createShader(type);
         this.gl.shaderSource(shader, source);

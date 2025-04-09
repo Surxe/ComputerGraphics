@@ -50,6 +50,7 @@ document.addEventListener("keypress", (event) => {
 
 // Main loop
 function tick() {
+    gl_setup.update();
     game_engine.tick();
 
     requestAnimationFrame(tick); // Start loop
