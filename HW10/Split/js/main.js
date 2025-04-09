@@ -33,13 +33,13 @@ const ground_actor = new Ground(
 )
 game_engine.add_actor(ground_actor);
 
-function create_asteroid() {
+function create_rock() {
     const dist = 20;
-    const x = Math.random()*dist*2-dist // [-100, .. 100]
-    const y = Math.random()*dist*2-dist // [-100, .. 100]
-    const z = Math.random()*dist*2-dist // [-100, .. 100]
+    const x = Math.random()*dist*2-dist // [-dist, .. +dist]
+    const y = -.5;
+    const z = Math.random()*dist*2-dist
 
-    // Create asteroids
+    // Create rocks
     const vertices = [
         // Top vertex
         0,  .5,  0,  
@@ -64,31 +64,25 @@ function create_asteroid() {
     ];
     
     const colors = [
-        1, 0, 0,  // Red (Top front-right)
-        0, 1, 0,  // Green (Top front-left)
-        0, 0, 1,  // Blue (Top back-left)
-        1, 1, 0,  // Yellow (Top back-right)
-        1, 0, 1,  // Magenta (Bottom front-right)
-        0, 1, 1,  // Cyan (Bottom front-left)
-        1, 1, 1,  // White (Bottom back-left)
-        0, 0, 0   // Black (Bottom back-right)
+        //Gray
+        .5, .5, .5,
+        .7, .7, .7,
+        .3, .3, .3,
+        .5, .5, .5,
+        .7, .7, .7,
+        .3, .3, .3,
     ];
         
-    const e1 = new Entity(
-        [...vertices], [...indices], [...colors],
+    const rock_entity = new Entity(
+        [...vertices], 
+        [...indices], 
+        [...colors],
         [x, y, z],
     )
 
-    const tb1 = new TriggerBox([0, 0, 0], [1, 1, 1])
+    const rock_actor = new Rock(rock_entity, [new TriggerBox([0, 0, 0], [1, 1, 1])])
 
-    // Random rotation speed 
-    const rx = Math.random()*.1 * tick_rate_scale//[0, .. 0.1]
-    const ry = Math.random()*.1 * tick_rate_scale//[0, .. 0.1]
-    const rz = Math.random()*.1 * tick_rate_scale//[0, .. 0.1]
-    const rotation_speed = [rx, ry, rz]
-    const a1 = new Character(3, e1, [tb1], [.000, 0, 0], rotation_speed)
-
-    game_engine.add_actor(a1);
+    game_engine.add_actor(rock_actor);
 }
 
 // Create bullet
@@ -301,10 +295,10 @@ document.addEventListener("keypress", (event) => {
     }
 });
 
-// Create many asteroids
-const num_asteroids = 10;
-for (let i = 0; i < num_asteroids; i++) {
-    create_asteroid();
+// Create many rocks
+const num_rocks = 10;
+for (let i = 0; i < num_rocks; i++) {
+    create_rock();
 }
 const num_trees = 5;
 for (let i = 0; i < num_trees; i++) {
