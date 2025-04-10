@@ -9,17 +9,17 @@ class GameEngine {
         this.actors.push(actor);
     }
 
-    move_actors() {
+    tick_actors() {
         for (const actor of this.actors) {
             // Remove self from the list of actors to avoid self-collision
             var other_actors = this.actors.filter(a => a !== actor);
 
             // Move actor
-            actor.move(other_actors);
+            actor.tick(other_actors);
         }
 
         this.camera_actor.update_velocities(keys_down);
-        this.camera_actor.move(this.actors); // Camera can collide with asteroids and ground
+        this.camera_actor.tick(this.actors); // Camera can collide with asteroids and ground
     }
 
     destroy_actors() {
@@ -54,7 +54,7 @@ class GameEngine {
     }
 
     tick() {
-        this.move_actors();
+        this.tick_actors();
         this.destroy_actors();
         this.render();
     }

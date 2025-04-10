@@ -5,6 +5,7 @@ class Actor {
         this.position_velocities = position_velocities; // Position velocities
         this.rotation_velocities = rotation_velocities; // Rotation velocities
         this.should_destroy = false;
+        this.light = null; // Optional light component
     }
 
     render() {
@@ -64,6 +65,19 @@ class Actor {
                 this.trigger_boxes[j].move(this.position_velocities, 0); // Move the trigger boxes based on the same velocities
             }
         }
+
+        return !will_collide; // bool: "moved"
+    }
+
+    tick(other_actors) {
+        const actor_moved = this.move(other_actors); // Move the actor and see if it moved successfully
+        if (this.light) {
+            this.light.tick(actor_moved); // Update the light component if it exists
+        }
+    }
+
+    attach_light(light) {
+        this.light = light; // Attach a light component to the actor
     }
 }
 

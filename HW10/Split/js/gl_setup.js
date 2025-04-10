@@ -211,18 +211,6 @@ class GLSetup {
         gl.uniform1fv(u_cutoffs, new Float32Array(cutoffs));
     }
 
-    update_lights() {
-        for (const light of this.point_lights) {
-            light.update();
-        }
-        for (const light of this.directional_lights) {
-            light.update();
-        }
-        for (const light of this.spot_lights) {
-            light.update();
-        }
-    }
-
     upload_lights() {
         this.upload_point_lights();
         this.upload_directional_lights();
@@ -230,7 +218,6 @@ class GLSetup {
     }
 
     tick() {
-        this.update_lights();
         this.upload_lights();
     }
 }

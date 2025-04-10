@@ -17,19 +17,7 @@ class SpotLight extends Light {
         this.movement_edge_length = Math.random() * 20 + 10; // length of each edge of the square to move. [10 to 30]
     }
 
-    set_position(position) {
-        this.position = position;
-    }
-
-    set_direction(direction) {
-        this.direction = direction;
-    }
-
-    set_cutoff(degrees) {
-        this.cutoff_degrees = degrees;
-    }
-
-    update() {
+    get_next_position() {
         const time = performance.now() / 1000; // seconds
 
         // Move along edge of a square as pathing
@@ -67,6 +55,16 @@ class SpotLight extends Light {
             new_location[i] = shifts[i] + this.initial_position[i];
         }
 
-        this.set_position(new_location);
+        return new_location;
+    }
+
+    move() {
+        this.position = this.get_next_position(); // Update the position of the light
+    }
+
+    tick(should_move) {
+        if (should_move) {
+            this.move(); // Move the light if the actor moved
+        }
     }
 }

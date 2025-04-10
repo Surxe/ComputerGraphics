@@ -3,7 +3,7 @@ class Light {
         this.color = color;
     }
 
-    update() {
-        
+    tick(actor_moved) {
+        // Default implementation does nothing
     }
 }

@@ -5,8 +5,4 @@ class DirectionalLight extends Light {
         super(color);
         this.direction = direction;
     }
-
-    set_direction(direction) {
-        this.direction = direction;
-    }
 }
