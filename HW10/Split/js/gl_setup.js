@@ -211,10 +211,26 @@ class GLSetup {
         gl.uniform1fv(u_cutoffs, new Float32Array(cutoffs));
     }
 
-    update_spot_light(index, new_positrion) {
-        if (this.spot_lights[index]) {
-            this.spot_lights[index].set_position(new_positrion);
-            this.upload_spot_lights();
+    update_lights() {
+        for (const light of this.point_lights) {
+            light.update();
         }
+        for (const light of this.directional_lights) {
+            light.update();
+        }
+        for (const light of this.spot_lights) {
+            light.update();
+        }
+    }
+
+    upload_lights() {
+        this.upload_point_lights();
+        this.upload_directional_lights();
+        this.upload_spot_lights();
+    }
+
+    tick() {
+        this.update_lights();
+        this.upload_lights();
     }
 }

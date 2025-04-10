@@ -47,6 +47,11 @@ for (let i = 0; i < num_flashlights; i++) {
     game_engine.add_actor(new GuardFlashlight());
 }
 
+const spot_light =  new SpotLight([0, 2, 0], [0, -1, 0], [.5, 1, .5], 30);
+const spot_light2 = new SpotLight([8, 2, 0], [0, -1, 0], [.5, 1, .5], 30);
+gl_setup.add_spot_light(spot_light);
+gl_setup.add_spot_light(spot_light2);
+
 // Bullet shooting
 document.addEventListener("keypress", (event) => {
     if (event.code === "Space") {
@@ -54,16 +59,12 @@ document.addEventListener("keypress", (event) => {
     }
 });
 
+
+
 // Main loop
 var first = true;
 function tick() {
-    if (first) {
-        const spot_light = new SpotLight([0, 3, 0], [0, -1, 0], [.5, 1, .5], 30);
-        gl_setup.add_spot_light(spot_light);
-        gl_setup.update_spot_light(0, [0, 10, 0])
-        first = false;
-    }
-    
+    gl_setup.tick();
     game_engine.tick();
 
     requestAnimationFrame(tick); // Start loop
