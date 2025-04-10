@@ -26,33 +26,20 @@ document.addEventListener("keyup", (event) => {
     }
 });
 
-// Ground
-game_engine.add_actor(new Ground());
+const object_creation_map = [
+    [Ground, 1],
+    [Rock, 10],
+    [Tree, 5],
+    [Guard, 3],
+    [Torch, 5],
+];
 
-// Rocks
-const num_rocks = 10;
-for (let i = 0; i < num_rocks; i++) {
-    game_engine.add_actor(new Rock());
-}
-
-// Trees
-const num_trees = 5;
-for (let i = 0; i < num_trees; i++) {
-    game_engine.add_actor(new Tree());
-}
-
-// Guards + Spot lights
-const num_guards = 3;
-for (let i = 0; i < num_guards; i++) {
-    // Create a guard flashlight actor, attach a spotlight, add them to their respective engines
-    const guard = new Guard();
-    game_engine.add_actor(guard);
-}
-
-// Torches + Point lights
-const num_torches = 5;
-for (let i = 0; i < num_torches; i++) {
-    game_engine.add_actor(new Torch());
+// Create objects based on the map
+for (const [class_ref, count] of object_creation_map) {
+    for (let i = 0; i < count; i++) {
+        const instance = new class_ref(); // Add parameters here if needed
+        game_engine.add_actor(instance);
+    }
 }
 
 // Directional moon light
