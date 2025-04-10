@@ -32,6 +32,7 @@ const object_creation_map = [
     [Tree, 5],
     [Guard, 3],
     [Torch, 5],
+    [Moon, 1],
 ];
 
 // Create objects based on the map
@@ -43,8 +44,7 @@ for (const [class_ref, count] of object_creation_map) {
 }
 
 // Directional moon light
-const moon_light = new DirectionalLight();
-gl_setup.add_directional_light(moon_light);
+
 
 // Bullet shooting
 document.addEventListener("keypress", (event) => {
