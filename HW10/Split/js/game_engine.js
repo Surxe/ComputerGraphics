@@ -35,7 +35,7 @@ class GameEngine {
     render() {
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         
-        const proj_matrix = this.camera_actor.entity.perspective(Math.PI / 4, canvas.width / canvas.height, 0.1, 500);
+        const proj_matrix = this.camera_actor.entity.perspective();
         const view_matrix = this.camera_actor.entity.get_view_matrix();
     
         let final_matrix = [];

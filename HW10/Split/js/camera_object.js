@@ -22,7 +22,7 @@ class CameraObject extends GameObject {
         ];
     }
 
-    perspective(fov, aspect, near, far) {
+    perspective(fov=(Math.PI / 4), aspect=(canvas.width / canvas.height), near=0.1, far=500) {
         const f = 1.0 / Math.tan(fov / 2);
         return [
             f / aspect, 0,  0,  0,
