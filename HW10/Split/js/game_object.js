@@ -1,5 +1,6 @@
 class GameObject {
     constructor(local_vertices, location=[0, 0, 0]) {
+        this.initial_vertices = local_vertices;
         this.local_vertices = local_vertices; // local vertices relative to the object
         this.location = location;
         this.globalize_vertices();
