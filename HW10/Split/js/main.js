@@ -45,12 +45,18 @@ for (let i = 0; i < num_trees; i++) {
 const num_flashlights = 3;
 for (let i = 0; i < num_flashlights; i++) {
     game_engine.add_actor(new GuardFlashlight());
+    gl_setup.add_spot_light(new SpotLight());
 }
 
-const spot_light =  new SpotLight([0, 2, 0], [0, -1, 0], [.5, 1, .5], 30);
-const spot_light2 = new SpotLight([8, 2, 0], [0, -1, 0], [.5, 1, .5], 30);
-gl_setup.add_spot_light(spot_light);
-gl_setup.add_spot_light(spot_light2);
+// Point lights
+const num_point_lights = 5;
+for (let i = 0; i < num_point_lights; i++) {
+    gl_setup.add_point_light(new PointLight());
+}
+
+// Directional moon light
+const moon_light = new DirectionalLight();
+gl_setup.add_directional_light(moon_light);
 
 // Bullet shooting
 document.addEventListener("keypress", (event) => {
