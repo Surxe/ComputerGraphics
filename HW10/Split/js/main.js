@@ -45,10 +45,7 @@ for (let i = 0; i < num_trees; i++) {
 const num_flashlights = 3;
 for (let i = 0; i < num_flashlights; i++) {
     // Create a guard flashlight actor, attach a spotlight, add them to their respective engines
-    const guard_flashlight = new GuardFlashlight();
-    const spot_light = new SpotLight();
-    guard_flashlight.attach_light(spot_light);
-    gl_setup.add_spot_light(spot_light);
+    const guard_flashlight = new Guard();
     game_engine.add_actor(guard_flashlight);
 }
 
