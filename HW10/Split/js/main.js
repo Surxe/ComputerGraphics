@@ -41,18 +41,18 @@ for (let i = 0; i < num_trees; i++) {
     game_engine.add_actor(new Tree());
 }
 
-// Guard flashlights
-const num_flashlights = 3;
-for (let i = 0; i < num_flashlights; i++) {
+// Guards + Spot lights
+const num_guards = 3;
+for (let i = 0; i < num_guards; i++) {
     // Create a guard flashlight actor, attach a spotlight, add them to their respective engines
-    const guard_flashlight = new Guard();
-    game_engine.add_actor(guard_flashlight);
+    const guard = new Guard();
+    game_engine.add_actor(guard);
 }
 
-// Point lights
-const num_point_lights = 5;
-for (let i = 0; i < num_point_lights; i++) {
-    gl_setup.add_point_light(new PointLight());
+// Torches + Point lights
+const num_torches = 5;
+for (let i = 0; i < num_torches; i++) {
+    game_engine.add_actor(new Torch());
 }
 
 // Directional moon light

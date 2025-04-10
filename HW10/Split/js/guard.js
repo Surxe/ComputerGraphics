@@ -46,7 +46,7 @@ class Guard extends Actor {
             location
         )
         const trigger_boxes = [
-            new TriggerBox([0, -2+0.5, 0], [1, .5, 1]) // add .5 to y bc of camera y
+            new TriggerBox([0, -2+0.5, 0], [1, .5, 1])
         ]
 
         super(entity, trigger_boxes);
