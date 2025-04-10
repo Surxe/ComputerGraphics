@@ -1,14 +1,15 @@
+// Initialize Web GL context, program, and lighting engine
 const gl_setup = new GLSetup("glcanvas");
 const [gl, program, canvas] = gl_setup.init()
+gl.clearColor(0, 0, 0, 1);
+gl.enable(gl.DEPTH_TEST);
 
+// Change depending on your Frames per Second (FPS) as the game speed is tied to fps
 const tick_rate_scale = .5;
 
 // Camera
 const camera = new CameraObject();
 const camera_actor = new CameraActor(camera, [new TriggerBox([0, 0, 0], [1, 1, 1])])
-
-// Game engine
-const game_engine = new GameEngine(camera_actor);
 
 // Camera movement
 var keys_down = {};
@@ -26,7 +27,12 @@ document.addEventListener("keyup", (event) => {
     }
 });
 
+// Game engine
+const game_engine = new GameEngine(camera_actor);
+
+// List all game objects to be created
 const object_creation_map = [
+    // <class_ref>, <instance_count>
     [Ground, 1],
     [Rock, 10],
     [Tree, 5],
@@ -43,17 +49,12 @@ for (const [class_ref, count] of object_creation_map) {
     }
 }
 
-// Directional moon light
-
-
 // Bullet shooting
 document.addEventListener("keypress", (event) => {
     if (event.code === "Space") {
         game_engine.add_actor(new Bullet(camera.vertices, [0, -camera.angle, 0]));
     }
 });
-
-
 
 // Main loop
 var first = true;
@@ -64,7 +65,5 @@ function tick() {
     requestAnimationFrame(tick); // Start loop
 }
 
-// Initialize WebGL
-gl.clearColor(0, 0, 0, 1);
-gl.enable(gl.DEPTH_TEST);
+// Start the main loop
 tick();
