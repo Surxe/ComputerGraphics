@@ -1,7 +1,7 @@
 class Guard extends Actor {
     constructor() {
-        // Cube vertices
-        const vertices = [
+        // Body (3d cube)
+        const body_vertices = [
             -0.5, -0.5, 0.5,
             0.5, -0.5, 0.5,
             0.5, 0.5, 0.5,
@@ -13,7 +13,7 @@ class Guard extends Actor {
             -0.5, 0.5, -0.5
         ];
         // Cube indices
-        const indices = [
+        const body_indices = [
             0, 1, 2, 0, 2, 3,
             4, 5, 6, 4, 6, 7,
             0, 1, 5, 0, 5, 4,
@@ -22,7 +22,7 @@ class Guard extends Actor {
             1, 2, 6, 1, 6, 5
         ];
         // Cube colors (r, g, b)
-        const colors = [
+        const body_colors = [
             // Purple
             0.5, 0, 0.5,
             0.5, 0, 0.5,
@@ -34,15 +34,93 @@ class Guard extends Actor {
             0.5, 0, 0.5,
             0.5, 0, 0.5,
         ];
+
+        // Head (3d sphere)
+        const sphere_data = create_sphere(.5, 10, 10, [1, 1, 0]) //yellow
+        const head_vertices = sphere_data.vertices;
+        const head_indices = sphere_data.indices;
+        const head_colors = sphere_data.colors;
+        for (let i = 1; i < head_vertices.length; i += 3) {
+            head_vertices[i] -= 1; // Shift down by 1 unit
+        }
+
+        // left arm (3d cylinder)
+        const left_arm_data = create_cube([.5, .5, 1], [0, 0, 1]) //blue
+        const left_arm_vertices = [...left_arm_data.vertices];
+        const left_arm_indices = left_arm_data.indices;
+        const left_arm_colors = left_arm_data.colors;
+        for (let i = 2; i < left_arm_vertices.length; i += 3) {
+            left_arm_vertices[i] -= 1;
+        }
+
+        // right arm (3d cylinder)
+        const right_arm_vertices = [...left_arm_data.vertices];
+        const right_arm_indices = [...left_arm_data.indices];
+        const right_arm_colors = [...left_arm_data.colors];
+        for (let i = 2; i < right_arm_vertices.length; i += 3) {
+            right_arm_vertices[i] += 1;
+        }
+
+        // left leg (3d cylinder)
+        const left_leg_data = create_cube([.5, 1, .3], [0, 1, 0]) //green
+        const left_leg_vertices = [...left_leg_data.vertices];
+        const left_leg_indices = left_leg_data.indices;
+        const left_leg_colors = left_leg_data.colors;
+        for (let i = 1; i < left_leg_vertices.length; i += 3) {
+            left_leg_vertices[i] -= 1;
+        }
+        for (let i = 2; i < left_leg_vertices.length; i += 3) {
+            left_leg_vertices[i] -= .2;
+        }
+
+        // right leg (3d cylinder)
+        const right_leg_vertices = [...left_leg_data.vertices];
+        const right_leg_indices = [...left_leg_data.indices];
+        const right_leg_colors = [...left_leg_data.colors];
+        for (let i = 1; i < right_leg_vertices.length; i += 3) {
+            right_leg_vertices[i] -= 1;
+        }
+        for (let i = 2; i < right_leg_vertices.length; i += 3) {
+            right_leg_vertices[i] += .2;
+        }
+
+
+        // Combine the sets of vertices, indices, and colors
+        const combined_vertices = [
+            ...body_vertices,
+            ...head_vertices,
+            ...left_arm_vertices,
+            ...right_arm_vertices,
+            ...left_leg_vertices,
+            ...right_leg_vertices
+        ];
+        const combined_indices = [
+            ...body_indices,
+            ...head_indices.map(index => index + body_vertices.length/3),
+            ...left_arm_indices.map(index => index + body_vertices.length/3 + head_vertices.length/3),
+            ...right_arm_indices.map(index => index + body_vertices.length/3 + head_vertices.length/3 + left_arm_vertices.length/3),
+            ...left_leg_indices.map(index => index + body_vertices.length/3 + head_vertices.length/3 + left_arm_vertices.length/3 + right_arm_vertices.length/3),
+            ...right_leg_indices.map(index => index + body_vertices.length/3 + head_vertices.length/3 + left_arm_vertices.length/3 + right_arm_vertices.length/3 + left_leg_vertices.length/3)
+        ];
+        const combined_colors = [
+            ...body_colors,
+            ...head_colors,
+            ...left_arm_colors,
+            ...right_arm_colors,
+            ...left_leg_colors,
+            ...right_leg_colors
+        ];
+
+
         const distance = 20;
         const x = Math.random() * distance - distance / 2;
         const y = 2;
         const z = Math.random() * distance - distance / 2;
         const location = [x, y, z];
         const entity = new Entity(
-            vertices,
-            indices,
-            colors,
+            combined_vertices,
+            combined_indices,
+            combined_colors,
             location
         )
         const trigger_boxes = [
