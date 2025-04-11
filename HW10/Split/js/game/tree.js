@@ -55,46 +55,17 @@ class Tree extends Actor {
             .5, .4, .1,
         ];
 
-        const leaves_vertices = [];
-        const leaves_indices = [];
-        const leaves_colors = [];
-
         const radius = 2;
         const lat_segments = 10;
         const long_segments = 10;
+        const rgb = [0, 1, 0]; // Green color for leaves
 
-        // Create vertices
-        for (let lat = 0; lat <= lat_segments; lat++) {
-            const theta = (lat * Math.PI) / lat_segments;
-            const sin_theta = Math.sin(theta);
-            const cos_theta = Math.cos(theta);
+        const sphere_data = create_sphere(radius, lat_segments, long_segments, rgb);
+        const leaves_vertices = sphere_data.vertices;
+        const leaves_indices = sphere_data.indices;
+        const leaves_colors = sphere_data.colors;
 
-            for (let lon = 0; lon <= long_segments; lon++) {
-                const phi = (lon * 2 * Math.PI) / long_segments;
-                const sin_phi = Math.sin(phi);
-                const cos_phi = Math.cos(phi);
-
-                const x = radius * sin_theta * cos_phi;
-                const y = radius * cos_theta + 2; // Raise the sphere to height 2
-                const z = radius * sin_theta * sin_phi;
-
-                leaves_vertices.push(x, y, z);
-                leaves_colors.push(0, 1, 0); // Green color
-            }
-        }
-
-        // Create indices
-        for (let lat = 0; lat < lat_segments; lat++) {
-            for (let lon = 0; lon < long_segments; lon++) {
-                const first = (lat * (long_segments + 1)) + lon;
-                const second = first + long_segments + 1;
-
-                leaves_indices.push(first, second, first + 1);
-                leaves_indices.push(second, second + 1, first + 1);
-            }
-        }
-
-
+        // Combine the two sets of vertices, indices, and colors
         const combined_vertices = [
             ...root_vertices,
             ...leaves_vertices
