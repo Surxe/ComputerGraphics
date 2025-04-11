@@ -35,10 +35,11 @@ const object_creation_map = [
     // <class_ref>, <instance_count>
     [Ground, 1],
     [Rock, 10],
-    [Tree, 5], //Finish modeling the leaves TODO
-    [Guard, 3],
+    [Tree, 5],
+    [Guard, 3], // Remodel to an actual guard
     [Torch, 5],
     [Moon, 1],
+    [TargetDestination, 1],
     //[TargetDestination, 1] TODO
 ];
 

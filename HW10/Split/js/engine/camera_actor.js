@@ -45,7 +45,6 @@ class CameraActor extends Actor {
     on_collision(other_actor) {
         console.log("Camera collided with " + other_actor.constructor.name + "!");
         if (other_actor instanceof Guard) {
-            console.log("Camera collided with guard!");
             this.entity.local_vertices = this.entity.initial_vertices; // Reset camera position
         }
     }
