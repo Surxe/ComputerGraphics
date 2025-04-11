@@ -56,28 +56,44 @@ class Tree extends Actor {
         ];
 
         const leaves_vertices = [];
-        // Create leaves vertices in a 3d circle
-        const num_points = 10;
-        const radius = 2;
-        for (let i = 0; i < num_points; i++) {
-            const angle = (i / num_points) * Math.PI * 2; // Angle in radians
-            const x = radius * Math.cos(angle);
-            const z = radius * Math.sin(angle);
-            leaves_vertices.push(x, 2, z); // Add the vertex to the array
-        }
-        // Add the top vertex of the leaves
-        leaves_vertices.push(0, 2, 0); // Top vertex
         const leaves_indices = [];
-        for (let i = 0; i < num_points; i++) {
-            const next_index = (i + 1) % num_points; // Wrap around to the first vertex
-            leaves_indices.push(0, i, next_index); // Create a triangle
-        }
-        leaves_indices.push(0, num_points, 1); // Create the last triangle
+        const leaves_colors = [];
 
-        const leaves_colors = [] // green
-        for (let i = 0; i < num_points + 1; i++) {
-            leaves_colors.push(0, 1, 0); // Green color
+        const radius = 2;
+        const lat_segments = 10;
+        const long_segments = 10;
+
+        // Create vertices
+        for (let lat = 0; lat <= lat_segments; lat++) {
+            const theta = (lat * Math.PI) / lat_segments;
+            const sin_theta = Math.sin(theta);
+            const cos_theta = Math.cos(theta);
+
+            for (let lon = 0; lon <= long_segments; lon++) {
+                const phi = (lon * 2 * Math.PI) / long_segments;
+                const sin_phi = Math.sin(phi);
+                const cos_phi = Math.cos(phi);
+
+                const x = radius * sin_theta * cos_phi;
+                const y = radius * cos_theta + 2; // Raise the sphere to height 2
+                const z = radius * sin_theta * sin_phi;
+
+                leaves_vertices.push(x, y, z);
+                leaves_colors.push(0, 1, 0); // Green color
+            }
         }
+
+        // Create indices
+        for (let lat = 0; lat < lat_segments; lat++) {
+            for (let lon = 0; lon < long_segments; lon++) {
+                const first = (lat * (long_segments + 1)) + lon;
+                const second = first + long_segments + 1;
+
+                leaves_indices.push(first, second, first + 1);
+                leaves_indices.push(second, second + 1, first + 1);
+            }
+        }
+
 
         const combined_vertices = [
             ...root_vertices,
@@ -99,7 +115,10 @@ class Tree extends Actor {
             [x, y, z],
         )
 
-        const trigger_boxes = [new TriggerBox([0, 0, 0], [1, 4, 1])];
+        const trigger_boxes = [
+            new TriggerBox([0, 0, 0], [1, 4, 1]),
+            new TriggerBox([0, 1, 0], [3, 3, 3]),
+        ];
 
         super(
             tree_entity, // Entity
