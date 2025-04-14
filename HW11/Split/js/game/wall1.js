@@ -12,13 +12,6 @@ class Wall1 extends Actor {
             2, 3, 0    // Second triangle
         ];
 
-        const colors = [
-            1.0, 1.0, 1.0,  // White (will be overridden by texture)
-            1.0, 1.0, 1.0,
-            1.0, 1.0, 1.0,
-            1.0, 1.0, 1.0
-        ];
-
         const tex_coords = [
             0.0, 0.0,  // Top-left
             1.0, 0.0,  // Top-right
@@ -38,9 +31,9 @@ class Wall1 extends Actor {
 
         const location = [0, 0, 0]; // Center of the wall
 
-        const textured_entity = new TexturedEntity(vertices, indices, colors, tex_coords, sample_texture_data, 2, 2, location);
+        const textured_entity = new TexturedEntity(vertices, indices, tex_coords, sample_texture_data, 2, 2, location);
         const trigger_boxes = [];
-        
+
         super(textured_entity, trigger_boxes);
     }
 }

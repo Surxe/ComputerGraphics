@@ -1,9 +1,13 @@
 class TexturedEntity extends Entity {
-    constructor(vertices, indices, colors, tex_coords, texture_data, width, height, location) {
+    constructor(vertices, indices, tex_coords, texture_data, width, height, location) {
+        const colors = [0, 0, 0] // will be overridden by texture anyways, this is filler data
+
+        // Create Entity
         super(vertices, indices, colors, location);
+
+        // Create texture
         this.tex_coords = tex_coords;
         this.texture_buffer = gl.createBuffer();
-
         this.texture = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, this.texture);
 
