@@ -8,10 +8,18 @@ class Wall extends Actor {
         const indices = cube_data.indices;
 
         const tex_coords = [
-            0.0, 0.0,  // Top-left
-            1.0, 0.0,  // Top-right
-            1.0, 1.0,  // Bottom-right
-            0.0, 1.0   // Bottom-left
+            // Front
+            0, 0,   2, 0,   2, 2,   0, 2,
+            // Back
+            0, 0,   2, 0,   2, 2,   0, 2,
+            // Top
+            0, 0,   2, 0,   2, 2,   0, 2,
+            // Bottom
+            0, 0,   2, 0,   2, 2,   0, 2,
+            // Right
+            0, 0,   2, 0,   2, 2,   0, 2,
+            // Left
+            0, 0,   2, 0,   2, 2,   0, 2,
         ];
 
         // Copy from local file HW11/Split/textures/json/wall1.json after running img_converter.py
