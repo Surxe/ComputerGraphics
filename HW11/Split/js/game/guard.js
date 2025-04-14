@@ -127,7 +127,7 @@ class Guard extends Actor {
             new TriggerBox([0, -2+0.5, 0], [1, .5, 1])
         ]
 
-        super(entity, trigger_boxes);
+        super(entity, trigger_boxes, true);
 
         // Attach a spot light
         const spot_light = new SpotLight([location[0], location[1] - 1, location[2]]); // Position the light just below the actor

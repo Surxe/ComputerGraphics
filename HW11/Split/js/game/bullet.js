@@ -70,6 +70,7 @@ class Bullet extends Actor {
     super(
         bullet_entity, // Entity
         trigger_boxes, // Trigger boxes
+        true,
         velocities
     );
     }

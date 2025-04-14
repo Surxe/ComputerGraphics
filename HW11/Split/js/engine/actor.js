@@ -1,7 +1,8 @@
 class Actor {
-    constructor(entity, trigger_boxes, position_velocities=[0, 0, 0], rotation_velocities=[0, 0, 0]) {
+    constructor(entity, trigger_boxes, moveable=false, position_velocities=[0, 0, 0], rotation_velocities=[0, 0, 0]) {
         this.entity = entity; // The graphical representation (Entity)
         this.trigger_boxes = trigger_boxes; // The bounding box (TriggerBox)
+        this.moveable = moveable;
         this.position_velocities = position_velocities; // Position velocities
         this.rotation_velocities = rotation_velocities; // Rotation velocities
         this.should_destroy = false;
@@ -70,9 +71,11 @@ class Actor {
     }
 
     tick(other_actors) {
-        const actor_moved = this.move(other_actors); // Move the actor and see if it moved successfully
-        if (this.light) {
-            this.light.tick(actor_moved); // Update the light component if it exists
+        if (this.moveable) {
+            const actor_moved = this.move(other_actors); // Move the actor and see if it moved successfully
+            if (this.light) {
+                this.light.tick(actor_moved); // Update the light component if it exists
+            }
         }
     }
 
