@@ -1,20 +1,8 @@
-class Wall1 extends Actor {
-    constructor() {
-        const vertices = [
-            -0.5,  0.5, 0.0,  // Top-left
-             0.5,  0.5, 0.0,  // Top-right
-             0.5, -0.5, 0.0,  // Bottom-right
-            -0.5, -0.5, 0.0   // Bottom-left
-        ];
-        const scale = 4;
-        for (let i = 0; i < vertices.length; i++) {
-            vertices[i] *= scale; // Scale the vertices by 4
-        }
-
-        const indices = [
-            0, 1, 2,   // First triangle
-            2, 3, 0    // Second triangle
-        ];
+class Wall extends Actor {
+    constructor(location) {
+        const cube_data = create_cube()
+        const vertices = cube_data.vertices;
+        const indices = cube_data.indices;
 
         const tex_coords = [
             0.0, 0.0,  // Top-left
@@ -29,8 +17,6 @@ class Wall1 extends Actor {
         
         const texture_width = 16; // Width of the texture
         const texture_height = 16; // Height of the texture
-
-        const location = [0, 2, 0]; // Center of the wall
 
         const textured_entity = new TexturedEntity(vertices, indices, tex_coords, sample_texture_data, texture_width, texture_height, location);
         const trigger_boxes = [];
