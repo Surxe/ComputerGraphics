@@ -12,7 +12,7 @@ class TexturedEntity extends Entity {
         gl.bindTexture(gl.TEXTURE_2D, this.texture);
 
         // Upload texture data
-        const internalFormat = texture_data.length === width * height * 4 ? gl.RGBA : gl.RGB;
+        const internalFormat = texture_data.length === width * height * 4 ? gl.RGBA : gl.RGB; // use either rgba or rgb
         gl.texImage2D(
             gl.TEXTURE_2D, 0, internalFormat, width, height, 0,
             internalFormat, gl.UNSIGNED_BYTE, new Uint8Array(texture_data)
@@ -21,8 +21,8 @@ class TexturedEntity extends Entity {
         // Set texture parameters
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 
         this.has_texture = true;
     }
