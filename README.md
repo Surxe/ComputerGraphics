@@ -1,6 +1,9 @@
 # ComputerGraphics
 Course work and related projects for Computer Graphics
 
+## Info
+For each assignment, the version that was ready for to be submitted was duplicated from `HW#/Split` into `HW#/Combined`, where the `.html` and `.js` files were combined into just one `index.html` file. This allows them to be embedded in other software more easily for grading purposes.
+
 ## HW1
 **Lucky Number**
 
