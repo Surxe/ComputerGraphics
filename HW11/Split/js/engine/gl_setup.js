@@ -21,16 +21,20 @@ class GLSetup {
         const vs_source = `
             attribute vec3 a_position;
             attribute vec3 a_color;
+            attribute vec2 a_tex_coord;
 
             uniform mat4 u_matrix;
+
             varying vec3 v_color;
             varying vec3 v_frag_position;
+            varying vec2 v_texcoord;
 
             void main() {
                 vec4 world_position = u_matrix * vec4(a_position, 1.0);
                 gl_Position = world_position;
                 v_frag_position = a_position;
                 v_color = a_color;
+                v_texcoord = a_tex_coord;  // Ensure this matches
             }
         `;
 
@@ -39,10 +43,12 @@ class GLSetup {
 
             varying vec3 v_color;
             varying vec3 v_frag_position;
+            varying vec2 v_texcoord;
 
             uniform float u_ambient_strength;
             uniform vec3 u_view_position;
 
+            // Lighting
             uniform int u_num_point_lights;
             uniform vec3 u_point_light_positions[${this.MAX_POINT_LIGHTS}];
             uniform vec3 u_point_light_colors[${this.MAX_POINT_LIGHTS}];
@@ -55,31 +61,39 @@ class GLSetup {
             uniform vec3 u_spot_positions[${this.MAX_SPOT_LIGHTS}];
             uniform vec3 u_spot_directions[${this.MAX_SPOT_LIGHTS}];
             uniform vec3 u_spot_colors[${this.MAX_SPOT_LIGHTS}];
-            uniform float u_spot_cutoffs[${this.MAX_SPOT_LIGHTS}]; 
+            uniform float u_spot_cutoffs[${this.MAX_SPOT_LIGHTS}];
+
+            // Texture support
+            uniform bool u_use_texture;
+            uniform sampler2D u_sampler;
 
             void main() {
-                vec3 ambient = u_ambient_strength * v_color;
+                vec3 base_color = u_use_texture
+                    ? texture2D(u_sampler, v_texcoord).rgb
+                    : v_color;
+
+                vec3 ambient = u_ambient_strength * base_color;
                 vec3 result = ambient;
 
                 vec3 norm = normalize(vec3(0.0, 1.0, 0.0));
 
-                // Point Lights
+                // Point lights
                 for (int i = 0; i < ${this.MAX_POINT_LIGHTS}; ++i) {
                     if (i >= u_num_point_lights) break;
                     vec3 light_dir = normalize(u_point_light_positions[i] - v_frag_position);
                     float diff = max(dot(norm, light_dir), 0.0);
-                    result += diff * v_color * u_point_light_colors[i];
+                    result += diff * base_color * u_point_light_colors[i];
                 }
 
-                // Directional Lights
+                // Directional lights
                 for (int i = 0; i < ${this.MAX_DIR_LIGHTS}; ++i) {
                     if (i >= u_num_dir_lights) break;
                     vec3 light_dir = normalize(-u_dir_light_directions[i]);
                     float diff = max(dot(norm, light_dir), 0.0);
-                    result += diff * v_color * u_dir_light_colors[i] * 0.25;
+                    result += diff * base_color * u_dir_light_colors[i] * 0.25;
                 }
 
-                // Spot Lights
+                // Spotlights
                 for (int i = 0; i < ${this.MAX_SPOT_LIGHTS}; ++i) {
                     if (i >= u_num_spot_lights) break;
                     vec3 light_dir = normalize(u_spot_positions[i] - v_frag_position);
@@ -87,13 +101,14 @@ class GLSetup {
                     float epsilon = 0.01;
                     float intensity = smoothstep(u_spot_cutoffs[i] - epsilon, u_spot_cutoffs[i], theta);
                     float diff = max(dot(norm, light_dir), 0.0);
-                    vec3 diffuse = diff * v_color * u_spot_colors[i] * intensity;
+                    vec3 diffuse = diff * base_color * u_spot_colors[i] * intensity;
                     result += diffuse;
                 }
 
                 gl_FragColor = vec4(result, 1.0);
             }
         `;
+
 
         const vertex_shader = this.compile_shader(vs_source, gl.VERTEX_SHADER);
         const fragment_shader = this.compile_shader(fs_source, gl.FRAGMENT_SHADER);

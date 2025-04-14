@@ -37,6 +37,10 @@ class Entity extends GameObject {
     render() {
         this.buffer();
 
+        // Disable texture usage for plain Entities
+        const use_texture_location = gl.getUniformLocation(program, "u_use_texture");
+        gl.uniform1i(use_texture_location, false);
+
         gl.bindBuffer(gl.ARRAY_BUFFER, this.position_buffer); //if this extra line is removed it will not work for some reason
         const position_location = gl.getAttribLocation(program, "a_position");
         gl.enableVertexAttribArray(position_location);

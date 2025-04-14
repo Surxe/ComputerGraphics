@@ -36,11 +36,11 @@ const object_creation_map = [
     [Ground, 1],
     [Rock, 10],
     [Tree, 5],
-    [Guard, 3], // Remodel to an actual guard
+    [Guard, 3],
     [Torch, 5],
     [Moon, 1],
     [TargetDestination, 1],
-    //[TargetDestination, 1] TODO
+    [Wall1, 1]
 ];
 
 // Create objects based on the map
