@@ -1,6 +1,10 @@
 class Wall extends Actor {
     constructor(location) {
         const cube_data = create_cube()
+        const scalar = 4;
+        for (let i = 0; i < cube_data.vertices.length; i++) {
+            cube_data.vertices[i] *= scalar; // Scale the cube vertices
+        }
         const vertices = cube_data.vertices;
         const indices = cube_data.indices;
 
