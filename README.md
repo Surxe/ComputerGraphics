@@ -1,21 +1,22 @@
 # ComputerGraphics
- Course work and related projects for Computer Graphics
+Course work and related projects for Computer Graphics
 
 ## HW1
 **Lucky Number**
 
-Roll a random number when the user clicks Play and display an image that represents if the player is winning or losing.
+Roll a random number when the user clicks Play and display an image that represents if the player is winning or losing
+
 
 ## HW2
 **Slot Machine**
 
-Roll slot machines and reward points against a configured award system.
+Roll slot machines and reward points against a configured award system
 
 
 ## HW3
 **2D Adventure**
 
-Tiled top-down game where the player needs to attack monsters by moving onto them while hoping the monsters don't damage the player back.
+Tiled top-down game where the player needs to attack monsters by moving onto them while hoping the monsters don't damage the player back
 
 
 ## HW4
@@ -33,7 +34,7 @@ Use WebGL shaders to create your initials with vertices and a different color fo
 ## HW6
 **Painful Paint**
 
-Create a paint program that can draw lines, triangles, polygons, and free draw.
+Create a paint program that can draw lines, triangles, polygons, and free draw
 
 
 ## HW7
@@ -52,3 +53,9 @@ Create a 2D scene where the user rotates relative to the direction they are faci
 **Navigating Asteroids**
 
 Create a 3D asteroid field where the camera gets blocked by asteroids and can shoot them down with projectiles
+
+
+## HW10
+**Spooky Forest**
+
+Create a 3D spooky forest with trees and rocks that block movement along with ambient, spot, point, and directional lighting

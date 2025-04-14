@@ -1,0 +1,1495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebGL First-Person Camera</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <canvas id="glcanvas"></canvas>
+
+    <script>
+        class GLSetup {
+            constructor(canvas_id) {
+                this.canvas_id = canvas_id;
+                this.MAX_POINT_LIGHTS = 4;
+                this.MAX_DIR_LIGHTS = 4;
+                this.MAX_SPOT_LIGHTS = 4;
+                this.point_lights = [];
+                this.directional_lights = [];
+                this.spot_lights = [];
+            }
+
+            init() {
+                const canvas = document.getElementById(this.canvas_id);
+                const gl = canvas.getContext("webgl");
+                this.canvas = canvas;
+                this.gl = gl;
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                gl.viewport(0, 0, canvas.width, canvas.height);
+
+                const vs_source = `
+                    attribute vec3 a_position;
+                    attribute vec3 a_color;
+
+                    uniform mat4 u_matrix;
+                    varying vec3 v_color;
+                    varying vec3 v_frag_position;
+
+                    void main() {
+                        vec4 world_position = u_matrix * vec4(a_position, 1.0);
+                        gl_Position = world_position;
+                        v_frag_position = a_position;
+                        v_color = a_color;
+                    }
+                `;
+
+                const fs_source = `
+                    precision mediump float;
+
+                    varying vec3 v_color;
+                    varying vec3 v_frag_position;
+
+                    uniform float u_ambient_strength;
+                    uniform vec3 u_view_position;
+
+                    uniform int u_num_point_lights;
+                    uniform vec3 u_point_light_positions[${this.MAX_POINT_LIGHTS}];
+                    uniform vec3 u_point_light_colors[${this.MAX_POINT_LIGHTS}];
+
+                    uniform int u_num_dir_lights;
+                    uniform vec3 u_dir_light_directions[${this.MAX_DIR_LIGHTS}];
+                    uniform vec3 u_dir_light_colors[${this.MAX_DIR_LIGHTS}];
+
+                    uniform int u_num_spot_lights;
+                    uniform vec3 u_spot_positions[${this.MAX_SPOT_LIGHTS}];
+                    uniform vec3 u_spot_directions[${this.MAX_SPOT_LIGHTS}];
+                    uniform vec3 u_spot_colors[${this.MAX_SPOT_LIGHTS}];
+                    uniform float u_spot_cutoffs[${this.MAX_SPOT_LIGHTS}]; 
+
+                    void main() {
+                        vec3 ambient = u_ambient_strength * v_color;
+                        vec3 result = ambient;
+
+                        vec3 norm = normalize(vec3(0.0, 1.0, 0.0));
+
+                        // Point Lights
+                        for (int i = 0; i < ${this.MAX_POINT_LIGHTS}; ++i) {
+                            if (i >= u_num_point_lights) break;
+                            vec3 light_dir = normalize(u_point_light_positions[i] - v_frag_position);
+                            float diff = max(dot(norm, light_dir), 0.0);
+                            result += diff * v_color * u_point_light_colors[i];
+                        }
+
+                        // Directional Lights
+                        for (int i = 0; i < ${this.MAX_DIR_LIGHTS}; ++i) {
+                            if (i >= u_num_dir_lights) break;
+                            vec3 light_dir = normalize(-u_dir_light_directions[i]);
+                            float diff = max(dot(norm, light_dir), 0.0);
+                            result += diff * v_color * u_dir_light_colors[i] * 0.25;
+                        }
+
+                        // Spot Lights
+                        for (int i = 0; i < ${this.MAX_SPOT_LIGHTS}; ++i) {
+                            if (i >= u_num_spot_lights) break;
+                            vec3 light_dir = normalize(u_spot_positions[i] - v_frag_position);
+                            float theta = dot(light_dir, normalize(-u_spot_directions[i]));
+                            float epsilon = 0.01;
+                            float intensity = smoothstep(u_spot_cutoffs[i] - epsilon, u_spot_cutoffs[i], theta);
+                            float diff = max(dot(norm, light_dir), 0.0);
+                            vec3 diffuse = diff * v_color * u_spot_colors[i] * intensity;
+                            result += diffuse;
+                        }
+
+                        gl_FragColor = vec4(result, 1.0);
+                    }
+                `;
+
+                const vertex_shader = this.compile_shader(vs_source, gl.VERTEX_SHADER);
+                const fragment_shader = this.compile_shader(fs_source, gl.FRAGMENT_SHADER);
+                const program = gl.createProgram();
+                gl.attachShader(program, vertex_shader);
+                gl.attachShader(program, fragment_shader);
+                gl.linkProgram(program);
+                gl.useProgram(program);
+
+                const ambient_strength = 0.2;
+                const view_position = [5.0, 1.0, 5.0];
+                gl.uniform1f(gl.getUniformLocation(program, "u_ambient_strength"), ambient_strength);
+                gl.uniform3fv(gl.getUniformLocation(program, "u_view_position"), new Float32Array(view_position));
+
+                return [gl, program, canvas];
+            }
+
+            compile_shader(source, type) {
+                const shader = this.gl.createShader(type);
+                this.gl.shaderSource(shader, source);
+                this.gl.compileShader(shader);
+                if (!this.gl.getShaderParameter(shader, this.gl.COMPILE_STATUS)) {
+                    console.error(this.gl.getShaderInfoLog(shader));
+                    return null;
+                }
+                return shader;
+            }
+
+            add_point_light(light) {
+                if (this.point_lights.length < this.MAX_POINT_LIGHTS) {
+                    this.point_lights.push(light);
+                    this.upload_point_lights();
+                }
+            }
+
+            add_directional_light(light) {
+                if (this.directional_lights.length < this.MAX_DIR_LIGHTS) {
+                    this.directional_lights.push(light);
+                    this.upload_directional_lights();
+                }
+            }
+
+            add_spot_light(light) {
+                if (this.spot_lights.length < this.MAX_SPOT_LIGHTS) {
+                    this.spot_lights.push(light);
+                    this.upload_spot_lights();
+                }
+            }
+
+            upload_point_lights() {
+                const gl = this.gl;
+                const program = gl.getParameter(gl.CURRENT_PROGRAM);
+                const u_num = gl.getUniformLocation(program, "u_num_point_lights");
+                const u_positions = gl.getUniformLocation(program, "u_point_light_positions");
+                const u_colors = gl.getUniformLocation(program, "u_point_light_colors");
+
+                const positions = [], colors = [];
+                for (const light of this.point_lights) {
+                    positions.push(...light.position);
+                    colors.push(...light.color);
+                }
+                while (positions.length < 3 * this.MAX_POINT_LIGHTS) positions.push(0);
+                while (colors.length < 3 * this.MAX_POINT_LIGHTS) colors.push(0);
+
+                gl.uniform1i(u_num, this.point_lights.length);
+                gl.uniform3fv(u_positions, new Float32Array(positions));
+                gl.uniform3fv(u_colors, new Float32Array(colors));
+            }
+
+            upload_directional_lights() {
+                const gl = this.gl;
+                const program = gl.getParameter(gl.CURRENT_PROGRAM);
+                const u_num = gl.getUniformLocation(program, "u_num_dir_lights");
+                const u_directions = gl.getUniformLocation(program, "u_dir_light_directions");
+                const u_colors = gl.getUniformLocation(program, "u_dir_light_colors");
+
+                const directions = [], colors = [];
+                for (const light of this.directional_lights) {
+                    directions.push(...light.direction);
+                    colors.push(...light.color);
+                }
+                while (directions.length < 3 * this.MAX_DIR_LIGHTS) directions.push(0);
+                while (colors.length < 3 * this.MAX_DIR_LIGHTS) colors.push(0);
+
+                gl.uniform1i(u_num, this.directional_lights.length);
+                gl.uniform3fv(u_directions, new Float32Array(directions));
+                gl.uniform3fv(u_colors, new Float32Array(colors));
+            }
+
+            upload_spot_lights() {
+                const gl = this.gl;
+                const program = gl.getParameter(gl.CURRENT_PROGRAM)
+                const u_num = gl.getUniformLocation(program, "u_num_spot_lights");
+                const u_positions = gl.getUniformLocation(program, "u_spot_positions");
+                const u_directions = gl.getUniformLocation(program, "u_spot_directions");
+                const u_colors = gl.getUniformLocation(program, "u_spot_colors");
+                const u_cutoffs = gl.getUniformLocation(program, "u_spot_cutoffs");
+
+                const positions = [], directions = [], colors = [], cutoffs = [];
+                for (const light of this.spot_lights) {
+                    positions.push(...light.position);
+                    directions.push(...light.direction);
+                    colors.push(...light.color);
+                    cutoffs.push(Math.cos(light.cutoff_degrees * Math.PI / 180));
+                }
+                while (positions.length < 3 * this.MAX_SPOT_LIGHTS) positions.push(0);
+                while (directions.length < 3 * this.MAX_SPOT_LIGHTS) directions.push(0);
+                while (colors.length < 3 * this.MAX_SPOT_LIGHTS) colors.push(0);
+                while (cutoffs.length < this.MAX_SPOT_LIGHTS) cutoffs.push(0);
+
+                gl.uniform1i(u_num, this.spot_lights.length);
+                gl.uniform3fv(u_positions, new Float32Array(positions));
+                gl.uniform3fv(u_directions, new Float32Array(directions));
+                gl.uniform3fv(u_colors, new Float32Array(colors));
+                gl.uniform1fv(u_cutoffs, new Float32Array(cutoffs));
+            }
+
+            upload_lights() {
+                this.upload_point_lights();
+                this.upload_directional_lights();
+                this.upload_spot_lights();
+            }
+
+            tick() {
+                this.upload_lights();
+            }
+        }
+    </script>
+    
+    <script>
+        class Light {
+            constructor(color) {
+                this.color = color;
+            }
+
+            tick(actor_moved) {
+                // Default implementation does nothing
+            }
+
+            move() {
+                // Default implementation does nothing
+            }
+        }
+    </script>
+    <script>
+        class PointLight extends Light {
+            constructor(location) {
+                const color = [1, 1, 1]; // White light
+                super(color);
+                this.position = location;
+            }
+        }
+    </script>
+    <script>
+        class DirectionalLight extends Light {
+            constructor() {
+                const direction = [0, -1, 0];
+                const color = [1, 1, 1]; // White light
+                super(color);
+                this.direction = direction;
+            }
+        }
+    </script>
+    <script>
+        class SpotLight extends Light {
+            constructor(location) {
+                super([1, 1, 1]); // White light color
+
+                this.position = location;
+                this.position_velocities = [0, 0, 0]; // Initialize position velocities
+                this.direction = [0, -1, 0];
+                this.cutoff_degrees = 30;
+            }
+
+            get_next_position() {
+                // Add position_velocities to current position
+                const new_positions = this.position.slice(); // Create a copy of the current position
+                for (let i = 0; i < 3; i++) {
+                    new_positions[i] += this.position_velocities[i];
+                }
+                return new_positions; // Return the updated position
+            }
+
+            move() {
+                this.position = this.get_next_position(); // Update the position of the light
+            }
+
+            tick(should_move) {
+                if (should_move) {
+                    this.move(); // Move the light if the actor moved
+                }
+            }
+        }
+    </script>
+
+    <script>
+        class Transform {
+            // position = [x, y, z]
+            static rotate_axes(position, degrees=[0, 0, 0]) {
+                let [x, y, z] = position;
+                let [x_rads, y_rads, z_rads] = degrees//degrees.map(deg => deg * (Math.PI / 180)); // Convert degrees to radians
+
+                // Rotation around X-axis
+                let x_cos = Math.cos(x_rads), x_sin = Math.sin(x_rads);
+                let y1 = y * x_cos - z * x_sin;
+                let z1 = y * x_sin + z * x_cos;
+
+                // Rotation around Y-axis
+                let y_cos = Math.cos(y_rads), y_sin = Math.sin(y_rads);
+                let x2 = x * y_cos + z1 * y_sin;
+                let new_z = -x * y_sin + z1 * y_cos;
+
+                // Rotation around Z-axis
+                let z_cos = Math.cos(z_rads), z_sin = Math.sin(z_rads);
+                let new_x = x2 * z_cos - y1 * z_sin;
+                let new_y = x2 * z_sin + y1 * z_cos;
+
+                return [new_x, new_y, new_z];
+            }
+
+            // positions = [[x1, y1, z1], [x2, y2, z2], ...]
+            static rotate_positions(positions, degrees=[0, 0, 0]) {
+                var positions = Transform.flat_to_threes([...positions]); // Convert flat array to 3D array
+                for (var vertex_i = 0; vertex_i < positions.length; vertex_i++) {
+                    positions[vertex_i] = Transform.rotate_axes(positions[vertex_i], degrees);
+                }
+                return this.threes_to_flat(positions);
+            }
+
+            // [a, b, c, d, e, f] -> [[a, b, c], [d, e, f]]
+            static flat_to_threes(array) {
+                var threes = [];
+                for (var i = 0; i < array.length; i += 3) {
+                    threes.push([array[i], array[i + 1], array[i + 2]]);
+                }
+                return threes;
+            }
+
+            // [[a, b, c], [d, e, f]] -> [a, b, c, d, e, f]
+            static threes_to_flat(array) {
+                var flat = [];
+                for (var i = 0; i < array.length; i++) {
+                    flat.push(...array[i]);
+                }
+                return flat;
+            }
+        }
+    </script>
+    <script>
+        class GameObject {
+            constructor(local_vertices, location=[0, 0, 0]) {
+                this.initial_vertices = local_vertices;
+                this.local_vertices = local_vertices; // local vertices relative to the object
+                this.location = location;
+                this.globalize_vertices();
+            }
+
+            globalize_vertices() {
+                // Get the global location of the object by adding entity's location to its local vertices
+                const globalized_verts = this.local_vertices.map((v, i) => {
+                    if (i % 3 === 0) { // x coordinate
+                        return v + this.location[0];
+                    } else if (i % 3 === 1) { // y coordinate
+                        return v + this.location[1];
+                    } else { // z coordinate
+                        return v + this.location[2];
+                    }
+                });
+
+                this.vertices = [...globalized_verts];
+            }
+
+            get_next_position(position_velocities, rotation_velocities=null) {
+                var new_vertices = [...this.local_vertices];
+
+                // Rotate
+                // Assuming rotation_velocities is an array of [x, y, z] angles in radians
+                if (rotation_velocities) {
+                    new_vertices = Transform.rotate_positions(new_vertices, rotation_velocities);
+                }
+
+                // Translate
+                for (let i = 0; i < new_vertices.length; i += 3) {
+                    new_vertices[i] += position_velocities[0];
+                    new_vertices[i+1] += position_velocities[1];
+                    new_vertices[i+2] += position_velocities[2];
+                }
+
+                return new_vertices;
+            }
+
+            move(position_velocities, rotation_velocities) {
+                this.local_vertices = this.get_next_position(position_velocities, rotation_velocities);
+                this.globalize_vertices();
+            }
+        }
+    </script>
+    <script>
+        class Entity extends GameObject {
+            constructor(vertices, indices, colors, location) {
+                super(vertices, location);
+                this.colors = colors;
+
+                this.position_buffer = gl.createBuffer();
+                this.color_buffer = gl.createBuffer();
+                this.indices = indices ? [...indices] : null;
+                if (this.indices) {
+                    this.index_buffer = gl.createBuffer();
+                }
+
+                this.vertex_count = this.vertices.length / 3;
+            }
+
+            buffer() {
+                this.buffer_vertices();
+                this.buffer_colors();
+                if (this.indices) {
+                    this.buffer_indices();
+                }
+            }
+
+            buffer_vertices() {
+                gl.bindBuffer(gl.ARRAY_BUFFER, this.position_buffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.vertices), gl.STATIC_DRAW);
+            }
+            buffer_colors() {
+                gl.bindBuffer(gl.ARRAY_BUFFER, this.color_buffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.colors), gl.STATIC_DRAW);
+            }
+            buffer_indices() {
+                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.index_buffer);
+                gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(this.indices), gl.STATIC_DRAW);
+            }
+
+            render() {
+                this.buffer();
+
+                gl.bindBuffer(gl.ARRAY_BUFFER, this.position_buffer); //if this extra line is removed it will not work for some reason
+                const position_location = gl.getAttribLocation(program, "a_position");
+                gl.enableVertexAttribArray(position_location);
+                gl.vertexAttribPointer(position_location, 3, gl.FLOAT, false, 0, 0);
+
+                gl.bindBuffer(gl.ARRAY_BUFFER, this.color_buffer); //if this extra line is removed it will not work for some reason
+                const color_location = gl.getAttribLocation(program, "a_color");
+                gl.enableVertexAttribArray(color_location);
+                gl.vertexAttribPointer(color_location, 3, gl.FLOAT, false, 0, 0);
+
+                if (this.indices) {
+                    gl.drawElements(gl.TRIANGLES, this.indices.length, gl.UNSIGNED_SHORT, 0);
+                }
+                else {
+                    gl.drawArrays(gl.TRIANGLES, 0, this.vertex_count);
+                }
+            }
+        }
+    </script>
+    <script>
+        class TriggerBox extends GameObject{
+            constructor(location=[0, 0, 0], size=[1, 1, 1]) {
+                // Define the 8 vertices of a cube, assuming the center of the box is at the location
+                const [x, y, z] = location; //location relative to entity's location
+                const [width, height, depth] = size;
+
+                var vertices = [
+                    // Front face
+                    x - width / 2, y - height / 2, z - depth / 2,
+                    x + width / 2, y - height / 2, z - depth / 2,
+                    x + width / 2, y + height / 2, z + depth / 2,
+                    x - width / 2, y + height / 2, z + depth / 2,
+
+                    // Back face
+                    x - width / 2, y - height / 2, z - depth / 2,
+                    x + width / 2, y - height / 2, z - depth / 2,
+                    x + width / 2, y + height / 2, z + depth / 2,
+                    x - width / 2, y + height / 2, z + depth / 2,
+                ];
+
+                super(vertices, location); // Call the parent constructor
+            }
+
+            get_global_verts(entity_global_location, vertices=this.vertices) {
+                // Get the global location of the trigger box by adding entity's location to its local vertices
+                // Default vertices to the instance's *current* vertices
+                const trigger_box_local_vertices = vertices;
+                return trigger_box_local_vertices.map((v, i) => {
+                    if (i % 3 === 0) { // x coordinate
+                        return v + entity_global_location[0];
+                    } else if (i % 3 === 1) { // y coordinate
+                        return v + entity_global_location[1];
+                    } else { // z coordinate
+                        return v + entity_global_location[2];
+                    }
+                });
+            }
+        }
+    </script>
+    <script>
+        class Actor {
+            constructor(entity, trigger_boxes, position_velocities=[0, 0, 0], rotation_velocities=[0, 0, 0]) {
+                this.entity = entity; // The graphical representation (Entity)
+                this.trigger_boxes = trigger_boxes; // The bounding box (TriggerBox)
+                this.position_velocities = position_velocities; // Position velocities
+                this.rotation_velocities = rotation_velocities; // Rotation velocities
+                this.should_destroy = false;
+                this.light = null; // Optional light component
+            }
+
+            render() {
+                this.entity.render();
+            }
+
+            check_trigger_collision(my_global_verts, other_actor) {
+                const other_entity_global_location = other_actor.entity.location;
+                
+                for (var other_trigger_box of other_actor.trigger_boxes) {
+                    const other_global_verts = other_trigger_box.get_global_verts(other_entity_global_location);
+                    if (is_overlapping(my_global_verts, other_global_verts)) {
+                        this.on_collision(other_actor); // Call the collision handler
+                        other_actor.on_collision(this); // Call the collision handler for the other actor
+                        return true; // Collision detected
+                    }
+                }
+                
+                return false; // No collision detected
+            }
+
+            on_collision(other_actor) {
+                // by default, do nothing. can be overridden by subclasses
+            }
+
+            move(other_actors) {
+                var will_collide = false;
+
+                for (var other_actor of other_actors) {
+                    // Get next position for all tboxes
+                    var next_tbox_positions = [];
+                    for (var trigger_box of this.trigger_boxes) {
+                        next_tbox_positions.push(trigger_box.get_next_position(this.position_velocities));
+                    }
+
+                    // Check for collisions with other actors
+                    for (var i = 0; i < this.trigger_boxes.length; i++) {
+                        const next_tbox_position = next_tbox_positions[i];
+                        const this_entity_global_location = this.entity.location;
+                        const next_tbox_global_verts = this.trigger_boxes[i].get_global_verts(this_entity_global_location, next_tbox_position);
+                        
+                        if (this.check_trigger_collision(next_tbox_global_verts, other_actor)) {
+                            will_collide = true; // Collision detected
+                            break;
+                        }
+                    }
+
+                    if (will_collide) {
+                        break; // Exit the loop if a collision is detected
+                    }
+                }
+
+                // Move entity and all tboxes
+                if (!will_collide) {
+                    this.entity.move(this.position_velocities, this.rotation_velocities); // Move the entity based on its position velocities and rotation velocities
+                    for (var j = 0; j < this.trigger_boxes.length; j++) {
+                        this.trigger_boxes[j].move(this.position_velocities, 0); // Move the trigger boxes based on the same velocities
+                    }
+                }
+
+                return !will_collide; // bool: "moved"
+            }
+
+            tick(other_actors) {
+                const actor_moved = this.move(other_actors); // Move the actor and see if it moved successfully
+                if (this.light) {
+                    this.light.tick(actor_moved); // Update the light component if it exists
+                }
+            }
+
+            attach_light(light) {
+                this.light = light; // Attach a light component to the actor
+            }
+        }
+
+        function is_overlapping(a, b) { // where a and b are axis aligned arrays of 8 verts (length 24)
+            return (
+                a[0] <= b[3] && a[3] >= b[0] && // x-axis overlap
+                a[1] <= b[7] && a[7] >= b[1] && // y-axis overlap
+                a[2] <= b[11] && a[11] >= b[2] // z-axis overlap
+            );
+        }
+    </script>
+    <script>
+        class Character extends Actor {
+            constructor(health, ...args) {
+                super(...args); // Call the parent constructor
+                this.health = health; // Initial health of the character
+            }
+
+            on_collision(other_actor) {
+                // Character collided with a Projectile, decrease health, destroy if dead
+                if (other_actor instanceof Projectile) {
+                    this.health -= 1; // Decrease health on collision with a projectile
+                    console.log("Health decreased! Current health: " + this.health);
+                    if (this.health <= 0) {
+                        this.should_destroy = true; // Mark the character for destruction if health is 0 or less
+                        console.log("Character is dead!");
+                    }
+                }
+            }
+        }
+    </script>
+    <script>
+        class Projectile extends Actor {
+            constructor(...args) {
+                super(...args);
+            }
+
+            on_collision(other_actor) {
+                // Projectile collided with an asteroid, destroy the projectile
+                if (other_actor instanceof Character) {
+                    console.log("Projectile hit an asteroid!");
+                    this.should_destroy = true;
+                }
+            }
+        }
+    </script>
+    <script>
+        class CameraActor extends Actor {
+            constructor(...args) {
+                super(...args); // Call the parent constructor
+                this.position_speed = 0.2 * tick_rate_scale;
+                this.rotation_speed = 0.02 * tick_rate_scale;
+            }
+
+            update_velocities(keys_down) {
+                // Reset velocities each frame
+                var position_velocities = [0, 0, 0];
+                var rotation_velocities = [0, 0, 0];
+
+                const angle = this.entity.angle;
+
+                if (keys_down["w"]) {
+                    position_velocities[0] += this.position_speed * Math.sin(angle);
+                    position_velocities[2] -= this.position_speed * Math.cos(angle);
+                }
+
+                if (keys_down["s"]) {
+                    position_velocities[0] -= this.position_speed * Math.sin(angle);
+                    position_velocities[2] += this.position_speed * Math.cos(angle);
+                }
+
+                if (keys_down["z"]) {
+                    position_velocities[1] += this.position_speed;
+                }
+
+                if (keys_down["x"]) {
+                    position_velocities[1] -= this.position_speed;
+                }
+
+                if (keys_down["a"]) {
+                    rotation_velocities[1] -= this.rotation_speed;
+                }
+
+                if (keys_down["d"]) {
+                    rotation_velocities[1] += this.rotation_speed;
+                }
+
+                this.position_velocities = position_velocities;
+                this.rotation_velocities = rotation_velocities;
+            }
+
+            on_collision(other_actor) {
+                console.log("Camera collided with " + other_actor.constructor.name + "!");
+                if (other_actor instanceof Guard) {
+                    this.entity.local_vertices = this.entity.initial_vertices; // Reset camera position
+                }
+            }
+        }
+    </script>
+    <script>
+        class CameraObject extends GameObject {
+            constructor() {
+                const location = [0, 0, 0]; // Initial location of the camera
+                super([0, 0, 0], location); // No local vertices for the camera
+                this.angle = 0;
+            }
+
+            move(position_velocities, rotation_velocities) {
+                super.move(position_velocities, null); // translate
+                this.angle += rotation_velocities[1]; // rotate (not using the super class for rotation atm)
+            }
+
+            get_view_matrix() {
+                const cosA = Math.cos(this.angle), sinA = Math.sin(this.angle);
+                const [x, y, z] = this.vertices;
+
+                return [
+                    cosA, 0, sinA, -x * cosA - z * sinA,
+                    0,    1, 0,    -y,
+                    -sinA, 0, cosA, -x * -sinA - z * cosA,
+                    0,    0, 0,    1
+                ];
+            }
+
+            perspective(fov=(Math.PI / 4), aspect=(canvas.width / canvas.height), near=0.1, far=500) {
+                const f = 1.0 / Math.tan(fov / 2);
+                return [
+                    f / aspect, 0,  0,  0,
+                    0,  f,  0,  0,
+                    0,  0,  (far + near) / (near - far), -1,
+                    0,  0,  (2 * far * near) / (near - far),  0
+                ];
+            }
+        }
+    </script>
+    <script>
+        class GameEngine {
+            constructor(camera_actor) {
+                this.camera_actor = camera_actor;
+                this.actors = [];
+                this.matrix_location = gl.getUniformLocation(program, "u_matrix");
+            }
+
+            add_actor(actor) {
+                this.actors.push(actor);
+            }
+
+            tick_actors() {
+                for (const actor of this.actors) {
+                    // Remove self from the list of actors to avoid self-collision
+                    var other_actors = this.actors.filter(a => a !== actor);
+
+                    // Move actor
+                    actor.tick(other_actors);
+                }
+
+                this.camera_actor.update_velocities(keys_down);
+                this.camera_actor.tick(this.actors); // Camera can collide with asteroids and ground
+            }
+
+            destroy_actors() {
+                for (var actor of this.actors) {
+                    if (actor.should_destroy) {
+                        // Remove
+                        this.actors = this.actors.filter(a => a !== actor); // Remove the actor from the list
+                        console.log("Actor destroyed!");
+                    }
+                }
+            }
+
+            render() {
+                gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+                
+                const proj_matrix = this.camera_actor.entity.perspective();
+                const view_matrix = this.camera_actor.entity.get_view_matrix();
+            
+                let final_matrix = [];
+                for (let i = 0; i < 16; i++) {
+                    final_matrix[i] = proj_matrix[i % 4] * view_matrix[Math.floor(i / 4)] +
+                                    proj_matrix[(i % 4) + 4] * view_matrix[Math.floor(i / 4) + 4] +
+                                    proj_matrix[(i % 4) + 8] * view_matrix[Math.floor(i / 4) + 8] +
+                                    proj_matrix[(i % 4) + 12] * view_matrix[Math.floor(i / 4) + 12];
+                }
+            
+                gl.uniformMatrix4fv(this.matrix_location, false, new Float32Array(final_matrix));
+            
+                for (const actor of this.actors) {
+                    actor.render();
+                }
+            }
+
+            tick() {
+                this.tick_actors();
+                this.destroy_actors();
+                this.render();
+            }
+        }
+    </script>
+
+    <script>
+        function create_sphere(radius, lat_segments, long_segments, rgb) {
+            const verts = [];
+            const indices = [];
+            const colors = [];
+
+            // Create vertices
+            for (let lat = 0; lat <= lat_segments; lat++) {
+                const theta = (lat * Math.PI) / lat_segments;
+                const sin_theta = Math.sin(theta);
+                const cos_theta = Math.cos(theta);
+
+                for (let lon = 0; lon <= long_segments; lon++) {
+                    const phi = (lon * 2 * Math.PI) / long_segments;
+                    const sin_phi = Math.sin(phi);
+                    const cos_phi = Math.cos(phi);
+
+                    const x = radius * sin_theta * cos_phi;
+                    const y = radius * cos_theta + 2; // Raise the sphere to height 2
+                    const z = radius * sin_theta * sin_phi;
+
+                    verts.push(x, y, z);
+                    colors.push(rgb[0], rgb[1], rgb[2]);
+                }
+            }
+
+            // Create indices
+            for (let lat = 0; lat < lat_segments; lat++) {
+                for (let lon = 0; lon < long_segments; lon++) {
+                    const first = (lat * (long_segments + 1)) + lon;
+                    const second = first + long_segments + 1;
+
+                    indices.push(first, second, first + 1);
+                    indices.push(second, second + 1, first + 1);
+                }
+            }
+
+            return { vertices: verts, indices: indices, colors: colors };
+        }
+
+        function create_cube(sizes=[1, 1, 1], rgb=[1, 1, 1]) {
+            const [w, h, d] = sizes;
+
+            const vertices = [];
+            const indices = [];
+            const colors = [];
+
+            const half_w = w / 2;
+            const half_h = h / 2;
+            const half_d = d / 2;
+
+            // Define the 8 vertices of a cube
+            vertices.push(
+                // Front face
+                -half_w, -half_h, half_d,
+                half_w, -half_h, half_d,
+                half_w, half_h, half_d,
+                -half_w, half_h, half_d,
+
+                // Back face
+                -half_w, -half_h, -half_d,
+                half_w, -half_h, -half_d,
+                half_w, half_h, -half_d,
+                -half_w, half_h, -half_d
+            );
+            // Define the 12 triangles (2 per face) using indices
+            indices.push(
+                0, 1, 2, 0, 2, 3, // Front face
+                4, 5, 6, 4, 6, 7, // Back face
+                0, 1, 5, 0, 5, 4, // Left face
+                2, 3, 7, 2, 7, 6, // Right face
+                0, 3, 7, 0, 7, 4, // Top face
+                1, 2, 6, 1, 6, 5 // Bottom face
+            );
+
+            // Assign the same color to each vertex
+            for (let i = 0; i < vertices.length / 3; i++) {
+                colors.push(rgb[0], rgb[1], rgb[2]);
+            }
+            return {vertices: vertices, indices: indices, colors: colors};
+        }
+    </script>
+    <script>
+        class Bullet extends Actor {
+            constructor(camera_location, camera_angle) {
+            // Create a bullet entity
+            var bullet_vertices = [
+                // Front face
+                -0.5, -0.5,  .5, // 0
+                0.5, -0.5,  .5, // 1
+                0.5,  0.5,  .5, // 2
+                -0.5,  0.5,  .5, // 3
+
+                // Back face
+                -0.5, -0.5, -.5, // 4
+                0.5, -0.5, -.5, // 5
+                0.5,  0.5, -.5, // 6
+                -0.5,  0.5, -.5  // 7
+            ]
+            // rotate the bullet to match the camera angle
+            bullet_vertices = Transform.rotate_positions(bullet_vertices, camera_angle);
+
+            const bullet_entity = new Entity(
+                bullet_vertices,
+                [
+                    // Front face
+                    0, 1, 2,
+                    0, 2, 3,
+
+                    // Back face
+                    4, 6, 5,
+                    4, 7, 6,
+
+                    // Top face
+                    3, 2, 6,
+                    3, 6, 7,
+
+                    // Bottom face
+                    0, 5, 1,
+                    0, 4, 5,
+
+                    // Right face
+                    1, 5, 6,
+                    1, 6, 2,
+
+                    // Left face
+                    0, 3, 7,
+                    0, 7, 4
+                ],
+                [
+                    .5, .5, .5,
+                    .5, .5, .5,
+                    .5, .5, .5,
+                    .5, .5, .5,
+                    .5, .5, .5,
+                    .5, .5, .5,
+                    .5, .5, .5,
+                    .5, .5, .5,
+                ],
+                [...camera_location], // Bullet location
+            )
+            const speed = 0.1 * tick_rate_scale; // Bullet speed
+            const velocities = [
+                Math.sin(-camera_angle[1]) * speed,
+                0,
+                -Math.cos(-camera_angle[1]) * speed
+            ];
+
+            const trigger_boxes = [
+                new TriggerBox([0, 0, 0], [1, 1, 1]) // Bullet entity with trigger box
+            ];
+
+            super(
+                bullet_entity, // Entity
+                trigger_boxes, // Trigger boxes
+                velocities
+            );
+            }
+        }
+    </script>
+    <script>
+        class Ground extends Actor {
+            constructor() {
+                const ground_radius = 100; // Cube w/ radius n will have area (2n)^2 not pi*r^2
+                const ground_entity = new Entity(
+                    [
+                        -ground_radius, -1, -ground_radius, 
+                        -ground_radius, -1, ground_radius, 
+                        ground_radius , -1, ground_radius, 
+                        ground_radius , -1, -ground_radius
+                    ], // Vertices
+                    [
+                        0, 1, 2, // Triangle 1
+                        0, 2, 3  // Triangle 2
+                    ],
+                    [
+                        .5, .35, .1,
+                        .5, .35, .1,
+                        .5, .35, .1,
+                        .5, .35, .1
+                    ]
+                    )
+                const ground_y_location = -ground_radius/2-1+.5 // //tbox is secretly a massive cube, shift its center down by half its height. Down 1 more so the camera isn't inside it. Shift up by half the camera height.
+
+                const trigger_boxes = [new TriggerBox([0, ground_y_location, 0], [2*ground_radius, 2*ground_radius, 2*ground_radius])]
+
+                super(
+                    ground_entity, // Entity
+                    trigger_boxes // Trigger boxes
+                );
+            }
+        }
+    </script>
+    <script>
+        class Tree extends Actor {
+            constructor() {
+                const dist = 20;
+                const x = Math.random()*dist*2-dist;
+                const y = 1;
+                const z = Math.random()*dist*2-dist;
+
+                const root_vertices = [
+                    // Bottom face (y = -2)
+                    -0.5, -2, -0.5, // 0
+                    0.5, -2, -0.5, // 1
+                    0.5, -2,  0.5, // 2
+                    -0.5, -2,  0.5, // 3
+
+                    // Top face (y = 2)
+                    -0.5, 2, -0.5,  // 4
+                    0.5, 2, -0.5,  // 5
+                    0.5, 2,  0.5,  // 6
+                    -0.5, 2,  0.5,  // 7
+                ];
+                const root_indices = [
+                    // Bottom face
+                    0, 1, 2,
+                    0, 2, 3,
+
+                    // Top face
+                    4, 6, 5,
+                    4, 7, 6,
+
+                    // Front face
+                    3, 2, 6,
+                    3, 6, 7,
+
+                    // Back face
+                    1, 0, 4,
+                    1, 4, 5,
+
+                    // Left face
+                    0, 3, 7,
+                    0, 7, 4,
+
+                    // Right face
+                    2, 1, 5,
+                    2, 5, 6,
+                ];
+
+                const root_colors = [
+                    .5, .4, .1,
+                    .5, .4, .1,
+                    .5, .4, .1,
+                    .5, .4, .1,
+                    .5, .4, .1,
+                    .5, .4, .1,
+                    .5, .4, .1,
+                    .5, .4, .1,
+                ];
+
+                const radius = 2;
+                const lat_segments = 10;
+                const long_segments = 10;
+                const rgb = [0, 1, 0]; // Green color for leaves
+
+                const sphere_data = create_sphere(radius, lat_segments, long_segments, rgb);
+                const leaves_vertices = sphere_data.vertices;
+                const leaves_indices = sphere_data.indices;
+                const leaves_colors = sphere_data.colors;
+
+                // Combine the two sets of vertices, indices, and colors
+                const combined_vertices = [
+                    ...root_vertices,
+                    ...leaves_vertices
+                ];
+                const combined_indices = [
+                    ...root_indices,
+                    ...leaves_indices.map(index => index + root_vertices.length/3) // Offset indices for leaves
+                ];
+                const combined_colors = [
+                    ...root_colors,
+                    ...leaves_colors
+                ];
+
+                const tree_entity = new Entity(
+                    combined_vertices,
+                    combined_indices, 
+                    combined_colors,
+                    [x, y, z],
+                )
+
+                const trigger_boxes = [
+                    new TriggerBox([0, 0, 0], [1, 4, 1]),
+                    new TriggerBox([0, 1, 0], [3, 3, 3]),
+                ];
+
+                super(
+                    tree_entity, // Entity
+                    trigger_boxes // Trigger boxes
+                ); 
+            }
+        }
+    </script>
+    <script>
+        class Rock extends Actor {
+            constructor() {
+                const dist = 20;
+                const x = Math.random()*dist*2-dist // [-dist, .. +dist]
+                const y = -1;
+                const z = Math.random()*dist*2-dist
+
+                // Create rocks
+                const sphere_data = create_sphere(1, 10, 10, [.5, .5, .5]);
+                const vertices = sphere_data.vertices;
+                // Translate Y down
+                for (let i = 1; i < vertices.length; i+=3) {
+                    vertices[i] += -1.5;
+                }
+                const indices = sphere_data.indices;
+                const colors = sphere_data.colors;
+                    
+                const rock_entity = new Entity(
+                    [...vertices], 
+                    [...indices], 
+                    [...colors],
+                    [x, y, z],
+                )
+
+                const trigger_boxes = [new TriggerBox([0, .5, 0], [1, 1, 1])];
+
+                super(
+                    rock_entity, // Entity
+                    trigger_boxes // Trigger boxes
+                );
+            }
+        }
+    </script>
+    <script>
+        class Guard extends Actor {
+            constructor() {
+                // Body (3d cube)
+                const body_vertices = [
+                    -0.5, -0.5, 0.5,
+                    0.5, -0.5, 0.5,
+                    0.5, 0.5, 0.5,
+                    -0.5, 0.5, 0.5,
+
+                    -0.5, -0.5, -0.5,
+                    0.5, -0.5, -0.5,
+                    0.5, 0.5, -0.5,
+                    -0.5, 0.5, -0.5
+                ];
+                // Cube indices
+                const body_indices = [
+                    0, 1, 2, 0, 2, 3,
+                    4, 5, 6, 4, 6, 7,
+                    0, 1, 5, 0, 5, 4,
+                    2, 3, 7, 2, 7, 6,
+                    0, 3, 7, 0, 7, 4,
+                    1, 2, 6, 1, 6, 5
+                ];
+                // Cube colors (r, g, b)
+                const body_colors = [
+                    // Purple
+                    0.5, 0, 0.5,
+                    0.5, 0, 0.5,
+                    0.5, 0, 0.5,
+                    0.5, 0, 0.5,
+
+                    0.5, 0, 0.5,
+                    0.5, 0, 0.5,
+                    0.5, 0, 0.5,
+                    0.5, 0, 0.5,
+                ];
+
+                // Head (3d sphere)
+                const sphere_data = create_sphere(.5, 10, 10, [1, 1, 0]) //yellow
+                const head_vertices = sphere_data.vertices;
+                const head_indices = sphere_data.indices;
+                const head_colors = sphere_data.colors;
+                for (let i = 1; i < head_vertices.length; i += 3) {
+                    head_vertices[i] -= 1; // Shift down by 1 unit
+                }
+
+                // left arm (3d cylinder)
+                const left_arm_data = create_cube([.5, .5, 1], [0, 0, 1]) //blue
+                const left_arm_vertices = [...left_arm_data.vertices];
+                const left_arm_indices = left_arm_data.indices;
+                const left_arm_colors = left_arm_data.colors;
+                for (let i = 2; i < left_arm_vertices.length; i += 3) {
+                    left_arm_vertices[i] -= 1;
+                }
+
+                // right arm (3d cylinder)
+                const right_arm_vertices = [...left_arm_data.vertices];
+                const right_arm_indices = [...left_arm_data.indices];
+                const right_arm_colors = [...left_arm_data.colors];
+                for (let i = 2; i < right_arm_vertices.length; i += 3) {
+                    right_arm_vertices[i] += 1;
+                }
+
+                // left leg (3d cylinder)
+                const left_leg_data = create_cube([.5, 1, .3], [0, 1, 0]) //green
+                const left_leg_vertices = [...left_leg_data.vertices];
+                const left_leg_indices = left_leg_data.indices;
+                const left_leg_colors = left_leg_data.colors;
+                for (let i = 1; i < left_leg_vertices.length; i += 3) {
+                    left_leg_vertices[i] -= 1;
+                }
+                for (let i = 2; i < left_leg_vertices.length; i += 3) {
+                    left_leg_vertices[i] -= .2;
+                }
+
+                // right leg (3d cylinder)
+                const right_leg_vertices = [...left_leg_data.vertices];
+                const right_leg_indices = [...left_leg_data.indices];
+                const right_leg_colors = [...left_leg_data.colors];
+                for (let i = 1; i < right_leg_vertices.length; i += 3) {
+                    right_leg_vertices[i] -= 1;
+                }
+                for (let i = 2; i < right_leg_vertices.length; i += 3) {
+                    right_leg_vertices[i] += .2;
+                }
+
+
+                // Combine the sets of vertices, indices, and colors
+                const combined_vertices = [
+                    ...body_vertices,
+                    ...head_vertices,
+                    ...left_arm_vertices,
+                    ...right_arm_vertices,
+                    ...left_leg_vertices,
+                    ...right_leg_vertices
+                ];
+                const combined_indices = [
+                    ...body_indices,
+                    ...head_indices.map(index => index + body_vertices.length/3),
+                    ...left_arm_indices.map(index => index + body_vertices.length/3 + head_vertices.length/3),
+                    ...right_arm_indices.map(index => index + body_vertices.length/3 + head_vertices.length/3 + left_arm_vertices.length/3),
+                    ...left_leg_indices.map(index => index + body_vertices.length/3 + head_vertices.length/3 + left_arm_vertices.length/3 + right_arm_vertices.length/3),
+                    ...right_leg_indices.map(index => index + body_vertices.length/3 + head_vertices.length/3 + left_arm_vertices.length/3 + right_arm_vertices.length/3 + left_leg_vertices.length/3)
+                ];
+                const combined_colors = [
+                    ...body_colors,
+                    ...head_colors,
+                    ...left_arm_colors,
+                    ...right_arm_colors,
+                    ...left_leg_colors,
+                    ...right_leg_colors
+                ];
+
+
+                const distance = 20;
+                const x = Math.random() * distance - distance / 2;
+                const y = 2;
+                const z = Math.random() * distance - distance / 2;
+                const location = [x, y, z];
+                const entity = new Entity(
+                    combined_vertices,
+                    combined_indices,
+                    combined_colors,
+                    location
+                )
+                const trigger_boxes = [
+                    new TriggerBox([0, -2+0.5, 0], [1, .5, 1])
+                ]
+
+                super(entity, trigger_boxes);
+
+                // Attach a spot light
+                const spot_light = new SpotLight([location[0], location[1] - 1, location[2]]); // Position the light just below the actor
+                this.attach_light(spot_light);
+                gl_setup.add_spot_light(spot_light);
+
+
+                // Movement pattern is determined per instance
+                this.movement_pattern_direction = Math.random() < 0.5 ? -1 : 1; // 1 for clockwise, -1 for counterclockwise
+                this.movement_time_to_loop = Math.random() * 20 + 50; // seconds for a full loop. [50 to 70]
+                this.movement_edge_length = Math.random() * 20 + 10; // length of each edge of the square to move. [10 to 30]
+            }
+
+            get_next_velocities() {
+                const time = performance.now() / 1000; // seconds
+
+                // Move along edge of a square as pathing
+                var percent_path_traveled = (time % this.movement_time_to_loop) / this.movement_time_to_loop;
+                if (this.movement_pattern_direction === -1) {
+                    // Reverse the direction of movement by complementing the percent path traveled
+                    percent_path_traveled = 1 - percent_path_traveled;
+                }
+
+                var velocities;
+                var speed = 0.01;
+                if (percent_path_traveled < 0.25) {
+                    // Move along the first edge (0, 0) to (1, 0)
+                    velocities = [speed, 0, 0];
+                }
+                else if (percent_path_traveled < 0.5) {
+                    // Move along the second edge (1, 0) to (1, 1)
+                    velocities = [0, 0, speed];
+                }
+                else if (percent_path_traveled < 0.75) {
+                    // Move along the third edge (1, 1) to (0, 1)
+                    velocities = [-speed, 0, 0];
+                }
+                else {
+                    // Move along the fourth edge (0, 1) to (0, 0)
+                    velocities = [0, 0, -speed];
+                }
+
+                return velocities;
+            }
+
+            // Override Actor.tick()
+            tick(...args) {
+                // Determine velocity to set for the entity
+                const new_velocities = [...this.get_next_velocities()];
+                this.position_velocities = new_velocities;
+                this.light.position_velocities = new_velocities;
+
+                super.tick(...args);
+            }
+        }
+    </script>
+    <script>
+        class Torch extends Actor {
+            constructor() {
+                const vertices = [
+                    -0.05, -.45,  0.05,
+                    0.05, -.45,  0.05,
+                    0.05,  .45,  0.05,
+                    -0.05,  .45,  0.05,
+                    -0.05, -.45, -0.05,
+                    0.05, -.45, -0.05,
+                    0.05,  .45, -0.05,
+                    -0.05,  .45, -0.05
+                ]
+
+                const indices = [
+                    0, 1, 2, 0, 2, 3,
+                    4, 5, 6, 4, 6, 7,
+                    0, 1, 5, 0, 5, 4,
+                    2, 3, 7, 2, 7, 6,
+                    0, 3, 7, 0, 7, 4,
+                    1, 2, 6, 1, 6, 5
+                ]
+
+                const colors = [
+                    // Yellow
+                    1, 1, 0,
+                    1, 1, 0,
+                    1, 1, 0,
+                    1, 1, 0,
+                    1, 1, 0,
+                    1, 1, 0,
+                    1, 1, 0,
+                    1, 1, 0,
+                ]
+
+                const distance = 20;
+                const x = Math.random() * distance - distance / 2;
+                const y = 0;
+                const z = Math.random() * distance - distance / 2;
+                const location = [x, y-.5, z];
+
+                const entity = new Entity(
+                    vertices,
+                    indices,
+                    colors,
+                    location
+                )
+
+                const trigger_boxes = [
+                    new TriggerBox([0, 0, 0], [.05*2, .45*2, .05*2])
+                ]
+                
+                super(entity, trigger_boxes);
+
+                const point_light = new PointLight([location[0], location[1] + 1, location[2]]); // Position the light just above the actor
+                this.attach_light(point_light);
+                gl_setup.add_point_light(point_light);
+            }
+        }
+    </script>
+    <script>
+        class Moon extends Actor{
+            constructor() {
+                // Cube vertices
+                const sphere_data = create_sphere(100, 10, 10, [.8, .8, .8]);
+                const vertices = sphere_data.vertices;
+                const indices = sphere_data.indices;
+                const colors = sphere_data.colors;
+                const location = [300, 200, 300];
+                const entity = new Entity(
+                    vertices,
+                    indices,
+                    colors,
+                    location
+                )
+                const trigger_boxes = [
+                    new TriggerBox([0, 0, 0], [1, 1, 1])
+                ]
+                super(entity, trigger_boxes);
+
+                const moon_light = new DirectionalLight();
+                this.attach_light(moon_light);
+                gl_setup.add_directional_light(moon_light);
+            }
+        }
+    </script>
+    <script>
+        class TargetDestination extends Actor {
+            constructor() {
+                //2d square
+                const vertices = [
+                    -0.5, 0, -0.5,
+                    0.5, 0, -0.5,
+                    0.5, 0, 0.5,
+                    -0.5, 0, 0.5,
+                ];
+                const scalar = 2;
+                for (let i = 0; i < vertices.length; i++) {
+                    vertices[i] *= scalar;
+                }
+                const indices = [
+                    0, 1, 2,
+                    0, 2, 3,
+                ];
+                const colors = [
+                    //red
+                    1, 0, 0,
+                    1, 0, 0,
+                    1, 0, 0,
+                    1, 0, 0,
+                ];
+                const location = [0, -.95, -10];
+                const entity = new Entity(vertices, indices, colors, location);
+                const trigger_boxes = [new TriggerBox([0, 0, 0], [2, 1, 2])];
+                super(entity, trigger_boxes);
+            }
+        }
+    </script>
+    
+    <script>
+        // Initialize Web GL context, program, and lighting engine
+        const gl_setup = new GLSetup("glcanvas");
+        const [gl, program, canvas] = gl_setup.init()
+        gl.clearColor(0, 0, 0, 1);
+        gl.enable(gl.DEPTH_TEST);
+
+        // Change depending on your Frames per Second (FPS) as the game speed is tied to fps
+        const tick_rate_scale = .5;
+
+        // Camera
+        const camera = new CameraObject();
+        const camera_actor = new CameraActor(camera, [new TriggerBox([0, 0, 0], [1, 1, 1])])
+
+        // Camera movement
+        var keys_down = {};
+        const valid_keys = ["w", "s", "a", "d", "z", "x"];
+
+        // Handle key presses for camera movement
+        document.addEventListener("keydown", (event) => {
+            if (valid_keys.includes(event.key)) {
+                keys_down[event.key] = true;
+            }
+        });
+        document.addEventListener("keyup", (event) => {
+            if (valid_keys.includes(event.key)) {
+                keys_down[event.key] = false;
+            }
+        });
+
+        // Game engine
+        const game_engine = new GameEngine(camera_actor);
+
+        // List all game objects to be created
+        const object_creation_map = [
+            // <class_ref>, <instance_count>
+            [Ground, 1],
+            [Rock, 10],
+            [Tree, 5],
+            [Guard, 3],
+            [Torch, 5],
+            [Moon, 1],
+            [TargetDestination, 1],
+        ];
+
+        // Create objects based on the map
+        for (const [class_ref, count] of object_creation_map) {
+            for (let i = 0; i < count; i++) {
+                const instance = new class_ref(); // Add parameters here if needed
+                game_engine.add_actor(instance);
+            }
+        }
+
+        // Bullet shooting
+        document.addEventListener("keypress", (event) => {
+            if (event.code === "Space") {
+                game_engine.add_actor(new Bullet(camera.vertices, [0, -camera.angle, 0]));
+            }
+        });
+
+        // Main loop
+        var first = true;
+        function tick() {
+            gl_setup.tick();
+            game_engine.tick();
+
+            requestAnimationFrame(tick); // Start loop
+        }
+
+        // Start the main loop
+        tick();
+    </script>
+</body>
+</html>
