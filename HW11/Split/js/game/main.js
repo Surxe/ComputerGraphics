@@ -11,7 +11,7 @@ const tick_rate_scale = .5;
 const maze_tile_width_height = 4; // Size of each tile in the maze
 const maze_width_height = 30;
 const starting_indices = [1, 0];
-const ending_indices = [maze_width_height - 1 - 1, maze_width_height - 1];
+const ending_indices = [maze_width_height - 1 - 1, 0];
 
 function maze_index_to_location(index) {
     return index * maze_tile_width_height - (maze_width_height / 2) * maze_tile_width_height;
@@ -88,6 +88,9 @@ for (let i = 0; i < maze_width_height; i++) {
     }
 }
 
+// Add TargetDestination at the end
+game_engine.add_actor(new TargetDestination([maze_index_to_location(ending_indices[0]), -.99, maze_index_to_location(ending_indices[1])]));
+
 // List all game objects to be created
 const object_creation_map = [
     // <class_ref>, <instance_count>
@@ -95,7 +98,6 @@ const object_creation_map = [
     [Guard, 3],
     [Torch, 5],
     [Moon, 1],
-    [TargetDestination, 1]
 ];
 
 // Create objects based on the map
