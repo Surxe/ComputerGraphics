@@ -32,6 +32,10 @@ class Actor {
         // by default, do nothing. can be overridden by subclasses
     }
 
+    on_destroy() {
+        
+    }
+
     move(other_actors) {
         var will_collide = false;
 

@@ -7,6 +7,8 @@ gl.enable(gl.DEPTH_TEST);
 // Change depending on your Frames per Second (FPS) as the game speed is tied to fps
 const tick_rate_scale = .5;
 
+const console_section = document.getElementById("console");
+
 // Maze
 const maze_tile_width_height = 4; // Size of each tile in the maze
 const maze_width_height = 30;
@@ -121,7 +123,10 @@ game_engine.add_actor(enemy1);
 
 // Main loop
 var current_tick = 0;
+var should_continue = true;
 function tick() {
+    if (!should_continue) return; // Stop the loop if should_continue is false
+
     gl_setup.tick();
     game_engine.tick();
 

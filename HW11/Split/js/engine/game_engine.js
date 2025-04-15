@@ -27,8 +27,13 @@ class GameEngine {
             if (actor.should_destroy) {
                 // Remove
                 this.actors = this.actors.filter(a => a !== actor); // Remove the actor from the list
+                actor.on_destroy();
                 console.log("Actor destroyed!");
             }
+        }
+
+        if (this.camera_actor.should_destroy) {
+            this.camera_actor.on_destroy();
         }
     }
 

@@ -15,4 +15,12 @@ class Hero extends CameraActor {
             console.log("Remaining health: " + this.health); // Log remaining health
         }
     }
+
+    on_destroy() {
+        console.log("You lose!");
+        console_section.innerHTML = "You lose!";
+        // Kill canvas
+        canvas.remove();
+        should_continue = false; // Stop the game loop
+    }
 }

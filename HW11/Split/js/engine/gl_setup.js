@@ -15,7 +15,7 @@ class GLSetup {
         this.canvas = canvas;
         this.gl = gl;
         canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+        canvas.height = window.innerWidth * (9/16);
         gl.viewport(0, 0, canvas.width, canvas.height);
 
         const vs_source = `
