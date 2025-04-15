@@ -54,7 +54,7 @@ const maze = [ // 0=open space, 1=wall
 const camera_init_location = [maze_index_to_location(starting_indices[0]), 0, maze_index_to_location(starting_indices[1])];
 const camera = new CameraObject(camera_init_location);
 camera.angle = Math.PI; // Initial camera angle
-const camera_actor = new CameraActor(camera, [new TriggerBox([0, 0, 0], [1, 1, 1])], true)
+const camera_actor = new Hero(camera, [new TriggerBox([0, 0, 0], [1, 1, 1])], true)
 
 // Camera movement
 var keys_down = {};
@@ -111,7 +111,8 @@ for (const [class_ref, count] of object_creation_map) {
 // Bullet shooting
 document.addEventListener("keypress", (event) => {
     if (event.code === "Space") {
-        game_engine.add_actor(new Bullet(camera.vertices, [0, -camera.angle, 0]));
+        // At camera, facing same direction
+        game_engine.add_actor(new HeroBullet(camera.vertices, [0, -camera.angle, 0]));
     }
 });
 
@@ -119,12 +120,20 @@ enemy1 = new Enemy();
 game_engine.add_actor(enemy1);
 
 // Main loop
+var current_tick = 0;
 function tick() {
     gl_setup.tick();
     game_engine.tick();
 
     // Update enemy's direction to face the camera
     enemy1.face_camera(camera_actor.entity.location);
+
+    current_tick += 1;
+    // Every 5sec, shoot
+    if (Math.floor(current_tick) % 500 === 0) {
+        console.log("Shooting bullet!");
+        game_engine.add_actor(new EnemyBullet([camera.vertices[0], camera.vertices[1], camera.vertices[2]-10], [0, -camera.angle, 0]));
+    }
 
     requestAnimationFrame(tick); // Start loop
 }

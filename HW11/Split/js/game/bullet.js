@@ -1,5 +1,5 @@
 class Bullet extends Actor {
-    constructor(camera_location, camera_angle) {
+    constructor(camera_location, camera_angle, damage=1) {
         // Create a bullet entity
         var bullet_vertices = [
             // Front face
@@ -74,14 +74,6 @@ class Bullet extends Actor {
             velocities
         );
 
-        this.damage = 1;
-    }
-
-    on_collision(other_actor) {
-        if (other_actor instanceof Guard) {
-            console.log("Bullet collided with " + other_actor.constructor.name + "!");
-            other_actor.hit_received(this.damage); // Deal damage to the guard
-            this.should_destroy = true; // Destroy the bullet
-        }
+        this.damage = damage;
     }
 }
