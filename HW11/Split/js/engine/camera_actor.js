@@ -19,22 +19,27 @@ class CameraActor extends Actor {
 
         const angle = this.entity.angle;
 
+        var position_speed = this.position_speed;
+        if (keys_down["c"]) {
+            position_speed *= 3; // Triple speed
+        }
+
         if (keys_down["w"]) {
-            position_velocities[0] += this.position_speed * Math.sin(angle);
-            position_velocities[2] -= this.position_speed * Math.cos(angle);
+            position_velocities[0] += position_speed * Math.sin(angle);
+            position_velocities[2] -= position_speed * Math.cos(angle);
         }
 
         if (keys_down["s"]) {
-            position_velocities[0] -= this.position_speed * Math.sin(angle);
-            position_velocities[2] += this.position_speed * Math.cos(angle);
+            position_velocities[0] -= position_speed * Math.sin(angle);
+            position_velocities[2] += position_speed * Math.cos(angle);
         }
 
         if (keys_down["z"]) {
-            position_velocities[1] += this.position_speed;
+            position_velocities[1] += position_speed;
         }
 
         if (keys_down["x"]) {
-            position_velocities[1] -= this.position_speed;
+            position_velocities[1] -= position_speed;
         }
 
         if (keys_down["a"]) {

@@ -58,7 +58,7 @@ const camera_actor = new CameraActor(camera, [new TriggerBox([0, 0, 0], [1, 1, 1
 
 // Camera movement
 var keys_down = {};
-const valid_keys = ["w", "s", "a", "d", "z", "x"];
+const valid_keys = ["w", "s", "a", "d", "z", "x", "c"];
 
 // Handle key presses for camera movement
 document.addEventListener("keydown", (event) => {
