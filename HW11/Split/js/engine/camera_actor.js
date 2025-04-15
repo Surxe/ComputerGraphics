@@ -3,6 +3,13 @@ class CameraActor extends Actor {
         super(...args); // Call the parent constructor
         this.position_speed = 0.2 * tick_rate_scale;
         this.rotation_speed = 0.02 * tick_rate_scale;
+
+        // Attach a spot light to the camera
+        const spot_light_direction = [0, 0, 1];
+        const spot_light_init_location = [this.entity.location[0], this.entity.location[1], this.entity.location[2] + .5]; // position light just in front of camera
+        const spot_light = new SpotLight(spot_light_init_location, spot_light_direction, 25); // Position the light just below the actor
+        this.attach_light(spot_light);
+        gl_setup.add_spot_light(spot_light);
     }
 
     update_velocities(keys_down) {
@@ -47,5 +54,13 @@ class CameraActor extends Actor {
         if (other_actor instanceof Guard) {
             this.entity.local_vertices = this.entity.initial_vertices; // Reset camera position
         }
+    }
+
+    tick(p1) {
+        // Update attached light's velocity to match mine
+        this.light.position_velocities = this.position_velocities;
+        this.light.rotation_velocities = this.rotation_velocities;
+
+        super.tick(p1);
     }
 }
