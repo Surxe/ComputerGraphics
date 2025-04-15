@@ -1,5 +1,7 @@
-class Guard extends Actor {
+class Guard extends Character {
     constructor() {
+        const health = 3;
+
         // Body (3d cube)
         const body_vertices = [
             -0.5, -0.5, 0.5,
@@ -124,10 +126,10 @@ class Guard extends Actor {
             location
         )
         const trigger_boxes = [
-            new TriggerBox([0, -2+0.5, 0], [1, .5, 1])
+            new TriggerBox([0, 0, 0], [1, 1, 1])
         ]
 
-        super(entity, trigger_boxes, true);
+        super(health, entity, trigger_boxes, true);
 
         // Attach a spot light
         const spot_light = new SpotLight([location[0], location[1] - 1, location[2]]); // Position the light just below the actor
