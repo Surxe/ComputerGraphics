@@ -115,10 +115,16 @@ document.addEventListener("keypress", (event) => {
     }
 });
 
+enemy1 = new Enemy();
+game_engine.add_actor(enemy1);
+
 // Main loop
 function tick() {
     gl_setup.tick();
     game_engine.tick();
+
+    // Update enemy's direction to face the camera
+    enemy1.face_camera(camera_actor.entity.location);
 
     requestAnimationFrame(tick); // Start loop
 }
