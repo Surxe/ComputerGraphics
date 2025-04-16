@@ -48,51 +48,33 @@ class Guard extends Character {
         ]
 
         super(health, textured_entity, trigger_boxes, true);
-
-        // Movement pattern is determined per instance
-        this.movement_pattern_direction = Math.random() < 0.5 ? -1 : 1; // 1 for clockwise, -1 for counterclockwise
-        this.movement_time_to_loop = Math.random() * 20 + 50; // seconds for a full loop. [50 to 70]
-        this.movement_edge_length = Math.random() * 20 + 10; // length of each edge of the square to move. [10 to 30]
+        this.randomize_velocity();
     }
 
-    get_next_velocities() {
-        const time = performance.now() / 1000; // seconds
-
-        // Move along edge of a square as pathing
-        var percent_path_traveled = (time % this.movement_time_to_loop) / this.movement_time_to_loop;
-        if (this.movement_pattern_direction === -1) {
-            // Reverse the direction of movement by complementing the percent path traveled
-            percent_path_traveled = 1 - percent_path_traveled;
-        }
-
-        var velocities;
-        var speed = 0.01;
-        if (percent_path_traveled < 0.25) {
-            // Move along the first edge (0, 0) to (1, 0)
-            velocities = [speed, 0, 0];
-        }
-        else if (percent_path_traveled < 0.5) {
-            // Move along the second edge (1, 0) to (1, 1)
-            velocities = [0, 0, speed];
-        }
-        else if (percent_path_traveled < 0.75) {
-            // Move along the third edge (1, 1) to (0, 1)
-            velocities = [-speed, 0, 0];
+    randomize_velocity() {
+        // [50% to 100% of -speed, or 50% to 100% of +speed] for x and z
+        const speed = .02;
+        var rand2 = Math.random() * 2 - 1;
+        if (rand2 < 0) {
+            this.position_velocities[0] = -speed * (Math.random() * .5 + .5)
         }
         else {
-            // Move along the fourth edge (0, 1) to (0, 0)
-            velocities = [0, 0, -speed];
+            this.position_velocities[0] = speed * (Math.random() * .5 + .5)
+        }
+        rand2 = Math.random() * 2 - 1;
+        if (rand2 < 0) {
+            this.position_velocities[2] = -speed * (Math.random() * .5 + .5)
+        }
+        else {
+            this.position_velocities[2] = speed * (Math.random() * .5 + .5)
         }
 
-        return velocities;
+        console.log('ra')
     }
 
-    // Override Actor.tick()
-    tick(...args) {
-        // Determine velocity to set for the entity
-        //const new_velocities = [...this.get_next_velocities()];
-        //this.position_velocities = new_velocities;
-
-        super.tick(...args);
+    on_collision(other_actor) {
+        if (other_actor instanceof Wall) {
+            this.randomize_velocity();
+        }
     }
 }
