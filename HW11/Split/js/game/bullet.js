@@ -56,7 +56,7 @@ class Bullet extends Actor {
             ],
             [...camera_location], // Bullet location
         )
-        const speed = 0.1 * tick_rate_scale; // Bullet speed
+        const speed = 0.3 * tick_rate_scale; // Bullet speed
         const velocities = [
             Math.sin(-camera_angle[1]) * speed,
             0,

@@ -2,7 +2,7 @@ class CameraActor extends Actor {
     constructor(...args) {
         super(...args); // Call the parent constructor
         this.position_speed = 0.2 * tick_rate_scale;
-        this.rotation_speed = 0.02 * tick_rate_scale;
+        this.rotation_speed = 0.06 * tick_rate_scale;
 
         // Attach a spot light to the camera
         const spot_light_direction = [0, 0, 1];
