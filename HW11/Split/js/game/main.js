@@ -165,7 +165,7 @@ function tick() {
 
     if (Math.floor(current_tick) % 500 === 0) {
         console.log("Shooting bullet!");
-        //game_engine.add_actor(new EnemyBullet([camera.vertices[0], camera.vertices[1], camera.vertices[2]-10], [0, -camera.angle, 0]));
+        game_engine.add_actor(new EnemyBullet([camera.vertices[0], camera.vertices[1], camera.vertices[2]+10], [0, -camera.angle+Math.PI, 0]));
     }
 
     requestAnimationFrame(tick); // Start loop
