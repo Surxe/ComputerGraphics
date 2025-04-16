@@ -1,5 +1,5 @@
 class Torch extends Actor {
-    constructor() {
+    constructor(location) {
         const vertices = [
             -0.05, -.45,  0.05,
              0.05, -.45,  0.05,
@@ -32,17 +32,11 @@ class Torch extends Actor {
             1, 1, 0,
         ]
 
-        const distance = 20;
-        const x = Math.random() * distance - distance / 2;
-        const y = 0;
-        const z = Math.random() * distance - distance / 2;
-        const location = [x, y-.5, z];
-
         const entity = new Entity(
             vertices,
             indices,
             colors,
-            location
+            [location[0], location[1]-.5, location[2]], // Torch location
         )
 
         const trigger_boxes = [

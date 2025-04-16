@@ -102,23 +102,28 @@ for (let i = 0; i < maze_width_height; i++) {
 // Add TargetDestination at the end
 game_engine.add_actor(new TargetDestination([maze_index_to_location(ending_indices[0]), -.99, maze_index_to_location(ending_indices[1])]));
 
-function create_enemy() {
-    const enemy_location_indices = get_random_empty_maze_location();
-    const enemy_location = [maze_index_to_location(enemy_location_indices[0]), 0, maze_index_to_location(enemy_location_indices[1])];
-    const enemy = new Guard(enemy_location);
-    game_engine.add_actor(enemy);
+function create_object_in_maze(class_ref, location_indices="random") {
+    if (location_indices === "random") {
+        location_indices = get_random_empty_maze_location();
+    }
+
+    const location = [maze_index_to_location(location_indices[0]), 0, maze_index_to_location(location_indices[1])];
+    const obj = new class_ref(location);
+    game_engine.add_actor(obj);
 }
 
 // Create enemies
 for (let i = 0; i < 10; i++) {
-    create_enemy();
+    create_object_in_maze(Guard);
+}
+for (let i = 0; i < 5; i++ ) {
+    create_object_in_maze(Torch);
 }
 
 // List all game objects to be created
 const object_creation_map = [
     // <class_ref>, <instance_count>
     [Ground, 1],
-    [Torch, 5],
     [Moon, 1],
 ];
 
