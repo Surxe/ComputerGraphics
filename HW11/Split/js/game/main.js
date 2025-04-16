@@ -52,6 +52,15 @@ const maze = [ // 0=open space, 1=wall
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 ]
 
+function get_random_empty_maze_location() {
+    let x, y;
+    do {
+        x = Math.floor(Math.random() * maze_width_height);
+        y = Math.floor(Math.random() * maze_width_height);
+    } while (maze[x][y] !== 0); // Ensure it's an empty space
+    return [y, x]; // invert x and y because i said so
+}
+
 // Camera
 const camera_init_location = [maze_index_to_location(starting_indices[0]), 0, maze_index_to_location(starting_indices[1])];
 const camera = new CameraObject(camera_init_location);
@@ -93,11 +102,22 @@ for (let i = 0; i < maze_width_height; i++) {
 // Add TargetDestination at the end
 game_engine.add_actor(new TargetDestination([maze_index_to_location(ending_indices[0]), -.99, maze_index_to_location(ending_indices[1])]));
 
+function create_enemy() {
+    const enemy_location_indices = get_random_empty_maze_location();
+    const enemy_location = [maze_index_to_location(enemy_location_indices[0]), 6, maze_index_to_location(enemy_location_indices[1])];
+    const enemy = new Guard(enemy_location);
+    game_engine.add_actor(enemy);
+}
+
+// Create enemies
+for (let i = 0; i < 10; i++) {
+    create_enemy();
+}
+
 // List all game objects to be created
 const object_creation_map = [
     // <class_ref>, <instance_count>
     [Ground, 1],
-    [Guard, 3],
     [Torch, 5],
     [Moon, 1],
 ];
@@ -118,8 +138,8 @@ document.addEventListener("keypress", (event) => {
     }
 });
 
-enemy1 = new Enemy();
-game_engine.add_actor(enemy1);
+test_enemy1 = new Enemy();
+game_engine.add_actor(test_enemy1);
 
 // TODO:
 // 2. Configure enemies to spawn at a specific location that is not inside a wall.
@@ -137,13 +157,13 @@ function tick() {
     game_engine.tick();
 
     // Update enemy's direction to face the camera
-    enemy1.face_camera(camera_actor.entity.location);
+    test_enemy1.face_camera(camera_actor.entity.location);
 
     current_tick += 1;
-    // Every 5sec, shoot
+
     if (Math.floor(current_tick) % 500 === 0) {
         console.log("Shooting bullet!");
-        game_engine.add_actor(new EnemyBullet([camera.vertices[0], camera.vertices[1], camera.vertices[2]-10], [0, -camera.angle, 0]));
+        //game_engine.add_actor(new EnemyBullet([camera.vertices[0], camera.vertices[1], camera.vertices[2]-10], [0, -camera.angle, 0]));
     }
 
     requestAnimationFrame(tick); // Start loop

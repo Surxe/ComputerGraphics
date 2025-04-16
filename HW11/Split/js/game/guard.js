@@ -1,18 +1,10 @@
 class Guard extends Character {
-    constructor() {
+    constructor(location) {
         const health = 3;
 
         const cube_data = create_cube([1, 1, 0]);
         const vertices = cube_data.vertices;
         const indices = cube_data.indices;
-        const colors = cube_data.colors;
-
-        const distance = 20;
-        const x = Math.random() * distance - distance / 2;
-        const y = 2;
-        const z = Math.random() * distance - distance / 2;
-
-        const location = [x, y, z];
 
         const tex_coords = [
             // Front
@@ -83,8 +75,8 @@ class Guard extends Character {
     // Override Actor.tick()
     tick(...args) {
         // Determine velocity to set for the entity
-        const new_velocities = [...this.get_next_velocities()];
-        this.position_velocities = new_velocities;
+        //const new_velocities = [...this.get_next_velocities()];
+        //this.position_velocities = new_velocities;
 
         super.tick(...args);
     }
