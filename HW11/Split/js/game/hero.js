@@ -28,5 +28,9 @@ class Hero extends CameraActor {
         if (other_actor instanceof Guard) {
             this.should_destroy = true; // die
         }
+        else if (other_actor instanceof TargetDestination) {
+            console.log("You win!");
+            console_section.innerHTML = "You win!";
+        }
     }
 }

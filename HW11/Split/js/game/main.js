@@ -99,9 +99,6 @@ for (let i = 0; i < maze_width_height; i++) {
     }
 }
 
-// Add TargetDestination at the end
-game_engine.add_actor(new TargetDestination([maze_index_to_location(ending_indices[0]), -.99, maze_index_to_location(ending_indices[1])]));
-
 function create_object_in_maze(class_ref, location_indices="random") {
     if (location_indices === "random") {
         location_indices = get_random_empty_maze_location();
@@ -119,6 +116,7 @@ for (let i = 0; i < 10; i++) {
 for (let i = 0; i < 5; i++ ) {
     create_object_in_maze(Torch);
 }
+create_object_in_maze(TargetDestination, ending_indices);
 
 // List all game objects to be created
 const object_creation_map = [

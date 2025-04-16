@@ -22,7 +22,7 @@ class TargetDestination extends Actor {
             1, 0, 0,
             1, 0, 0,
         ];
-        const entity = new Entity(vertices, indices, colors, location);
+        const entity = new Entity(vertices, indices, colors, [location[0], location[1]-.99, location[2]]);
         const trigger_boxes = [new TriggerBox([0, 0, 0], [2, 1, 2])];
         super(entity, trigger_boxes);
     }
