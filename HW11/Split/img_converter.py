@@ -16,7 +16,9 @@ for file in os.listdir(f"{dir}/src"):
 
         # Convert the 3D array to a 1D array where every 4 values are r, g, b, a
         oned_array = pixels.flatten()
-        print(oned_array)
+
+        # Flip the image upside down
+        oned_array = np.flip(oned_array.reshape(-1, 4), axis=0).flatten()
 
         # Save as txt
         with open(txt_path, "w") as f:
