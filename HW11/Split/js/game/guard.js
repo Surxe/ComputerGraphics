@@ -37,7 +37,7 @@ class Guard extends Character {
         
         const textured_entity = new TexturedEntity(vertices, indices, tex_coords, texture_data, texture_width, texture_height, location);
         const trigger_boxes = [
-            new TriggerBox([0, 0, 0], [1, 1, 1])
+            new TriggerBox([0, 0, 0], [1, 1, 0])
         ]
 
         super(health, textured_entity, trigger_boxes, true);
