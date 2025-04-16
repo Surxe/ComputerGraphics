@@ -145,10 +145,8 @@ test_enemy1 = new Enemy();
 game_engine.add_actor(test_enemy1);
 
 // TODO:
-// 2. Configure enemies to spawn at a specific location that is not inside a wall.
 // 3. Simplify enemies velocity to be constant, but invert magnitude when they hit a wall.
 // 4. Setup billboarding such that enemies always look at the camera
-// 6. Create point lights in specific locations
 
 // Main loop
 var current_tick = 0;
