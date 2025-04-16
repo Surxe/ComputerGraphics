@@ -121,6 +121,14 @@ document.addEventListener("keypress", (event) => {
 enemy1 = new Enemy();
 game_engine.add_actor(enemy1);
 
+// TODO:
+// 1. Create assets for wall2, enemy1, enemy2, and enemy3
+// 2. Configure enemies to spawn at a specific location that is not inside a wall.
+// 3. Simplify enemies velocity to be constant, but invert magnitude when they hit a wall.
+// 4. Setup billboarding such that enemies always look at the camera
+// 5. Wall asset and enemy asset should be chosen randomly
+// 6. Create point lights in specific locations
+
 // Main loop
 var current_tick = 0;
 var should_continue = true;
