@@ -54,13 +54,6 @@ class CameraActor extends Actor {
         this.rotation_velocities = rotation_velocities;
     }
 
-    on_collision(other_actor) {
-        console.log("Camera collided with " + other_actor.constructor.name + "!");
-        if (other_actor instanceof Guard) {
-            this.entity.local_vertices = this.entity.initial_vertices; // Reset camera position
-        }
-    }
-
     tick(p1) {
         // Update attached light's velocity to match mine
         this.light.position_velocities = this.position_velocities;

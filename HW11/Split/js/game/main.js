@@ -104,7 +104,7 @@ game_engine.add_actor(new TargetDestination([maze_index_to_location(ending_indic
 
 function create_enemy() {
     const enemy_location_indices = get_random_empty_maze_location();
-    const enemy_location = [maze_index_to_location(enemy_location_indices[0]), 6, maze_index_to_location(enemy_location_indices[1])];
+    const enemy_location = [maze_index_to_location(enemy_location_indices[0]), 0, maze_index_to_location(enemy_location_indices[1])];
     const enemy = new Guard(enemy_location);
     game_engine.add_actor(enemy);
 }
@@ -146,7 +146,6 @@ game_engine.add_actor(test_enemy1);
 // 3. Simplify enemies velocity to be constant, but invert magnitude when they hit a wall.
 // 4. Setup billboarding such that enemies always look at the camera
 // 6. Create point lights in specific locations
-// 7. colliding with enemy directly should also result in game over
 
 // Main loop
 var current_tick = 0;

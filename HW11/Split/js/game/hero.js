@@ -23,4 +23,10 @@ class Hero extends CameraActor {
         canvas.remove();
         should_continue = false; // Stop the game loop
     }
+
+    on_collision(other_actor) {
+        if (other_actor instanceof Guard) {
+            this.should_destroy = true; // die
+        }
+    }
 }
