@@ -1,25 +1,63 @@
 class Wall extends Actor {
     constructor(location, size) {
-        const cube_data = create_cube()
-        for (let i = 0; i < cube_data.vertices.length; i++) {
-            cube_data.vertices[i] *= size; // Scale the cube vertices
+        const vertices = [
+            // Front face
+            -1, -1,  1,
+             1, -1,  1,
+             1,  1,  1,
+            -1,  1,  1,
+          
+            // Back face
+             1, -1, -1,
+            -1, -1, -1,
+            -1,  1, -1,
+             1,  1, -1,
+          
+            // Right face
+             1, -1,  1,
+             1, -1, -1,
+             1,  1, -1,
+             1,  1,  1,
+          
+            // Left face
+            -1, -1, -1,
+            -1, -1,  1,
+            -1,  1,  1,
+            -1,  1, -1,
+          
+            // Top face
+            -1,  1,  1,
+             1,  1,  1,
+             1,  1, -1,
+            -1,  1, -1,
+          
+            // Bottom face
+            -1, -1, -1,
+             1, -1, -1,
+             1, -1,  1,
+            -1, -1,  1,
+        ];
+        for (let i = 0; i < vertices.length; i++) {
+            vertices[i] *= 2;
         }
-        const vertices = cube_data.vertices;
-        const indices = cube_data.indices;
+
+        const indices = [
+            0, 1, 2,   0, 2, 3,      // Front
+            4, 5, 6,   4, 6, 7,      // Back
+            8, 9,10,   8,10,11,      // Right
+           12,13,14,  12,14,15,      // Left
+           16,17,18,  16,18,19,      // Top
+           20,21,22,  20,22,23       // Bottom
+        ];
 
         const tex_coords = [
-            // Front
-            0, 0,   2, 0,   2, 2,   0, 2,
-            // Back
-            0, 0,   2, 0,   2, 2,   0, 2,
-            // Top
-            0, 0,   2, 0,   2, 2,   0, 2,
-            // Bottom
-            0, 0,   2, 0,   2, 2,   0, 2,
-            // Right
-            0, 0,   2, 0,   2, 2,   0, 2,
-            // Left
-            0, 0,   2, 0,   2, 2,   0, 2,
+            // Each face gets the same texture coordinates
+            0, 0,  1, 0,  1, 1,  0, 1,  // Front
+            0, 0,  1, 0,  1, 1,  0, 1,  // Back
+            0, 0,  1, 0,  1, 1,  0, 1,  // Right
+            0, 0,  1, 0,  1, 1,  0, 1,  // Left
+            0, 0,  1, 0,  1, 1,  0, 1,  // Top
+            0, 0,  1, 0,  1, 1,  0, 1,  // Bottom
         ];
 
         // Copy from local file HW11/Split/textures/json/wall1.json after running img_converter.py
