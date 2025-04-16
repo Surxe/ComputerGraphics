@@ -68,8 +68,6 @@ class Guard extends Character {
         else {
             this.position_velocities[2] = speed * (Math.random() * .5 + .5)
         }
-
-        console.log('ra')
     }
 
     on_collision(other_actor) {

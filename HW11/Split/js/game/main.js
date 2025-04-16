@@ -147,7 +147,6 @@ test_enemy1 = new Enemy();
 game_engine.add_actor(test_enemy1);
 
 // TODO:
-// 3. Simplify enemies velocity to be constant, but invert magnitude when they hit a wall.
 // 4. Setup billboarding such that enemies always look at the camera
 
 // Main loop
