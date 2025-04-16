@@ -104,7 +104,11 @@ function create_object_in_maze(class_ref, location_indices="random") {
         location_indices = get_random_empty_maze_location();
     }
 
-    const location = [maze_index_to_location(location_indices[0]), 0, maze_index_to_location(location_indices[1])];
+    var y = 0;
+    if (class_ref === Guard) {
+        y = 6;
+    }
+    const location = [maze_index_to_location(location_indices[0]), y, maze_index_to_location(location_indices[1])];
     const obj = new class_ref(location);
     game_engine.add_actor(obj);
 }
