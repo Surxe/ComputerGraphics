@@ -1,0 +1,1718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebGL First-Person Camera</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <canvas id="glcanvas"></canvas>
+
+    <section id="console">console</section>
+
+    <script>
+        class GLSetup {
+            constructor(canvas_id) {
+                this.canvas_id = canvas_id;
+                this.MAX_POINT_LIGHTS = 4;
+                this.MAX_DIR_LIGHTS = 4;
+                this.MAX_SPOT_LIGHTS = 4;
+                this.point_lights = [];
+                this.directional_lights = [];
+                this.spot_lights = [];
+            }
+
+            init() {
+                const canvas = document.getElementById(this.canvas_id);
+                const gl = canvas.getContext("webgl");
+                this.canvas = canvas;
+                this.gl = gl;
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerWidth * (9/16);
+                gl.viewport(0, 0, canvas.width, canvas.height);
+
+                const vs_source = `
+                    attribute vec3 a_position;
+                    attribute vec3 a_color;
+                    attribute vec2 a_tex_coord;
+
+                    uniform mat4 u_matrix;
+
+                    varying vec3 v_color;
+                    varying vec3 v_frag_position;
+                    varying vec2 v_texcoord;
+
+                    void main() {
+                        vec4 world_position = u_matrix * vec4(a_position, 1.0);
+                        gl_Position = world_position;
+                        v_frag_position = a_position;
+                        v_color = a_color;
+                        v_texcoord = a_tex_coord;  // Ensure this matches
+                    }
+                `;
+
+                const fs_source = `
+                    precision mediump float;
+
+                    varying vec3 v_color;
+                    varying vec3 v_frag_position;
+                    varying vec2 v_texcoord;
+
+                    uniform float u_ambient_strength;
+                    uniform vec3 u_view_position;
+
+                    // Lighting
+                    uniform int u_num_point_lights;
+                    uniform vec3 u_point_light_positions[${this.MAX_POINT_LIGHTS}];
+                    uniform vec3 u_point_light_colors[${this.MAX_POINT_LIGHTS}];
+
+                    uniform int u_num_dir_lights;
+                    uniform vec3 u_dir_light_directions[${this.MAX_DIR_LIGHTS}];
+                    uniform vec3 u_dir_light_colors[${this.MAX_DIR_LIGHTS}];
+
+                    uniform int u_num_spot_lights;
+                    uniform vec3 u_spot_positions[${this.MAX_SPOT_LIGHTS}];
+                    uniform vec3 u_spot_directions[${this.MAX_SPOT_LIGHTS}];
+                    uniform vec3 u_spot_colors[${this.MAX_SPOT_LIGHTS}];
+                    uniform float u_spot_cutoffs[${this.MAX_SPOT_LIGHTS}];
+
+                    // Texture support
+                    uniform bool u_use_texture;
+                    uniform sampler2D u_sampler;
+
+                    void main() {
+                        vec3 base_color = u_use_texture
+                            ? texture2D(u_sampler, v_texcoord).rgb
+                            : v_color;
+
+                        vec3 ambient = u_ambient_strength * base_color;
+                        vec3 result = ambient;
+
+                        vec3 norm = normalize(vec3(0.0, 1.0, 0.0));
+
+                        // Point lights
+                        for (int i = 0; i < ${this.MAX_POINT_LIGHTS}; ++i) {
+                            if (i >= u_num_point_lights) break;
+                            vec3 light_dir = normalize(u_point_light_positions[i] - v_frag_position);
+                            float diff = max(dot(norm, light_dir), 0.0);
+                            result += diff * base_color * u_point_light_colors[i];
+                        }
+
+                        // Directional lights
+                        for (int i = 0; i < ${this.MAX_DIR_LIGHTS}; ++i) {
+                            if (i >= u_num_dir_lights) break;
+                            vec3 light_dir = normalize(-u_dir_light_directions[i]);
+                            float diff = max(dot(norm, light_dir), 0.0);
+                            result += diff * base_color * u_dir_light_colors[i] * 0.25;
+                        }
+
+                        // Spotlights
+                        for (int i = 0; i < ${this.MAX_SPOT_LIGHTS}; ++i) {
+                            if (i >= u_num_spot_lights) break;
+                            vec3 light_dir = normalize(u_spot_positions[i] - v_frag_position);
+                            float theta = dot(light_dir, normalize(-u_spot_directions[i]));
+                            float epsilon = 0.01;
+                            float intensity = smoothstep(u_spot_cutoffs[i] - epsilon, u_spot_cutoffs[i], theta);
+                            float diff = max(dot(norm, light_dir), 0.0);
+                            vec3 diffuse = diff * base_color * u_spot_colors[i] * intensity;
+                            result += diffuse;
+                        }
+
+                        gl_FragColor = vec4(result, 1.0);
+                    }
+                `;
+
+
+                const vertex_shader = this.compile_shader(vs_source, gl.VERTEX_SHADER);
+                const fragment_shader = this.compile_shader(fs_source, gl.FRAGMENT_SHADER);
+                const program = gl.createProgram();
+                gl.attachShader(program, vertex_shader);
+                gl.attachShader(program, fragment_shader);
+                gl.linkProgram(program);
+                gl.useProgram(program);
+
+                const ambient_strength = 0.2;
+                const view_position = [5.0, 1.0, 5.0];
+                gl.uniform1f(gl.getUniformLocation(program, "u_ambient_strength"), ambient_strength);
+                gl.uniform3fv(gl.getUniformLocation(program, "u_view_position"), new Float32Array(view_position));
+
+                return [gl, program, canvas];
+            }
+
+            compile_shader(source, type) {
+                const shader = this.gl.createShader(type);
+                this.gl.shaderSource(shader, source);
+                this.gl.compileShader(shader);
+                if (!this.gl.getShaderParameter(shader, this.gl.COMPILE_STATUS)) {
+                    console.error(this.gl.getShaderInfoLog(shader));
+                    return null;
+                }
+                return shader;
+            }
+
+            add_point_light(light) {
+                if (this.point_lights.length < this.MAX_POINT_LIGHTS) {
+                    this.point_lights.push(light);
+                    this.upload_point_lights();
+                }
+            }
+
+            add_directional_light(light) {
+                if (this.directional_lights.length < this.MAX_DIR_LIGHTS) {
+                    this.directional_lights.push(light);
+                    this.upload_directional_lights();
+                }
+            }
+
+            add_spot_light(light) {
+                if (this.spot_lights.length < this.MAX_SPOT_LIGHTS) {
+                    this.spot_lights.push(light);
+                    this.upload_spot_lights();
+                }
+            }
+
+            upload_point_lights() {
+                const gl = this.gl;
+                const program = gl.getParameter(gl.CURRENT_PROGRAM);
+                const u_num = gl.getUniformLocation(program, "u_num_point_lights");
+                const u_positions = gl.getUniformLocation(program, "u_point_light_positions");
+                const u_colors = gl.getUniformLocation(program, "u_point_light_colors");
+
+                const positions = [], colors = [];
+                for (const light of this.point_lights) {
+                    positions.push(...light.position);
+                    colors.push(...light.color);
+                }
+                while (positions.length < 3 * this.MAX_POINT_LIGHTS) positions.push(0);
+                while (colors.length < 3 * this.MAX_POINT_LIGHTS) colors.push(0);
+
+                gl.uniform1i(u_num, this.point_lights.length);
+                gl.uniform3fv(u_positions, new Float32Array(positions));
+                gl.uniform3fv(u_colors, new Float32Array(colors));
+            }
+
+            upload_directional_lights() {
+                const gl = this.gl;
+                const program = gl.getParameter(gl.CURRENT_PROGRAM);
+                const u_num = gl.getUniformLocation(program, "u_num_dir_lights");
+                const u_directions = gl.getUniformLocation(program, "u_dir_light_directions");
+                const u_colors = gl.getUniformLocation(program, "u_dir_light_colors");
+
+                const directions = [], colors = [];
+                for (const light of this.directional_lights) {
+                    directions.push(...light.direction);
+                    colors.push(...light.color);
+                }
+                while (directions.length < 3 * this.MAX_DIR_LIGHTS) directions.push(0);
+                while (colors.length < 3 * this.MAX_DIR_LIGHTS) colors.push(0);
+
+                gl.uniform1i(u_num, this.directional_lights.length);
+                gl.uniform3fv(u_directions, new Float32Array(directions));
+                gl.uniform3fv(u_colors, new Float32Array(colors));
+            }
+
+            upload_spot_lights() {
+                const gl = this.gl;
+                const program = gl.getParameter(gl.CURRENT_PROGRAM)
+                const u_num = gl.getUniformLocation(program, "u_num_spot_lights");
+                const u_positions = gl.getUniformLocation(program, "u_spot_positions");
+                const u_directions = gl.getUniformLocation(program, "u_spot_directions");
+                const u_colors = gl.getUniformLocation(program, "u_spot_colors");
+                const u_cutoffs = gl.getUniformLocation(program, "u_spot_cutoffs");
+
+                const positions = [], directions = [], colors = [], cutoffs = [];
+                for (const light of this.spot_lights) {
+                    positions.push(...light.position);
+                    directions.push(...light.direction);
+                    colors.push(...light.color);
+                    cutoffs.push(Math.cos(light.cutoff_degrees * Math.PI / 180));
+                }
+                while (positions.length < 3 * this.MAX_SPOT_LIGHTS) positions.push(0);
+                while (directions.length < 3 * this.MAX_SPOT_LIGHTS) directions.push(0);
+                while (colors.length < 3 * this.MAX_SPOT_LIGHTS) colors.push(0);
+                while (cutoffs.length < this.MAX_SPOT_LIGHTS) cutoffs.push(0);
+
+                gl.uniform1i(u_num, this.spot_lights.length);
+                gl.uniform3fv(u_positions, new Float32Array(positions));
+                gl.uniform3fv(u_directions, new Float32Array(directions));
+                gl.uniform3fv(u_colors, new Float32Array(colors));
+                gl.uniform1fv(u_cutoffs, new Float32Array(cutoffs));
+            }
+
+            upload_lights() {
+                this.upload_point_lights();
+                this.upload_directional_lights();
+                this.upload_spot_lights();
+            }
+
+            tick() {
+                this.upload_lights();
+            }
+        }
+    </script>
+    
+    <script>
+        class Light {
+            constructor(color) {
+                this.color = color;
+            }
+
+            tick(actor_moved) {
+                // Default implementation does nothing
+            }
+
+            move() {
+                // Default implementation does nothing
+            }
+        }
+    </script>
+    <script>
+        class PointLight extends Light {
+            constructor(location) {
+                const color = [1, 1, 1]; // White light
+                super(color);
+                this.position = location;
+            }
+        }
+    </script>
+    <script>
+        class DirectionalLight extends Light {
+            constructor() {
+                const direction = [0, -1, 0];
+                const color = [1, 1, 1]; // White light
+                super(color);
+                this.direction = direction;
+            }
+        }
+    </script>
+    <script>
+        class SpotLight extends Light {
+            constructor(location, direction=[0, -1, 0], cutoff_degrees=30) { //face down by default
+                super([1, 1, 1]); // White light color
+
+                this.position = location;
+                this.position_velocities = [0, 0, 0]; // Initialize position velocities
+                this.rotation_velocities = [0, 0, 0];
+                this.direction = direction;
+                this.cutoff_degrees = cutoff_degrees;
+            }
+
+            get_next_position() {
+                // Add position_velocities to current position
+                const new_positions = this.position.slice(); // Create a copy of the current position
+                for (let i = 0; i < 3; i++) {
+                    new_positions[i] += this.position_velocities[i];
+                }
+
+                return new_positions; // Return the updated position
+            }
+
+            get_next_direction() {
+                const yaw = this.rotation_velocities[1]; // Yaw rotation velocity in radians
+
+                const new_direction = this.direction.slice(); // Create a copy of the current direction
+                
+                // Update the direction based on the yaw rotation velocity. Each dimension of direction can be from [-1, ... 1]
+                const x = new_direction[0];
+                const y = new_direction[1];
+                const z = new_direction[2];
+                new_direction[0] = x * Math.cos(yaw) - z * Math.sin(yaw); // Update x based on yaw
+                new_direction[2] = x * Math.sin(yaw) + z * Math.cos(yaw); // Update z based on yaw
+                new_direction[1] = y; // Keep y unchanged
+
+                // Normalize the new direction vector to ensure it remains a unit vector
+                const length = Math.sqrt(new_direction[0]**2 + new_direction[1]**2 + new_direction[2]**2);
+                if (length > 0) {
+                    new_direction[0] /= length;
+                    new_direction[1] /= length;
+                    new_direction[2] /= length;
+                }
+                
+                return new_direction;
+            }
+
+            move() {
+                this.position = this.get_next_position(); // Update the position of the light
+                this.direction = this.get_next_direction(); // Update the direction of the light
+            }
+
+            tick(should_move) {
+                if (should_move) {
+                    this.move(); // Move the light if the actor moved
+                }
+            }
+        }
+    </script>
+
+    <script>
+        class Transform {
+            // position = [x, y, z]
+            static rotate_axes(position, degrees=[0, 0, 0]) {
+                let [x, y, z] = position;
+                let [x_rads, y_rads, z_rads] = degrees//degrees.map(deg => deg * (Math.PI / 180)); // Convert degrees to radians
+
+                // Rotation around X-axis
+                let x_cos = Math.cos(x_rads), x_sin = Math.sin(x_rads);
+                let y1 = y * x_cos - z * x_sin;
+                let z1 = y * x_sin + z * x_cos;
+
+                // Rotation around Y-axis
+                let y_cos = Math.cos(y_rads), y_sin = Math.sin(y_rads);
+                let x2 = x * y_cos + z1 * y_sin;
+                let new_z = -x * y_sin + z1 * y_cos;
+
+                // Rotation around Z-axis
+                let z_cos = Math.cos(z_rads), z_sin = Math.sin(z_rads);
+                let new_x = x2 * z_cos - y1 * z_sin;
+                let new_y = x2 * z_sin + y1 * z_cos;
+
+                return [new_x, new_y, new_z];
+            }
+
+            // positions = [[x1, y1, z1], [x2, y2, z2], ...]
+            static rotate_positions(positions, degrees=[0, 0, 0]) {
+                var positions = Transform.flat_to_threes([...positions]); // Convert flat array to 3D array
+                for (var vertex_i = 0; vertex_i < positions.length; vertex_i++) {
+                    positions[vertex_i] = Transform.rotate_axes(positions[vertex_i], degrees);
+                }
+                return this.threes_to_flat(positions);
+            }
+
+            // [a, b, c, d, e, f] -> [[a, b, c], [d, e, f]]
+            static flat_to_threes(array) {
+                var threes = [];
+                for (var i = 0; i < array.length; i += 3) {
+                    threes.push([array[i], array[i + 1], array[i + 2]]);
+                }
+                return threes;
+            }
+
+            // [[a, b, c], [d, e, f]] -> [a, b, c, d, e, f]
+            static threes_to_flat(array) {
+                var flat = [];
+                for (var i = 0; i < array.length; i++) {
+                    flat.push(...array[i]);
+                }
+                return flat;
+            }
+        }
+    </script>
+    <script>
+        class GameObject {
+            constructor(local_vertices, location=[0, 0, 0]) {
+                this.initial_vertices = local_vertices;
+                this.local_vertices = local_vertices; // local vertices relative to the object
+                this.location = location;
+                this.globalize_vertices();
+            }
+
+            globalize_vertices() {
+                // Get the global location of the object by adding entity's location to its local vertices
+                const globalized_verts = this.local_vertices.map((v, i) => {
+                    if (i % 3 === 0) { // x coordinate
+                        return v + this.location[0];
+                    } else if (i % 3 === 1) { // y coordinate
+                        return v + this.location[1];
+                    } else { // z coordinate
+                        return v + this.location[2];
+                    }
+                });
+
+                this.vertices = [...globalized_verts];
+            }
+
+            get_next_position(position_velocities, rotation_velocities=null) {
+                var new_vertices = [...this.local_vertices];
+
+                // Rotate
+                // Assuming rotation_velocities is an array of [x, y, z] angles in radians
+                if (rotation_velocities) {
+                    new_vertices = Transform.rotate_positions(new_vertices, rotation_velocities);
+                }
+
+                // Translate
+                for (let i = 0; i < new_vertices.length; i += 3) {
+                    new_vertices[i] += position_velocities[0];
+                    new_vertices[i+1] += position_velocities[1];
+                    new_vertices[i+2] += position_velocities[2];
+                }
+
+                return new_vertices;
+            }
+
+            move(position_velocities, rotation_velocities) {
+                this.local_vertices = this.get_next_position(position_velocities, rotation_velocities);
+                this.globalize_vertices();
+            }
+        }
+    </script>
+    <script>
+        class Entity extends GameObject {
+            constructor(vertices, indices, colors, location) {
+                super(vertices, location);
+                this.colors = colors;
+
+                this.position_buffer = gl.createBuffer();
+                this.color_buffer = gl.createBuffer();
+                this.indices = indices ? [...indices] : null;
+                if (this.indices) {
+                    this.index_buffer = gl.createBuffer();
+                }
+
+                this.vertex_count = this.vertices.length / 3;
+            }
+
+            buffer() {
+                this.buffer_vertices();
+                this.buffer_colors();
+                if (this.indices) {
+                    this.buffer_indices();
+                }
+            }
+
+            buffer_vertices() {
+                gl.bindBuffer(gl.ARRAY_BUFFER, this.position_buffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.vertices), gl.STATIC_DRAW);
+            }
+            buffer_colors() {
+                gl.bindBuffer(gl.ARRAY_BUFFER, this.color_buffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.colors), gl.STATIC_DRAW);
+            }
+            buffer_indices() {
+                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.index_buffer);
+                gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(this.indices), gl.STATIC_DRAW);
+            }
+
+            render() {
+                this.buffer();
+
+                // Disable texture usage for plain Entities
+                const use_texture_location = gl.getUniformLocation(program, "u_use_texture");
+                gl.uniform1i(use_texture_location, false);
+
+                gl.bindBuffer(gl.ARRAY_BUFFER, this.position_buffer); //if this extra line is removed it will not work for some reason
+                const position_location = gl.getAttribLocation(program, "a_position");
+                gl.enableVertexAttribArray(position_location);
+                gl.vertexAttribPointer(position_location, 3, gl.FLOAT, false, 0, 0);
+
+                gl.bindBuffer(gl.ARRAY_BUFFER, this.color_buffer); //if this extra line is removed it will not work for some reason
+                const color_location = gl.getAttribLocation(program, "a_color");
+                gl.enableVertexAttribArray(color_location);
+                gl.vertexAttribPointer(color_location, 3, gl.FLOAT, false, 0, 0);
+
+                if (this.indices) {
+                    gl.drawElements(gl.TRIANGLES, this.indices.length, gl.UNSIGNED_SHORT, 0);
+                }
+                else {
+                    gl.drawArrays(gl.TRIANGLES, 0, this.vertex_count);
+                }
+            }
+        }
+    </script>
+    <script>
+        class TexturedEntity extends Entity {
+            constructor(vertices, indices, tex_coords, texture_data, width, height, location) {
+                const colors = [0, 0, 0] // will be overridden by texture anyways, this is filler data
+
+                // Create Entity
+                super(vertices, indices, colors, location);
+
+                // Create texture
+                this.tex_coords = tex_coords;
+                this.texture_buffer = gl.createBuffer();
+                this.texture = gl.createTexture();
+                gl.bindTexture(gl.TEXTURE_2D, this.texture);
+
+                // Upload texture data
+                const internalFormat = texture_data.length === width * height * 4 ? gl.RGBA : gl.RGB; // use either rgba or rgb
+                gl.texImage2D(
+                    gl.TEXTURE_2D, 0, internalFormat, width, height, 0,
+                    internalFormat, gl.UNSIGNED_BYTE, new Uint8Array(texture_data)
+                );
+
+                // Set texture parameters
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+                this.has_texture = true;
+            }
+
+            buffer_tex_coords() {
+                gl.bindBuffer(gl.ARRAY_BUFFER, this.texture_buffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.tex_coords), gl.STATIC_DRAW);
+            }
+
+            buffer() {
+                super.buffer();
+                this.buffer_tex_coords();
+            }
+
+            render() {
+                this.buffer();
+
+                // Position attribute
+                gl.bindBuffer(gl.ARRAY_BUFFER, this.position_buffer);
+                const position_location = gl.getAttribLocation(program, "a_position");
+                gl.enableVertexAttribArray(position_location);
+                gl.vertexAttribPointer(position_location, 3, gl.FLOAT, false, 0, 0);
+
+                // Color attribute
+                gl.bindBuffer(gl.ARRAY_BUFFER, this.color_buffer);
+                const color_location = gl.getAttribLocation(program, "a_color");
+                gl.enableVertexAttribArray(color_location);
+                gl.vertexAttribPointer(color_location, 3, gl.FLOAT, false, 0, 0);
+
+                // Texture coordinate attribute
+                gl.bindBuffer(gl.ARRAY_BUFFER, this.texture_buffer);
+                const texcoord_location = gl.getAttribLocation(program, "a_tex_coord");
+                gl.enableVertexAttribArray(texcoord_location);
+                gl.vertexAttribPointer(texcoord_location, 2, gl.FLOAT, false, 0, 0);
+
+                // Set texture uniforms
+                const use_texture_location = gl.getUniformLocation(program, "u_use_texture");
+                gl.uniform1i(use_texture_location, this.has_texture ? 1 : 0);
+
+                if (this.has_texture) {
+                    gl.activeTexture(gl.TEXTURE0);
+                    gl.bindTexture(gl.TEXTURE_2D, this.texture);
+
+                    const sampler_location = gl.getUniformLocation(program, "u_sampler");
+                    gl.uniform1i(sampler_location, 0); // Texture unit 0
+                }
+
+                if (this.indices) {
+                    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.index_buffer);
+                    gl.drawElements(gl.TRIANGLES, this.indices.length, gl.UNSIGNED_SHORT, 0);
+                } else {
+                    gl.drawArrays(gl.TRIANGLES, 0, this.vertex_count);
+                }
+            }
+        }
+    </script>
+    <script>
+        class TriggerBox extends GameObject{
+            constructor(location=[0, 0, 0], size=[1, 1, 1]) {
+                // Define the 8 vertices of a cube, assuming the center of the box is at the location
+                const [x, y, z] = location; //location relative to entity's location
+                const [width, height, depth] = size;
+
+                var vertices = [
+                    // Front face
+                    x - width / 2, y - height / 2, z - depth / 2,
+                    x + width / 2, y - height / 2, z - depth / 2,
+                    x + width / 2, y + height / 2, z + depth / 2,
+                    x - width / 2, y + height / 2, z + depth / 2,
+
+                    // Back face
+                    x - width / 2, y - height / 2, z - depth / 2,
+                    x + width / 2, y - height / 2, z - depth / 2,
+                    x + width / 2, y + height / 2, z + depth / 2,
+                    x - width / 2, y + height / 2, z + depth / 2,
+                ];
+
+                super(vertices, location); // Call the parent constructor
+            }
+
+            get_global_verts(entity_global_location, vertices=this.vertices) {
+                // Get the global location of the trigger box by adding entity's location to its local vertices
+                // Default vertices to the instance's *current* vertices
+                const trigger_box_local_vertices = vertices;
+                return trigger_box_local_vertices.map((v, i) => {
+                    if (i % 3 === 0) { // x coordinate
+                        return v + entity_global_location[0];
+                    } else if (i % 3 === 1) { // y coordinate
+                        return v + entity_global_location[1];
+                    } else { // z coordinate
+                        return v + entity_global_location[2];
+                    }
+                });
+            }
+        }
+    </script>
+    <script>
+        class Actor {
+            constructor(entity, trigger_boxes, moveable=false, position_velocities=[0, 0, 0], rotation_velocities=[0, 0, 0]) {
+                this.entity = entity; // The graphical representation (Entity)
+                this.trigger_boxes = trigger_boxes; // The bounding box (TriggerBox)
+                this.moveable = moveable;
+                this.position_velocities = position_velocities; // Position velocities
+                this.rotation_velocities = rotation_velocities; // Rotation velocities
+                this.should_destroy = false;
+                this.light = null; // Optional light component
+            }
+
+            render() {
+                this.entity.render();
+            }
+
+            check_trigger_collision(my_global_verts, other_actor) {
+                const other_entity_global_location = other_actor.entity.location;
+                
+                for (var other_trigger_box of other_actor.trigger_boxes) {
+                    const other_global_verts = other_trigger_box.get_global_verts(other_entity_global_location);
+                    if (is_overlapping(my_global_verts, other_global_verts)) {
+                        this.on_collision(other_actor); // Call the collision handler
+                        other_actor.on_collision(this); // Call the collision handler for the other actor
+                        return true; // Collision detected
+                    }
+                }
+                
+                return false; // No collision detected
+            }
+
+            on_collision(other_actor) {
+                // by default, do nothing. can be overridden by subclasses
+            }
+
+            on_destroy() {
+                
+            }
+
+            move(other_actors) {
+                var will_collide = false;
+
+                for (var other_actor of other_actors) {
+                    // Get next position for all tboxes
+                    var next_tbox_positions = [];
+                    for (var trigger_box of this.trigger_boxes) {
+                        next_tbox_positions.push(trigger_box.get_next_position(this.position_velocities));
+                    }
+
+                    // Check for collisions with other actors
+                    for (var i = 0; i < this.trigger_boxes.length; i++) {
+                        const next_tbox_position = next_tbox_positions[i];
+                        const this_entity_global_location = this.entity.location;
+                        const next_tbox_global_verts = this.trigger_boxes[i].get_global_verts(this_entity_global_location, next_tbox_position);
+                        
+                        if (this.check_trigger_collision(next_tbox_global_verts, other_actor)) {
+                            will_collide = true; // Collision detected
+                            break;
+                        }
+                    }
+
+                    if (will_collide) {
+                        break; // Exit the loop if a collision is detected
+                    }
+                }
+
+                // Move entity and all tboxes
+                if (!will_collide) {
+                    this.entity.move(this.position_velocities, this.rotation_velocities); // Move the entity based on its position velocities and rotation velocities
+                    for (var j = 0; j < this.trigger_boxes.length; j++) {
+                        this.trigger_boxes[j].move(this.position_velocities, 0); // Move the trigger boxes based on the same velocities
+                    }
+                }
+
+                return !will_collide; // bool: "moved"
+            }
+
+            tick(other_actors) {
+                if (this.moveable) {
+                    const actor_moved = this.move(other_actors); // Move the actor and see if it moved successfully
+                    if (this.light) {
+                        this.light.tick(actor_moved); // Update the light component if it exists
+                    }
+                }
+            }
+
+            attach_light(light) {
+                this.light = light; // Attach a light component to the actor
+            }
+        }
+
+        function is_overlapping(a, b) { // where a and b are axis aligned arrays of 8 verts (length 24)
+            return (
+                a[0] <= b[3] && a[3] >= b[0] && // x-axis overlap
+                a[1] <= b[7] && a[7] >= b[1] && // y-axis overlap
+                a[2] <= b[11] && a[11] >= b[2] // z-axis overlap
+            );
+        }
+    </script>
+    <script>
+        class Character extends Actor {
+            constructor(health, ...args) {
+                super(...args); // Call the parent constructor
+                this.health = health; // Initial health of the character
+            }
+
+            // this received a hit of damage damage
+            hit_received(damage) {
+                this.health -= damage; 
+                if (this.health <= 0) {
+                    this.should_destroy = true; // die
+                }
+                else {
+                    console.log("Remaining health: " + this.health); // Log remaining health
+                }
+            }
+        }
+    </script>
+    <script>
+        class Projectile extends Actor {
+            constructor(...args) {
+                super(...args);
+            }
+
+            on_collision(other_actor) {
+                // Projectile collided with an asteroid, destroy the projectile
+                if (other_actor instanceof Character) {
+                    console.log("Projectile hit an asteroid!");
+                    this.should_destroy = true;
+                }
+            }
+        }
+    </script>
+    <script>
+        class CameraActor extends Actor {
+            constructor(...args) {
+                super(...args); // Call the parent constructor
+                this.position_speed = 0.2 * tick_rate_scale;
+                this.rotation_speed = 0.06 * tick_rate_scale;
+
+                // Attach a spot light to the camera
+                const spot_light_direction = [0, 0, 1];
+                const spot_light_init_location = [this.entity.location[0], this.entity.location[1], this.entity.location[2] + .5]; // position light just in front of camera
+                const spot_light = new SpotLight(spot_light_init_location, spot_light_direction, 25); // Position the light just below the actor
+                this.attach_light(spot_light);
+                gl_setup.add_spot_light(spot_light);
+            }
+
+            update_velocities(keys_down) {
+                // Reset velocities each frame
+                var position_velocities = [0, 0, 0];
+                var rotation_velocities = [0, 0, 0];
+
+                const angle = this.entity.angle;
+
+                var position_speed = this.position_speed;
+                if (keys_down["c"]) {
+                    position_speed *= 3; // Triple speed
+                }
+
+                if (keys_down["w"]) {
+                    position_velocities[0] += position_speed * Math.sin(angle);
+                    position_velocities[2] -= position_speed * Math.cos(angle);
+                }
+
+                if (keys_down["s"]) {
+                    position_velocities[0] -= position_speed * Math.sin(angle);
+                    position_velocities[2] += position_speed * Math.cos(angle);
+                }
+
+                if (keys_down["z"]) {
+                    position_velocities[1] += position_speed;
+                }
+
+                if (keys_down["x"]) {
+                    position_velocities[1] -= position_speed;
+                }
+
+                if (keys_down["a"]) {
+                    rotation_velocities[1] -= this.rotation_speed;
+                }
+
+                if (keys_down["d"]) {
+                    rotation_velocities[1] += this.rotation_speed;
+                }
+
+                this.position_velocities = position_velocities;
+                this.rotation_velocities = rotation_velocities;
+            }
+
+            tick(p1) {
+                // Update attached light's velocity to match mine
+                this.light.position_velocities = this.position_velocities;
+                this.light.rotation_velocities = this.rotation_velocities;
+
+                super.tick(p1);
+            }
+        }
+    </script>
+    <script>
+        class CameraObject extends GameObject {
+            constructor(location=[0, 0, 0]) {
+                super([0, 0, 0], location); // No local vertices for the camera
+                this.angle = 0;
+            }
+
+            move(position_velocities, rotation_velocities) {
+                super.move(position_velocities, null); // translate
+                this.angle += rotation_velocities[1]; // rotate (not using the super class for rotation atm)
+            }
+
+            get_view_matrix() {
+                const cosA = Math.cos(this.angle), sinA = Math.sin(this.angle);
+                const [x, y, z] = this.vertices;
+
+                return [
+                    cosA, 0, sinA, -x * cosA - z * sinA,
+                    0,    1, 0,    -y,
+                    -sinA, 0, cosA, -x * -sinA - z * cosA,
+                    0,    0, 0,    1
+                ];
+            }
+
+            perspective(fov=(Math.PI / 4), aspect=(canvas.width / canvas.height), near=0.1, far=500) {
+                const f = 1.0 / Math.tan(fov / 2);
+                return [
+                    f / aspect, 0,  0,  0,
+                    0,  f,  0,  0,
+                    0,  0,  (far + near) / (near - far), -1,
+                    0,  0,  (2 * far * near) / (near - far),  0
+                ];
+            }
+        }
+    </script>
+    <script>
+        class GameEngine {
+            constructor(camera_actor) {
+                this.camera_actor = camera_actor;
+                this.actors = [];
+                this.matrix_location = gl.getUniformLocation(program, "u_matrix");
+            }
+
+            add_actor(actor) {
+                this.actors.push(actor);
+            }
+
+            tick_actors() {
+                for (const actor of this.actors) {
+                    // Remove self from the list of actors to avoid self-collision
+                    var other_actors = this.actors.filter(a => a !== actor);
+
+                    // Move actor
+                    actor.tick(other_actors);
+                }
+
+                this.camera_actor.update_velocities(keys_down);
+                this.camera_actor.tick(this.actors); // Camera can collide with asteroids and ground
+            }
+
+            destroy_actors() {
+                for (var actor of this.actors) {
+                    if (actor.should_destroy) {
+                        // Remove
+                        this.actors = this.actors.filter(a => a !== actor); // Remove the actor from the list
+                        actor.on_destroy();
+                        console.log("Actor destroyed!");
+                    }
+                }
+
+                if (this.camera_actor.should_destroy) {
+                    this.camera_actor.on_destroy();
+                }
+            }
+
+            render() {
+                gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+                
+                const proj_matrix = this.camera_actor.entity.perspective();
+                const view_matrix = this.camera_actor.entity.get_view_matrix();
+            
+                let final_matrix = [];
+                for (let i = 0; i < 16; i++) {
+                    final_matrix[i] = proj_matrix[i % 4] * view_matrix[Math.floor(i / 4)] +
+                                    proj_matrix[(i % 4) + 4] * view_matrix[Math.floor(i / 4) + 4] +
+                                    proj_matrix[(i % 4) + 8] * view_matrix[Math.floor(i / 4) + 8] +
+                                    proj_matrix[(i % 4) + 12] * view_matrix[Math.floor(i / 4) + 12];
+                }
+            
+                gl.uniformMatrix4fv(this.matrix_location, false, new Float32Array(final_matrix));
+            
+                for (const actor of this.actors) {
+                    actor.render();
+                }
+            }
+
+            tick() {
+                this.tick_actors();
+                this.destroy_actors();
+                this.render();
+            }
+        }
+
+    </script>
+
+    <script>
+        function create_sphere(radius, lat_segments, long_segments, rgb) {
+            const verts = [];
+            const indices = [];
+            const colors = [];
+
+            // Create vertices
+            for (let lat = 0; lat <= lat_segments; lat++) {
+                const theta = (lat * Math.PI) / lat_segments;
+                const sin_theta = Math.sin(theta);
+                const cos_theta = Math.cos(theta);
+
+                for (let lon = 0; lon <= long_segments; lon++) {
+                    const phi = (lon * 2 * Math.PI) / long_segments;
+                    const sin_phi = Math.sin(phi);
+                    const cos_phi = Math.cos(phi);
+
+                    const x = radius * sin_theta * cos_phi;
+                    const y = radius * cos_theta + 2; // Raise the sphere to height 2
+                    const z = radius * sin_theta * sin_phi;
+
+                    verts.push(x, y, z);
+                    colors.push(rgb[0], rgb[1], rgb[2]);
+                }
+            }
+
+            // Create indices
+            for (let lat = 0; lat < lat_segments; lat++) {
+                for (let lon = 0; lon < long_segments; lon++) {
+                    const first = (lat * (long_segments + 1)) + lon;
+                    const second = first + long_segments + 1;
+
+                    indices.push(first, second, first + 1);
+                    indices.push(second, second + 1, first + 1);
+                }
+            }
+
+            return { vertices: verts, indices: indices, colors: colors };
+        }
+
+        function create_cube(sizes=[1, 1, 1], rgb=[1, 1, 1]) {
+            const [w, h, d] = sizes;
+
+            const vertices = [];
+            const indices = [];
+            const colors = [];
+
+            const half_w = w / 2;
+            const half_h = h / 2;
+            const half_d = d / 2;
+
+            // Define the 8 vertices of a cube
+            vertices.push(
+                // Front face
+                -half_w, -half_h, half_d,
+                half_w, -half_h, half_d,
+                half_w, half_h, half_d,
+                -half_w, half_h, half_d,
+
+                // Back face
+                -half_w, -half_h, -half_d,
+                half_w, -half_h, -half_d,
+                half_w, half_h, -half_d,
+                -half_w, half_h, -half_d
+            );
+            // Define the 12 triangles (2 per face) using indices
+            indices.push(
+                0, 1, 2, 0, 2, 3, // Front face
+                4, 5, 6, 4, 6, 7, // Back face
+                0, 1, 5, 0, 5, 4, // Left face
+                2, 3, 7, 2, 7, 6, // Right face
+                0, 3, 7, 0, 7, 4, // Top face
+                1, 2, 6, 1, 6, 5 // Bottom face
+            );
+
+            // Assign the same color to each vertex
+            for (let i = 0; i < vertices.length / 3; i++) {
+                colors.push(rgb[0], rgb[1], rgb[2]);
+            }
+            return {vertices: vertices, indices: indices, colors: colors};
+        }
+    </script>
+    <script>
+        class Bullet extends Actor {
+            constructor(camera_location, camera_angle, damage=1) {
+                // Create a bullet entity
+                var bullet_vertices = [
+                    // Front face
+                    -0.5, -0.5,  .5, // 0
+                    0.5, -0.5,  .5, // 1
+                    0.5,  0.5,  .5, // 2
+                    -0.5,  0.5,  .5, // 3
+
+                    // Back face
+                    -0.5, -0.5, -.5, // 4
+                    0.5, -0.5, -.5, // 5
+                    0.5,  0.5, -.5, // 6
+                    -0.5,  0.5, -.5  // 7
+                ]
+                // rotate the bullet to match the camera angle
+                bullet_vertices = Transform.rotate_positions(bullet_vertices, camera_angle);
+
+                const bullet_entity = new Entity(
+                    bullet_vertices,
+                    [
+                        // Front face
+                        0, 1, 2,
+                        0, 2, 3,
+
+                        // Back face
+                        4, 6, 5,
+                        4, 7, 6,
+
+                        // Top face
+                        3, 2, 6,
+                        3, 6, 7,
+
+                        // Bottom face
+                        0, 5, 1,
+                        0, 4, 5,
+
+                        // Right face
+                        1, 5, 6,
+                        1, 6, 2,
+
+                        // Left face
+                        0, 3, 7,
+                        0, 7, 4
+                    ],
+                    [
+                        .5, .5, .5,
+                        .5, .5, .5,
+                        .5, .5, .5,
+                        .5, .5, .5,
+                        .5, .5, .5,
+                        .5, .5, .5,
+                        .5, .5, .5,
+                        .5, .5, .5,
+                    ],
+                    [...camera_location], // Bullet location
+                )
+                const speed = 0.3 * tick_rate_scale; // Bullet speed
+                const velocities = [
+                    Math.sin(-camera_angle[1]) * speed,
+                    0,
+                    -Math.cos(-camera_angle[1]) * speed
+                ];
+
+                const trigger_boxes = [
+                    new TriggerBox([0, 0, 0], [1, 1, 1]) // Bullet entity with trigger box
+                ];
+
+                super(
+                    bullet_entity, // Entity
+                    trigger_boxes, // Trigger boxes
+                    true,
+                    velocities
+                );
+
+                this.damage = damage;
+            }
+        }
+    </script>
+    <script>
+        class Ground extends Actor {
+            constructor() {
+                const ground_radius = 100; // Cube w/ radius n will have area (2n)^2 not pi*r^2
+
+                const texture_data = 
+                [138, 185, 89, 255, 138, 185, 89, 255, 108, 171, 66, 255, 106, 171, 66, 255, 135, 182, 86, 255, 135, 182, 86, 255, 147, 194, 98, 255, 147, 194, 98, 255, 105, 166, 61, 255, 105, 166, 62, 255, 119, 180, 76, 255, 119, 180, 76, 255, 119, 180, 76, 255, 119, 180, 76, 255, 96, 157, 53, 255, 96, 157, 53, 255, 117, 178, 74, 255, 117, 178, 74, 255, 118, 179, 75, 255, 119, 179, 73, 255, 149, 196, 100, 255, 149, 196, 100, 255, 157, 204, 108, 255, 157, 204, 108, 255, 91, 154, 50, 255, 93, 154, 50, 255, 107, 168, 64, 255, 107, 168, 63, 255, 139, 186, 90, 255, 139, 186, 90, 255, 141, 188, 92, 255, 141, 188, 92, 255, 138, 185, 89, 255, 138, 185, 89, 255, 108, 171, 66, 255, 106, 171, 66, 255, 135, 182, 86, 255, 135, 182, 86, 255, 147, 194, 98, 255, 147, 194, 98, 255, 105, 166, 61, 255, 105, 166, 62, 255, 119, 180, 76, 255, 119, 180, 76, 255, 119, 180, 76, 255, 119, 180, 76, 255, 96, 157, 53, 255, 96, 157, 53, 255, 117, 178, 74, 255, 117, 178, 74, 255, 118, 179, 75, 255, 119, 179, 73, 255, 149, 196, 100, 255, 149, 196, 100, 255, 157, 204, 108, 255, 157, 204, 108, 255, 91, 154, 50, 255, 93, 154, 50, 255, 107, 168, 64, 255, 107, 168, 63, 255, 139, 186, 90, 255, 139, 186, 90, 255, 141, 188, 92, 255, 141, 188, 92, 255, 152, 199, 103, 255, 152, 199, 103, 255, 147, 192, 97, 255, 145, 192, 97, 255, 104, 167, 63, 255, 104, 167, 63, 255, 128, 191, 87, 255, 128, 191, 87, 255, 125, 186, 82, 255, 125, 186, 82, 255, 146, 192, 97, 255, 146, 193, 97, 255, 176, 223, 127, 255, 176, 223, 127, 255, 139, 186, 90, 255, 139, 186, 90, 255, 173, 220, 124, 255, 173, 220, 124, 255, 99, 160, 56, 255, 99, 160, 56, 255, 95, 158, 54, 255, 95, 159, 54, 255, 93, 156, 51, 255, 93, 156, 51, 255, 84, 148, 43, 255, 86, 147, 43, 255, 88, 149, 45, 255, 88, 149, 44, 255, 145, 192, 96, 255, 145, 192, 96, 255, 161, 208, 112, 255, 161, 208, 112, 255, 152, 199, 103, 255, 152, 199, 103, 255, 146, 193, 97, 255, 145, 192, 97, 255, 106, 167, 63, 255, 106, 167, 63, 255, 130, 191, 87, 255, 130, 191, 87, 255, 125, 186, 82, 255, 125, 186, 82, 255, 146, 192, 97, 255, 146, 193, 97, 255, 176, 223, 127, 255, 176, 223, 127, 255, 139, 186, 90, 255, 139, 186, 90, 255, 173, 220, 124, 255, 173, 220, 124, 255, 99, 160, 56, 255, 99, 160, 56, 255, 98, 159, 55, 255, 98, 159, 55, 255, 95, 156, 52, 255, 95, 156, 52, 255, 87, 148, 44, 255, 87, 148, 44, 255, 88, 149, 45, 255, 88, 149, 44, 255, 146, 193, 97, 255, 146, 193, 97, 255, 161, 208, 112, 255, 161, 208, 112, 255, 99, 164, 59, 255, 99, 164, 59, 255, 87, 151, 47, 255, 87, 152, 47, 255, 142, 189, 94, 255, 142, 189, 94, 255, 135, 182, 87, 255, 135, 182, 87, 255, 94, 156, 51, 255, 95, 156, 52, 255, 105, 169, 64, 255, 105, 169, 64, 255, 111, 175, 71, 255, 111, 175, 71, 255, 70, 133, 29, 255, 69, 133, 29, 255, 89, 153, 49, 255, 89, 153, 49, 255, 103, 164, 60, 255, 103, 164, 60, 255, 115, 176, 72, 255, 115, 176, 72, 255, 123, 184, 80, 255, 123, 184, 80, 255, 108, 169, 65, 255, 108, 169, 65, 255, 99, 160, 56, 255, 99, 160, 56, 255, 118, 182, 77, 255, 118, 181, 77, 255, 162, 210, 115, 255, 163, 210, 114, 255, 103, 164, 60, 255, 103, 164, 60, 255, 91, 152, 48, 255, 88, 153, 48, 255, 143, 190, 94, 255, 143, 190, 94, 255, 137, 184, 88, 255, 137, 184, 88, 255, 95, 156, 51, 255, 95, 156, 52, 255, 108, 169, 65, 255, 108, 169, 65, 255, 115, 176, 72, 255, 115, 176, 72, 255, 72, 133, 29, 255, 72, 133, 29, 255, 92, 153, 49, 255, 92, 153, 49, 255, 103, 164, 60, 255, 103, 164, 60, 255, 115, 176, 72, 255, 115, 176, 72, 255, 123, 184, 80, 255, 123, 184, 80, 255, 108, 169, 65, 255, 108, 169, 65, 255, 99, 160, 56, 255, 99, 160, 56, 255, 121, 182, 78, 255, 121, 182, 78, 255, 163, 211, 116, 255, 164, 211, 115, 255, 106, 167, 63, 255, 106, 167, 63, 255, 93, 154, 50, 255, 91, 155, 50, 255, 104, 164, 61, 255, 104, 165, 61, 255, 103, 164, 59, 255, 103, 163, 59, 255, 93, 154, 49, 255, 93, 154, 50, 255, 109, 170, 66, 255, 109, 170, 66, 255, 115, 176, 72, 255, 115, 176, 72, 255, 110, 171, 67, 255, 110, 171, 67, 255, 103, 164, 60, 255, 103, 164, 60, 255, 112, 173, 69, 255, 112, 173, 69, 255, 104, 165, 61, 255, 104, 165, 61, 255, 121, 182, 78, 255, 121, 182, 78, 255, 132, 184, 83, 255, 132, 185, 83, 255, 102, 163, 59, 255, 101, 164, 59, 255, 142, 193, 95, 255, 142, 193, 96, 255, 111, 173, 70, 255, 113, 172, 69, 255, 108, 169, 65, 255, 108, 169, 65, 255, 95, 156, 52, 255, 95, 156, 52, 255, 97, 158, 54, 255, 97, 158, 54, 255, 97, 158, 54, 255, 97, 158, 54, 255, 93, 154, 50, 255, 93, 154, 50, 255, 110, 171, 67, 255, 110, 171, 67, 255, 116, 177, 73, 255, 116, 177, 73, 255, 121, 182, 78, 255, 121, 182, 78, 255, 107, 168, 64, 255, 107, 168, 64, 255, 116, 177, 73, 255, 116, 177, 73, 255, 102, 163, 59, 255, 102, 163, 59, 255, 121, 182, 78, 255, 121, 182, 78, 255, 140, 188, 92, 255, 140, 187, 92, 255, 104, 165, 61, 255, 104, 165, 60, 255, 151, 197, 102, 255, 151, 198, 102, 255, 100, 163, 57, 255, 102, 163, 59, 255, 108, 169, 65, 255, 108, 169, 65, 255, 95, 156, 52, 255, 95, 156, 52, 255, 97, 158, 54, 255, 97, 158, 54, 255, 98, 159, 55, 255, 98, 159, 55, 255, 93, 154, 50, 255, 93, 154, 50, 255, 112, 173, 69, 255, 112, 173, 69, 255, 112, 173, 69, 255, 111, 173, 68, 255, 127, 187, 83, 255, 127, 187, 83, 255, 107, 169, 65, 255, 109, 168, 65, 255, 114, 175, 71, 255, 116, 174, 71, 255, 108, 169, 66, 255, 108, 169, 66, 255, 117, 179, 74, 255, 118, 179, 75, 255, 140, 188, 92, 255, 140, 187, 92, 255, 105, 166, 62, 255, 105, 166, 61, 255, 148, 195, 99, 255, 148, 195, 99, 255, 103, 165, 59, 255, 104, 165, 61, 255, 113, 174, 70, 255, 113, 174, 70, 255, 104, 165, 61, 255, 104, 165, 61, 255, 106, 167, 63, 255, 106, 167, 63, 255, 113, 174, 70, 255, 113, 174, 70, 255, 101, 162, 58, 255, 101, 162, 58, 255, 137, 198, 94, 255, 137, 198, 94, 255, 91, 152, 48, 255, 90, 152, 48, 255, 170, 217, 121, 255, 170, 217, 121, 255, 125, 172, 76, 255, 125, 172, 76, 255, 112, 173, 69, 255, 113, 173, 67, 255, 160, 207, 111, 255, 160, 207, 111, 255, 98, 161, 55, 255, 100, 161, 57, 255, 142, 190, 94, 255, 142, 189, 94, 255, 121, 182, 78, 255, 121, 182, 77, 255, 136, 183, 87, 255, 136, 183, 87, 255, 123, 186, 80, 255, 125, 186, 82, 255, 113, 174, 70, 255, 113, 174, 70, 255, 104, 165, 61, 255, 104, 165, 61, 255, 105, 166, 62, 255, 105, 166, 62, 255, 113, 174, 70, 255, 113, 174, 70, 255, 100, 161, 57, 255, 100, 161, 57, 255, 136, 197, 93, 255, 136, 197, 93, 255, 91, 152, 48, 255, 90, 152, 48, 255, 170, 217, 121, 255, 170, 217, 121, 255, 126, 172, 76, 255, 124, 173, 76, 255, 112, 173, 69, 255, 113, 173, 67, 255, 160, 207, 111, 255, 160, 207, 111, 255, 98, 161, 55, 255, 100, 161, 57, 255, 142, 189, 94, 255, 142, 188, 94, 255, 120, 181, 77, 255, 120, 181, 76, 255, 136, 182, 86, 255, 136, 182, 86, 255, 123, 186, 80, 255, 125, 186, 82, 255, 99, 160, 56, 255, 99, 160, 56, 255, 113, 174, 70, 255, 110, 175, 70, 255, 157, 204, 108, 255, 157, 204, 108, 255, 111, 173, 69, 255, 112, 173, 69, 255, 139, 200, 96, 255, 139, 200, 96, 255, 116, 177, 73, 255, 116, 177, 73, 255, 115, 176, 72, 255, 115, 176, 72, 255, 105, 166, 62, 255, 105, 166, 62, 255, 98, 159, 55, 255, 98, 159, 55, 255, 148, 195, 99, 255, 148, 195, 99, 255, 130, 177, 81, 255, 130, 177, 81, 255, 108, 171, 65, 255, 110, 171, 67, 255, 111, 172, 68, 255, 109, 172, 68, 255, 161, 208, 112, 255, 161, 208, 112, 255, 99, 161, 57, 255, 100, 161, 57, 255, 121, 182, 78, 255, 121, 182, 78, 255, 99, 160, 56, 255, 99, 160, 56, 255, 113, 174, 70, 255, 110, 175, 70, 255, 157, 204, 108, 255, 157, 204, 108, 255, 111, 173, 69, 255, 112, 173, 69, 255, 139, 200, 96, 255, 139, 200, 96, 255, 116, 177, 73, 255, 113, 178, 73, 255, 112, 178, 70, 255, 112, 178, 70, 255, 102, 168, 60, 255, 102, 168, 60, 255, 95, 161, 53, 255, 95, 161, 53, 255, 148, 195, 99, 255, 148, 195, 99, 255, 131, 175, 83, 255, 131, 175, 83, 255, 107, 172, 65, 255, 107, 173, 65, 255, 109, 173, 66, 255, 109, 173, 68, 255, 161, 208, 112, 255, 161, 207, 112, 255, 97, 163, 55, 255, 97, 163, 55, 255, 120, 182, 78, 255, 121, 182, 78, 255, 96, 157, 53, 255, 96, 157, 53, 255, 96, 157, 53, 255, 93, 158, 53, 255, 125, 172, 76, 255, 125, 172, 76, 255, 102, 164, 60, 255, 103, 164, 60, 255, 116, 177, 73, 255, 116, 177, 73, 255, 100, 161, 57, 255, 100, 160, 57, 255, 148, 195, 99, 255, 148, 195, 99, 255, 157, 204, 108, 255, 157, 204, 108, 255, 134, 181, 85, 255, 134, 181, 85, 255, 151, 198, 102, 255, 150, 198, 102, 255, 99, 160, 56, 255, 99, 160, 56, 255, 150, 195, 101, 255, 150, 197, 101, 255, 148, 195, 99, 255, 148, 195, 99, 255, 160, 207, 111, 255, 160, 207, 111, 255, 133, 180, 84, 255, 133, 180, 84, 255, 97, 160, 54, 255, 99, 160, 56, 255, 96, 157, 53, 255, 96, 157, 53, 255, 96, 157, 53, 255, 93, 158, 53, 255, 125, 172, 76, 255, 125, 172, 76, 255, 102, 164, 60, 255, 103, 164, 60, 255, 116, 177, 73, 255, 116, 177, 73, 255, 100, 161, 57, 255, 100, 160, 57, 255, 148, 195, 99, 255, 148, 195, 99, 255, 157, 204, 108, 255, 157, 204, 108, 255, 134, 181, 85, 255, 134, 181, 85, 255, 151, 198, 102, 255, 150, 198, 102, 255, 99, 160, 56, 255, 99, 160, 56, 255, 150, 195, 101, 255, 150, 197, 101, 255, 148, 195, 99, 255, 148, 195, 99, 255, 160, 207, 111, 255, 160, 207, 111, 255, 133, 180, 84, 255, 133, 180, 84, 255, 97, 160, 54, 255, 99, 160, 56, 255, 146, 193, 99, 255, 146, 193, 99, 255, 97, 157, 54, 255, 94, 159, 54, 255, 138, 185, 89, 255, 138, 185, 89, 255, 112, 174, 70, 255, 113, 174, 70, 255, 99, 160, 56, 255, 99, 160, 56, 255, 105, 166, 62, 255, 105, 165, 62, 255, 151, 198, 102, 255, 151, 198, 102, 255, 119, 183, 76, 255, 119, 183, 76, 255, 100, 164, 57, 255, 100, 164, 57, 255, 132, 196, 89, 255, 131, 196, 89, 255, 94, 155, 51, 255, 94, 155, 51, 255, 111, 176, 69, 255, 112, 176, 69, 255, 107, 171, 64, 255, 104, 172, 66, 255, 135, 182, 86, 255, 135, 181, 86, 255, 103, 167, 60, 255, 103, 167, 60, 255, 110, 174, 70, 255, 113, 174, 70, 255, 147, 194, 98, 255, 147, 194, 98, 255, 96, 159, 54, 255, 94, 159, 54, 255, 138, 185, 89, 255, 138, 185, 89, 255, 112, 174, 70, 255, 113, 174, 70, 255, 97, 160, 54, 255, 98, 160, 54, 255, 104, 166, 60, 255, 101, 167, 62, 255, 150, 198, 103, 255, 150, 198, 103, 255, 120, 182, 77, 255, 121, 182, 78, 255, 102, 163, 59, 255, 102, 163, 59, 255, 134, 195, 91, 255, 134, 195, 91, 255, 94, 155, 51, 255, 94, 155, 51, 255, 114, 175, 71, 255, 114, 175, 71, 255, 109, 170, 66, 255, 107, 170, 66, 255, 135, 182, 86, 255, 135, 181, 86, 255, 103, 166, 60, 255, 104, 166, 60, 255, 113, 173, 70, 255, 113, 174, 70, 255, 121, 168, 72, 255, 121, 168, 72, 255, 120, 183, 78, 255, 118, 183, 78, 255, 145, 192, 96, 255, 145, 192, 96, 255, 114, 176, 72, 255, 115, 176, 72, 255, 150, 197, 101, 255, 150, 197, 101, 255, 159, 206, 110, 255, 159, 205, 110, 255, 105, 166, 62, 255, 105, 166, 62, 255, 102, 163, 59, 255, 102, 163, 59, 255, 97, 158, 54, 255, 97, 158, 54, 255, 108, 169, 65, 255, 108, 169, 65, 255, 101, 162, 58, 255, 101, 162, 58, 255, 116, 177, 73, 255, 116, 177, 73, 255, 114, 175, 71, 255, 112, 175, 71, 255, 143, 190, 94, 255, 143, 190, 94, 255, 134, 181, 85, 255, 134, 181, 85, 255, 94, 157, 51, 255, 96, 157, 53, 255, 121, 168, 72, 255, 121, 168, 72, 255, 120, 183, 78, 255, 118, 183, 78, 255, 145, 192, 96, 255, 145, 192, 96, 255, 114, 176, 72, 255, 115, 176, 72, 255, 150, 197, 101, 255, 150, 197, 101, 255, 159, 206, 110, 255, 159, 205, 110, 255, 105, 166, 62, 255, 105, 166, 62, 255, 102, 163, 59, 255, 102, 163, 59, 255, 97, 158, 54, 255, 97, 158, 54, 255, 108, 169, 65, 255, 108, 169, 65, 255, 101, 162, 58, 255, 101, 162, 58, 255, 116, 177, 73, 255, 116, 177, 73, 255, 114, 175, 71, 255, 112, 175, 71, 255, 143, 190, 94, 255, 143, 190, 94, 255, 134, 181, 85, 255, 134, 181, 85, 255, 94, 157, 51, 255, 96, 157, 53, 255, 116, 179, 73, 255, 116, 179, 73, 255, 110, 174, 69, 255, 112, 173, 69, 255, 103, 168, 61, 255, 103, 167, 61, 255, 89, 150, 46, 255, 89, 150, 46, 255, 97, 162, 56, 255, 98, 162, 56, 255, 103, 167, 61, 255, 104, 166, 61, 255, 119, 180, 76, 255, 119, 180, 76, 255, 105, 166, 62, 255, 105, 166, 62, 255, 131, 180, 83, 255, 132, 179, 85, 255, 119, 180, 76, 255, 119, 180, 76, 255, 120, 181, 77, 255, 120, 181, 77, 255, 98, 159, 55, 255, 98, 159, 55, 255, 142, 191, 94, 255, 143, 190, 96, 255, 87, 151, 45, 255, 87, 151, 45, 255, 119, 183, 77, 255, 119, 183, 77, 255, 122, 184, 80, 255, 123, 184, 80, 255, 118, 179, 75, 255, 118, 179, 75, 255, 112, 173, 69, 255, 112, 173, 69, 255, 106, 167, 63, 255, 106, 167, 63, 255, 90, 151, 47, 255, 90, 151, 47, 255, 101, 162, 58, 255, 101, 162, 58, 255, 106, 167, 63, 255, 106, 167, 63, 255, 119, 180, 76, 255, 119, 180, 76, 255, 105, 166, 62, 255, 105, 166, 62, 255, 132, 180, 85, 255, 133, 180, 84, 255, 119, 180, 76, 255, 119, 180, 76, 255, 120, 181, 77, 255, 120, 181, 77, 255, 99, 160, 56, 255, 99, 160, 56, 255, 143, 191, 95, 255, 143, 190, 95, 255, 90, 151, 47, 255, 90, 151, 47, 255, 122, 183, 79, 255, 122, 183, 79, 255, 123, 184, 80, 255, 123, 184, 80, 255, 111, 172, 68, 255, 111, 172, 68, 255, 106, 167, 63, 255, 106, 167, 63, 255, 95, 156, 52, 255, 95, 156, 51, 255, 145, 192, 96, 255, 145, 192, 96, 255, 142, 189, 94, 255, 142, 189, 94, 255, 94, 160, 54, 255, 97, 158, 54, 255, 88, 149, 45, 255, 87, 149, 45, 255, 160, 207, 111, 255, 160, 207, 111, 255, 149, 196, 100, 255, 149, 196, 100, 255, 114, 161, 65, 255, 114, 161, 65, 255, 150, 197, 101, 255, 150, 198, 101, 255, 147, 194, 98, 255, 147, 194, 98, 255, 102, 162, 59, 255, 101, 163, 59, 255, 147, 193, 98, 255, 147, 193, 98, 255, 101, 162, 58, 255, 101, 162, 58, 255, 130, 191, 87, 255, 130, 191, 87, 255, 111, 172, 68, 255, 111, 172, 68, 255, 106, 167, 63, 255, 106, 167, 63, 255, 96, 157, 53, 255, 96, 157, 52, 255, 149, 196, 100, 255, 149, 196, 100, 255, 145, 192, 96, 255, 145, 192, 96, 255, 95, 160, 55, 255, 98, 159, 55, 255, 87, 148, 44, 255, 86, 148, 44, 255, 164, 211, 115, 255, 164, 211, 115, 255, 150, 197, 101, 255, 150, 197, 101, 255, 114, 161, 65, 255, 114, 161, 65, 255, 152, 199, 103, 255, 152, 199, 103, 255, 150, 197, 101, 255, 150, 197, 101, 255, 99, 162, 58, 255, 99, 162, 58, 255, 151, 198, 102, 255, 151, 198, 102, 255, 100, 162, 58, 255, 101, 162, 58, 255, 132, 193, 89, 255, 132, 193, 89, 255, 102, 163, 59, 255, 102, 163, 59, 255, 108, 169, 65, 255, 108, 169, 65, 255, 101, 162, 58, 255, 101, 162, 58, 255, 128, 184, 82, 255, 128, 183, 82, 255, 130, 186, 85, 255, 130, 186, 85, 255, 103, 164, 60, 255, 103, 164, 60, 255, 93, 154, 50, 255, 93, 154, 50, 255, 127, 182, 81, 255, 126, 182, 81, 255, 118, 173, 72, 255, 118, 173, 72, 255, 102, 157, 57, 255, 102, 158, 57, 255, 134, 189, 88, 255, 134, 189, 88, 255, 129, 185, 84, 255, 129, 185, 84, 255, 109, 173, 68, 255, 108, 173, 68, 255, 126, 181, 80, 255, 125, 180, 80, 255, 101, 162, 58, 255, 101, 162, 58, 255, 107, 168, 64, 255, 107, 168, 64, 255, 95, 156, 52, 255, 95, 156, 52, 255, 112, 173, 69, 255, 112, 173, 69, 255, 109, 170, 66, 255, 109, 170, 66, 255, 113, 174, 70, 255, 113, 174, 70, 255, 121, 182, 78, 255, 121, 182, 78, 255, 111, 172, 68, 255, 111, 172, 68, 255, 101, 162, 58, 255, 101, 162, 58, 255, 97, 158, 54, 255, 97, 158, 54, 255, 93, 154, 50, 255, 93, 154, 50, 255, 95, 156, 52, 255, 95, 156, 52, 255, 123, 184, 80, 255, 123, 184, 80, 255, 115, 176, 72, 255, 115, 176, 72, 255, 121, 182, 78, 255, 121, 182, 78, 255, 108, 169, 65, 255, 108, 169, 65, 255, 103, 164, 60, 255, 103, 164, 60, 255, 88, 149, 45, 255, 88, 149, 45, 255, 95, 156, 52, 255, 95, 156, 52, 255, 110, 172, 68, 255, 111, 172, 68, 255, 108, 169, 65, 255, 108, 169, 65, 255, 112, 173, 69, 255, 112, 173, 69, 255, 120, 182, 79, 255, 120, 182, 78, 255, 110, 172, 68, 255, 110, 171, 69, 255, 101, 162, 58, 255, 101, 162, 58, 255, 97, 158, 54, 255, 97, 158, 54, 255, 93, 154, 50, 255, 93, 154, 50, 255, 95, 156, 52, 255, 95, 156, 52, 255, 123, 184, 80, 255, 123, 184, 80, 255, 114, 175, 71, 255, 114, 175, 71, 255, 119, 180, 76, 255, 117, 181, 76, 255, 109, 169, 66, 255, 108, 169, 66, 255, 103, 165, 60, 255, 103, 165, 60, 255, 89, 150, 46, 255, 89, 150, 46, 255, 160, 207, 111, 255, 160, 207, 111, 255, 97, 160, 55, 255, 98, 159, 55, 255, 89, 150, 46, 255, 89, 150, 46, 255, 105, 166, 62, 255, 105, 166, 62, 255, 150, 198, 102, 255, 151, 198, 102, 255, 146, 193, 97, 255, 146, 192, 97, 255, 129, 190, 86, 255, 129, 190, 86, 255, 118, 179, 75, 255, 118, 179, 75, 255, 114, 175, 71, 255, 114, 175, 71, 255, 114, 175, 71, 255, 114, 175, 71, 255, 106, 167, 63, 255, 106, 167, 63, 255, 107, 168, 64, 255, 107, 168, 64, 255, 102, 163, 59, 255, 100, 163, 59, 255, 156, 203, 107, 255, 156, 203, 107, 255, 163, 210, 114, 255, 163, 210, 114, 255, 141, 188, 92, 255, 141, 188, 92, 255, 159, 206, 110, 255, 160, 206, 110, 255, 98, 158, 55, 255, 98, 159, 55, 255, 88, 149, 45, 255, 88, 149, 45, 255, 104, 165, 61, 255, 105, 166, 62, 255, 151, 197, 101, 255, 151, 197, 100, 255, 146, 193, 97, 255, 145, 193, 97, 255, 126, 190, 86, 255, 126, 190, 86, 255, 118, 179, 75, 255, 118, 179, 75, 255, 114, 175, 71, 255, 114, 175, 71, 255, 114, 175, 71, 255, 114, 175, 71, 255, 106, 167, 63, 255, 106, 167, 63, 255, 104, 169, 64, 255, 104, 169, 64, 255, 99, 163, 59, 255, 98, 163, 59, 255, 156, 203, 107, 255, 156, 202, 107, 255, 162, 209, 114, 255, 162, 209, 114, 255, 141, 187, 92, 255, 141, 187, 92, 255, 109, 170, 66, 255, 109, 170, 66, 255, 105, 166, 62, 255, 105, 166, 62, 255, 110, 171, 67, 255, 110, 171, 67, 255, 99, 160, 56, 255, 99, 160, 56, 255, 117, 178, 74, 255, 117, 178, 74, 255, 144, 190, 95, 255, 144, 191, 95, 255, 147, 194, 98, 255, 147, 193, 98, 255, 96, 158, 54, 255, 97, 158, 54, 255, 100, 161, 57, 255, 100, 161, 57, 255, 106, 167, 63, 255, 106, 167, 63, 255, 98, 159, 55, 255, 98, 159, 55, 255, 131, 176, 82, 255, 131, 178, 82, 255, 129, 176, 80, 255, 129, 176, 80, 255, 138, 185, 89, 255, 138, 185, 89, 255, 109, 171, 67, 255, 110, 171, 67, 255, 119, 180, 76, 255, 119, 180, 76, 255, 109, 170, 66, 255, 109, 170, 66, 255, 105, 166, 62, 255, 105, 166, 62, 255, 110, 171, 67, 255, 110, 171, 67, 255, 99, 160, 56, 255, 99, 160, 56, 255, 117, 178, 74, 255, 117, 178, 74, 255, 142, 190, 95, 255, 144, 191, 95, 255, 147, 193, 98, 255, 147, 193, 97, 255, 95, 157, 53, 255, 96, 157, 53, 255, 99, 160, 56, 255, 99, 160, 56, 255, 106, 167, 63, 255, 106, 167, 63, 255, 98, 159, 55, 255, 98, 159, 55, 255, 131, 176, 81, 255, 131, 177, 82, 255, 129, 176, 80, 255, 129, 176, 80, 255, 138, 185, 89, 255, 138, 185, 88, 255, 109, 170, 66, 255, 109, 170, 66, 255, 119, 180, 76, 255, 119, 180, 76, 255, 111, 172, 68, 255, 111, 172, 68, 255, 82, 143, 39, 255, 82, 143, 39, 255, 99, 160, 56, 255, 99, 160, 56, 255, 107, 168, 64, 255, 107, 168, 64, 255, 105, 166, 62, 255, 105, 166, 62, 255, 108, 169, 65, 255, 108, 169, 65, 255, 120, 181, 77, 255, 120, 181, 77, 255, 128, 189, 85, 255, 128, 189, 85, 255, 110, 171, 67, 255, 110, 171, 67, 255, 97, 158, 54, 255, 97, 158, 54, 255, 113, 174, 70, 255, 113, 174, 70, 255, 103, 165, 61, 255, 104, 165, 61, 255, 104, 165, 61, 255, 104, 165, 61, 255, 117, 178, 74, 255, 116, 178, 74, 255, 120, 181, 77, 255, 120, 181, 77, 255, 118, 179, 75, 255, 118, 179, 75, 255, 111, 172, 68, 255, 111, 172, 68, 255, 82, 143, 39, 255, 82, 143, 39, 255, 99, 160, 56, 255, 99, 160, 56, 255, 107, 168, 64, 255, 107, 168, 64, 255, 105, 166, 62, 255, 105, 166, 62, 255, 108, 169, 65, 255, 108, 169, 65, 255, 120, 181, 77, 255, 120, 181, 77, 255, 128, 189, 85, 255, 128, 189, 85, 255, 110, 171, 67, 255, 110, 171, 67, 255, 97, 158, 54, 255, 97, 158, 54, 255, 113, 174, 70, 255, 113, 174, 70, 255, 104, 165, 61, 255, 104, 165, 61, 255, 104, 165, 61, 255, 104, 165, 61, 255, 117, 178, 74, 255, 117, 178, 74, 255, 120, 181, 77, 255, 120, 181, 77, 255, 118, 179, 75, 255, 118, 179, 75, 255]
+
+                const width = 32;
+                const height = 32;
+                const tex_coords = [
+                    [0.0, 0.0], // bottom-left
+                    [1.0, 0.0], // bottom-right
+                    [1.0, 1.0], // top-right
+                    [0.0, 1.0], // top-left
+                ];
+
+                const ground_entity = new TexturedEntity(
+                    [
+                        -ground_radius, -1, -ground_radius, 
+                        -ground_radius, -1, ground_radius, 
+                        ground_radius , -1, ground_radius, 
+                        ground_radius , -1, -ground_radius
+                    ], // Vertices
+                    [
+                        0, 1, 2, // Triangle 1
+                        0, 2, 3  // Triangle 2
+                    ],
+                    tex_coords,
+                    texture_data, // Texture data
+                    width, // Texture width
+                    height
+                    )
+                const ground_y_location = -ground_radius/2-1+.5 // //tbox is secretly a massive cube, shift its center down by half its height. Down 1 more so the camera isn't inside it. Shift up by half the camera height.
+
+                const trigger_boxes = [new TriggerBox([0, ground_y_location, 0], [2*ground_radius, 2*ground_radius, 2*ground_radius])]
+
+                super(
+                    ground_entity, // Entity
+                    trigger_boxes // Trigger boxes
+                );
+            }
+        }
+    </script>
+    <script>
+        class Guard extends Character {
+            constructor(location) {
+                const health = 3;
+
+                const cube_data = create_cube([1, 1, 0]);
+                const vertices = cube_data.vertices;
+                const indices = cube_data.indices;
+
+                const tex_coords = [
+                    // Front
+                    0, 0,   1, 0,   1, 1,   0, 1,
+                    // Back
+                    0, 0,   1, 0,   1, 1,   0, 1,
+                    // Top
+                    0, 0,   1, 0,   1, 1,   0, 1,
+                    // Bottom
+                    0, 0,   1, 0,   1, 1,   0, 1,
+                    // Right
+                    0, 0,   1, 0,   1, 1,   0, 1,
+                    // Left
+                    0, 0,   1, 0,   1, 1,   0, 1,
+                ];
+
+                const texture_width = 32;
+                const texture_height = 32;
+
+                const rand3 = Math.random() * 3;
+                var texture_data;
+                if (rand3 < 1) {
+                    console.log("Guard texture 1");
+                    texture_data = 
+                    [212, 255, 217, 255, 71, 255, 96, 255, 95, 255, 116, 255, 237, 255, 240, 255, 255, 255, 255, 255, 255, 255, 255, 255, 202, 255, 209, 255, 76, 255, 100, 255, 63, 255, 89, 255, 78, 255, 101, 255, 204, 255, 211, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 218, 255, 223, 255, 164, 255, 176, 255, 236, 255, 238, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 226, 255, 230, 255, 107, 255, 127, 255, 218, 255, 223, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 233, 255, 236, 255, 193, 255, 201, 255, 240, 255, 242, 255, 98, 255, 119, 255, 63, 255, 89, 255, 95, 255, 116, 255, 234, 255, 238, 255, 155, 255, 169, 255, 64, 255, 90, 255, 63, 255, 89, 255, 76, 255, 100, 255, 63, 255, 89, 255, 65, 255, 90, 255, 158, 255, 171, 255, 252, 255, 253, 255, 246, 255, 247, 255, 180, 255, 190, 255, 102, 255, 123, 255, 63, 255, 89, 255, 63, 255, 89, 255, 116, 255, 135, 255, 255, 255, 255, 255, 255, 255, 255, 255, 249, 255, 250, 255, 163, 255, 175, 255, 66, 255, 92, 255, 63, 255, 89, 255, 73, 255, 97, 255, 209, 255, 215, 255, 255, 255, 255, 255, 255, 255, 255, 255, 196, 255, 204, 255, 72, 255, 97, 255, 70, 255, 95, 255, 255, 255, 255, 255, 240, 255, 242, 255, 98, 255, 119, 255, 63, 255, 89, 255, 70, 255, 95, 255, 63, 255, 89, 255, 65, 255, 90, 255, 161, 255, 174, 255, 250, 255, 251, 255, 158, 255, 171, 255, 65, 255, 90, 255, 63, 255, 89, 255, 83, 255, 106, 255, 72, 255, 97, 255, 63, 255, 89, 255, 63, 255, 89, 255, 74, 255, 98, 255, 68, 255, 93, 255, 63, 255, 89, 255, 184, 255, 194, 255, 201, 255, 208, 255, 91, 255, 113, 255, 63, 255, 89, 255, 63, 255, 89, 255, 84, 255, 107, 255, 63, 255, 89, 255, 69, 255, 94, 255, 180, 255, 190, 255, 221, 255, 226, 255, 68, 255, 93, 255, 63, 255, 89, 255, 125, 255, 143, 255, 255, 255, 255, 255, 255, 255, 255, 255, 240, 255, 242, 255, 92, 255, 114, 255, 63, 255, 89, 255, 77, 255, 101, 255, 207, 255, 213, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 204, 255, 211, 255, 79, 255, 103, 255, 63, 255, 89, 255, 63, 255, 89, 255, 107, 255, 127, 255, 184, 255, 193, 255, 248, 255, 249, 255, 184, 255, 194, 255, 63, 255, 89, 255, 67, 255, 92, 255, 63, 255, 89, 255, 63, 255, 89, 255, 93, 255, 115, 255, 204, 255, 211, 255, 252, 255, 253, 255, 146, 255, 161, 255, 63, 255, 89, 255, 63, 255, 89, 255, 72, 255, 96, 255, 63, 255, 89, 255, 139, 255, 155, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 240, 255, 242, 255, 170, 255, 181, 255, 238, 255, 240, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 236, 255, 239, 255, 150, 255, 165, 255, 222, 255, 227, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 112, 255, 131, 255, 63, 255, 89, 255, 69, 255, 93, 255, 166, 255, 178, 255, 250, 255, 251, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 185, 255, 195, 255, 77, 255, 101, 255, 63, 255, 89, 255, 108, 255, 128, 255, 246, 255, 247, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 235, 255, 238, 255, 176, 255, 186, 255, 234, 255, 237, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 248, 255, 249, 255, 223, 255, 227, 255, 252, 255, 253, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 107, 103, 255, 255, 120, 116, 255, 255, 194, 193, 255, 255, 253, 253, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 242, 242, 255, 255, 14, 7, 255, 255, 8, 0, 255, 255, 8, 0, 255, 255, 32, 25, 255, 255, 117, 113, 255, 255, 226, 226, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 252, 252, 255, 255, 196, 195, 255, 255, 122, 118, 255, 255, 42, 36, 255, 255, 8, 0, 255, 255, 8, 0, 255, 255, 19, 12, 255, 255, 200, 199, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 254, 254, 255, 255, 129, 125, 255, 255, 8, 0, 255, 255, 8, 0, 255, 255, 129, 125, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 234, 234, 255, 255, 76, 71, 255, 255, 8, 0, 255, 255, 8, 0, 255, 255, 46, 40, 255, 255, 226, 226, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 232, 232, 255, 255, 49, 43, 255, 255, 8, 0, 255, 255, 26, 19, 255, 255, 147, 144, 255, 255, 249, 249, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 193, 192, 255, 255, 18, 11, 255, 255, 53, 47, 255, 255, 231, 231, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 203, 202, 255, 255, 234, 234, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 247, 251, 255, 255, 145, 203, 255, 255, 55, 160, 255, 255, 13, 141, 255, 255, 13, 141, 255, 255, 56, 161, 255, 255, 146, 203, 255, 255, 247, 251, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 247, 251, 255, 255, 145, 203, 255, 255, 55, 160, 255, 255, 13, 141, 255, 255, 13, 141, 255, 255, 56, 161, 255, 255, 146, 203, 255, 255, 247, 251, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 226, 241, 255, 255, 46, 156, 255, 255, 0, 135, 255, 255, 0, 135, 255, 255, 0, 135, 255, 255, 0, 135, 255, 255, 0, 135, 255, 255, 0, 135, 255, 255, 46, 156, 255, 255, 227, 241, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 226, 241, 255, 255, 46, 156, 255, 255, 0, 135, 255, 255, 0, 135, 255, 255, 0, 135, 255, 255, 0, 135, 255, 255, 0, 135, 255, 255, 0, 135, 255, 255, 46, 156, 255, 255, 227, 241, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 247, 251, 255, 255, 46, 156, 255, 255, 0, 135, 255, 255, 38, 152, 255, 255, 174, 216, 255, 255, 242, 248, 255, 255, 242, 248, 255, 255, 173, 216, 255, 255, 38, 152, 255, 255, 0, 135, 255, 255, 48, 157, 255, 255, 248, 251, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 247, 251, 255, 255, 46, 156, 255, 255, 0, 135, 255, 255, 38, 152, 255, 255, 174, 216, 255, 255, 242, 248, 255, 255, 242, 248, 255, 255, 173, 216, 255, 255, 38, 152, 255, 255, 0, 135, 255, 255, 48, 157, 255, 255, 248, 251, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 145, 203, 255, 255, 0, 135, 255, 255, 38, 152, 255, 255, 238, 247, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 238, 247, 255, 255, 38, 152, 255, 255, 0, 135, 255, 255, 145, 203, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 145, 203, 255, 255, 0, 135, 255, 255, 38, 152, 255, 255, 238, 247, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 238, 247, 255, 255, 38, 152, 255, 255, 0, 135, 255, 255, 145, 203, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 55, 160, 255, 255, 0, 135, 255, 255, 174, 216, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 174, 216, 255, 255, 0, 135, 255, 255, 55, 160, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 55, 160, 255, 255, 0, 135, 255, 255, 174, 216, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 174, 216, 255, 255, 0, 135, 255, 255, 55, 160, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 13, 141, 255, 255, 0, 135, 255, 255, 242, 248, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 242, 248, 255, 255, 0, 135, 255, 255, 13, 141, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 13, 141, 255, 255, 0, 135, 255, 255, 242, 248, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 242, 248, 255, 255, 0, 135, 255, 255, 13, 141, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 13, 141, 255, 255, 0, 135, 255, 255, 241, 248, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 242, 248, 255, 255, 0, 135, 255, 255, 13, 141, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 13, 141, 255, 255, 0, 135, 255, 255, 241, 248, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 242, 248, 255, 255, 0, 135, 255, 255, 13, 141, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 56, 161, 255, 255, 0, 135, 255, 255, 173, 216, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 173, 216, 255, 255, 0, 135, 255, 255, 56, 161, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 56, 161, 255, 255, 0, 135, 255, 255, 173, 216, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 173, 216, 255, 255, 0, 135, 255, 255, 56, 161, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 146, 203, 255, 255, 0, 135, 255, 255, 38, 152, 255, 255, 238, 247, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 238, 247, 255, 255, 38, 152, 255, 255, 0, 135, 255, 255, 147, 204, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 146, 203, 255, 255, 0, 135, 255, 255, 38, 152, 255, 255, 238, 247, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 238, 247, 255, 255, 38, 152, 255, 255, 0, 135, 255, 255, 147, 204, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 247, 251, 255, 255, 47, 157, 255, 255, 0, 135, 255, 255, 38, 152, 255, 255, 174, 216, 255, 255, 242, 248, 255, 255, 242, 248, 255, 255, 173, 216, 255, 255, 38, 152, 255, 255, 0, 135, 255, 255, 49, 158, 255, 255, 249, 252, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 247, 251, 255, 255, 47, 157, 255, 255, 0, 135, 255, 255, 38, 152, 255, 255, 174, 216, 255, 255, 242, 248, 255, 255, 242, 248, 255, 255, 173, 216, 255, 255, 38, 152, 255, 255, 0, 135, 255, 255, 49, 158, 255, 255, 249, 252, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 227, 241, 255, 255, 48, 157, 255, 255, 0, 135, 255, 255, 0, 135, 255, 255, 0, 135, 255, 255, 0, 135, 255, 255, 0, 135, 255, 255, 0, 135, 255, 255, 49, 158, 255, 255, 229, 242, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 227, 241, 255, 255, 48, 157, 255, 255, 0, 135, 255, 255, 0, 135, 255, 255, 0, 135, 255, 255, 0, 135, 255, 255, 0, 135, 255, 255, 0, 135, 255, 255, 49, 158, 255, 255, 229, 242, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 248, 251, 255, 255, 145, 203, 255, 255, 55, 160, 255, 255, 13, 141, 255, 255, 13, 141, 255, 255, 56, 161, 255, 255, 147, 204, 255, 255, 249, 252, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 248, 251, 255, 255, 145, 203, 255, 255, 55, 160, 255, 255, 13, 141, 255, 255, 13, 141, 255, 255, 56, 161, 255, 255, 147, 204, 255, 255, 249, 252, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255]
+                }
+                else if (rand3 < 2) {
+                    console.log("Guard texture 2");
+                    texture_data = 
+                    [240, 84, 233, 255, 255, 0, 242, 255, 255, 0, 242, 255, 250, 62, 241, 255, 255, 173, 250, 255, 255, 113, 247, 255, 247, 34, 237, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 248, 35, 237, 255, 255, 113, 247, 255, 255, 212, 252, 255, 255, 212, 252, 255, 255, 113, 247, 255, 255, 113, 247, 255, 248, 47, 238, 255, 255, 0, 242, 255, 250, 61, 241, 255, 255, 212, 252, 255, 255, 255, 255, 255, 255, 212, 252, 255, 255, 113, 247, 255, 248, 53, 239, 255, 255, 0, 242, 255, 248, 47, 238, 255, 255, 212, 252, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 212, 252, 255, 246, 99, 239, 255, 237, 72, 230, 255, 248, 103, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 251, 48, 241, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 254, 74, 245, 255, 252, 69, 243, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 113, 247, 255, 255, 212, 252, 255, 253, 72, 244, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 247, 39, 237, 255, 255, 113, 247, 255, 255, 173, 250, 255, 248, 28, 237, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 212, 252, 255, 251, 65, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 253, 61, 244, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 249, 19, 238, 255, 248, 33, 237, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 250, 36, 239, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 255, 255, 255, 255, 212, 252, 255, 251, 65, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 247, 38, 237, 255, 255, 113, 247, 255, 255, 173, 250, 255, 255, 113, 247, 255, 248, 35, 237, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 249, 19, 238, 255, 252, 107, 244, 255, 249, 19, 238, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 248, 35, 237, 255, 254, 74, 245, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 77, 245, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 212, 252, 255, 251, 65, 242, 255, 255, 0, 242, 255, 250, 64, 241, 255, 255, 212, 252, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 212, 252, 255, 250, 62, 241, 255, 255, 0, 242, 255, 248, 50, 239, 255, 255, 113, 247, 255, 255, 212, 252, 255, 255, 255, 255, 255, 255, 113, 247, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 253, 73, 244, 255, 255, 212, 252, 255, 255, 212, 252, 255, 255, 113, 247, 255, 249, 20, 238, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 252, 69, 243, 255, 255, 212, 252, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 212, 252, 255, 255, 113, 247, 255, 255, 212, 252, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 212, 252, 255, 255, 113, 247, 255, 255, 212, 252, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 212, 252, 255, 250, 61, 241, 255, 255, 0, 242, 255, 250, 60, 240, 255, 255, 113, 247, 255, 255, 212, 252, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 212, 252, 255, 252, 107, 244, 255, 243, 92, 236, 255, 253, 110, 246, 255, 255, 212, 252, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 212, 252, 255, 255, 113, 247, 255, 255, 212, 252, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 107, 103, 255, 255, 120, 116, 255, 255, 194, 193, 255, 255, 253, 253, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 242, 242, 255, 255, 14, 7, 255, 255, 8, 0, 255, 255, 8, 0, 255, 255, 32, 25, 255, 255, 117, 113, 255, 255, 226, 226, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 252, 252, 255, 255, 196, 195, 255, 255, 122, 118, 255, 255, 42, 36, 255, 255, 8, 0, 255, 255, 8, 0, 255, 255, 19, 12, 255, 255, 200, 199, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 254, 254, 255, 255, 129, 125, 255, 255, 8, 0, 255, 255, 8, 0, 255, 255, 129, 125, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 234, 234, 255, 255, 76, 71, 255, 255, 8, 0, 255, 255, 8, 0, 255, 255, 46, 40, 255, 255, 226, 226, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 232, 232, 255, 255, 49, 43, 255, 255, 8, 0, 255, 255, 26, 19, 255, 255, 147, 144, 255, 255, 249, 249, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 193, 192, 255, 255, 18, 11, 255, 255, 53, 47, 255, 255, 231, 231, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 220, 253, 255, 255, 141, 249, 255, 255, 141, 249, 255, 255, 141, 249, 255, 255, 141, 249, 255, 255, 220, 253, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 203, 202, 255, 255, 234, 234, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 220, 253, 255, 255, 141, 249, 255, 255, 141, 249, 255, 255, 141, 249, 255, 255, 141, 249, 255, 255, 220, 253, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 220, 253, 255, 250, 134, 248, 255, 239, 28, 243, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 238, 30, 243, 255, 250, 134, 248, 255, 255, 220, 253, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 220, 253, 255, 250, 134, 248, 255, 239, 28, 243, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 238, 30, 243, 255, 250, 134, 248, 255, 255, 220, 253, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 220, 253, 255, 244, 86, 246, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 244, 86, 246, 255, 255, 220, 253, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 220, 253, 255, 244, 86, 246, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 244, 86, 246, 255, 255, 220, 253, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 250, 134, 248, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 237, 46, 244, 255, 248, 130, 248, 255, 248, 130, 248, 255, 237, 46, 244, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 251, 134, 248, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 250, 134, 248, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 237, 46, 244, 255, 248, 130, 248, 255, 248, 130, 248, 255, 237, 46, 244, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 251, 134, 248, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 220, 253, 255, 239, 28, 243, 255, 255, 0, 242, 255, 255, 0, 242, 255, 248, 97, 247, 255, 255, 220, 253, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 220, 253, 255, 248, 97, 247, 255, 255, 0, 242, 255, 255, 0, 242, 255, 239, 28, 243, 255, 255, 220, 253, 255, 255, 255, 255, 255, 255, 220, 253, 255, 239, 28, 243, 255, 255, 0, 242, 255, 255, 0, 242, 255, 248, 97, 247, 255, 255, 220, 253, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 220, 253, 255, 248, 97, 247, 255, 255, 0, 242, 255, 255, 0, 242, 255, 239, 28, 243, 255, 255, 220, 253, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 141, 249, 255, 255, 0, 242, 255, 255, 0, 242, 255, 237, 46, 244, 255, 255, 220, 253, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 220, 253, 255, 237, 46, 244, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 141, 249, 255, 255, 255, 255, 255, 255, 141, 249, 255, 255, 0, 242, 255, 255, 0, 242, 255, 237, 46, 244, 255, 255, 220, 253, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 220, 253, 255, 237, 46, 244, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 141, 249, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 141, 249, 255, 255, 0, 242, 255, 255, 0, 242, 255, 248, 130, 248, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 248, 130, 248, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 141, 249, 255, 255, 255, 255, 255, 255, 141, 249, 255, 255, 0, 242, 255, 255, 0, 242, 255, 248, 130, 248, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 248, 130, 248, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 141, 249, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 141, 249, 255, 255, 0, 242, 255, 255, 0, 242, 255, 247, 129, 248, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 248, 130, 248, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 141, 249, 255, 255, 255, 255, 255, 255, 141, 249, 255, 255, 0, 242, 255, 255, 0, 242, 255, 247, 129, 248, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 248, 130, 248, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 141, 249, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 141, 249, 255, 255, 0, 242, 255, 255, 0, 242, 255, 237, 46, 244, 255, 255, 220, 253, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 220, 253, 255, 237, 46, 244, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 141, 249, 255, 255, 255, 255, 255, 255, 141, 249, 255, 255, 0, 242, 255, 255, 0, 242, 255, 237, 46, 244, 255, 255, 220, 253, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 220, 253, 255, 237, 46, 244, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 141, 249, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 220, 253, 255, 238, 30, 243, 255, 255, 0, 242, 255, 255, 0, 242, 255, 248, 97, 247, 255, 255, 220, 253, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 220, 253, 255, 248, 97, 247, 255, 255, 0, 242, 255, 255, 0, 242, 255, 238, 30, 243, 255, 255, 220, 253, 255, 255, 255, 255, 255, 255, 220, 253, 255, 238, 30, 243, 255, 255, 0, 242, 255, 255, 0, 242, 255, 248, 97, 247, 255, 255, 220, 253, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 220, 253, 255, 248, 97, 247, 255, 255, 0, 242, 255, 255, 0, 242, 255, 238, 30, 243, 255, 255, 220, 253, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 250, 134, 248, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 237, 46, 244, 255, 248, 130, 248, 255, 248, 130, 248, 255, 237, 46, 244, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 251, 136, 249, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 250, 134, 248, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 237, 46, 244, 255, 248, 130, 248, 255, 248, 130, 248, 255, 237, 46, 244, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 251, 136, 249, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 220, 253, 255, 244, 86, 246, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 245, 88, 246, 255, 255, 220, 253, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 220, 253, 255, 244, 86, 246, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 245, 88, 246, 255, 255, 220, 253, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 220, 253, 255, 251, 134, 248, 255, 239, 28, 243, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 238, 30, 243, 255, 251, 136, 249, 255, 255, 220, 253, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 220, 253, 255, 251, 134, 248, 255, 239, 28, 243, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 255, 0, 242, 255, 238, 30, 243, 255, 251, 136, 249, 255, 255, 220, 253, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 220, 253, 255, 255, 141, 249, 255, 255, 141, 249, 255, 255, 141, 249, 255, 255, 141, 249, 255, 255, 220, 253, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 220, 253, 255, 255, 141, 249, 255, 255, 141, 249, 255, 255, 141, 249, 255, 255, 141, 249, 255, 255, 220, 253, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255]
+                }
+                else {
+                    console.log("Guard texture 3");
+                    texture_data =
+                    [0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 23, 220, 254, 255, 23, 220, 254, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 23, 220, 254, 255, 161, 242, 255, 255, 23, 220, 254, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 23, 220, 254, 255, 91, 233, 255, 255, 91, 233, 255, 255, 23, 220, 254, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 7, 220, 254, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 23, 220, 254, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 205, 248, 255, 255, 23, 220, 254, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 255, 255, 255, 255, 205, 248, 255, 255, 23, 220, 254, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 23, 220, 254, 255, 91, 233, 255, 255, 91, 233, 255, 255, 91, 233, 255, 255, 23, 220, 254, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 23, 220, 254, 255, 50, 227, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 23, 220, 254, 255, 23, 220, 254, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 23, 220, 254, 255, 255, 255, 255, 255, 255, 255, 255, 255, 205, 248, 255, 255, 23, 220, 254, 255, 0, 221, 255, 255, 23, 220, 254, 255, 205, 248, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 205, 248, 255, 255, 23, 220, 254, 255, 0, 221, 255, 255, 23, 220, 254, 255, 91, 233, 255, 255, 205, 248, 255, 255, 205, 248, 255, 255, 23, 220, 254, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 23, 220, 254, 255, 205, 248, 255, 255, 205, 248, 255, 255, 91, 233, 255, 255, 23, 220, 254, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 23, 220, 254, 255, 205, 248, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 205, 248, 255, 255, 91, 233, 255, 255, 205, 248, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 205, 248, 255, 255, 91, 233, 255, 255, 205, 248, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 205, 248, 255, 255, 23, 220, 254, 255, 0, 221, 255, 255, 23, 220, 254, 255, 91, 233, 255, 255, 205, 248, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 205, 248, 255, 255, 91, 233, 255, 255, 91, 233, 255, 255, 91, 233, 255, 255, 205, 248, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 205, 248, 255, 255, 91, 233, 255, 255, 205, 248, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 107, 103, 255, 255, 120, 116, 255, 255, 194, 193, 255, 255, 253, 253, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 242, 242, 255, 255, 14, 7, 255, 255, 8, 0, 255, 255, 8, 0, 255, 255, 32, 25, 255, 255, 117, 113, 255, 255, 226, 226, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 252, 252, 255, 255, 196, 195, 255, 255, 122, 118, 255, 255, 42, 36, 255, 255, 8, 0, 255, 255, 8, 0, 255, 255, 19, 12, 255, 255, 200, 199, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 254, 254, 255, 255, 129, 125, 255, 255, 8, 0, 255, 255, 8, 0, 255, 255, 129, 125, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 234, 234, 255, 255, 76, 71, 255, 255, 8, 0, 255, 255, 8, 0, 255, 255, 46, 40, 255, 255, 226, 226, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 232, 232, 255, 255, 49, 43, 255, 255, 8, 0, 255, 255, 26, 19, 255, 255, 147, 144, 255, 255, 249, 249, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 210, 249, 255, 255, 105, 235, 255, 255, 105, 235, 255, 255, 105, 235, 255, 255, 105, 235, 255, 255, 210, 249, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 193, 192, 255, 255, 18, 11, 255, 255, 53, 47, 255, 255, 231, 231, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 210, 249, 255, 255, 105, 235, 255, 255, 46, 220, 254, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 46, 220, 254, 255, 105, 235, 255, 255, 210, 249, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 203, 202, 255, 255, 234, 234, 255, 255, 255, 255, 255, 255, 255, 255, 255, 217, 249, 255, 255, 110, 220, 254, 255, 71, 198, 253, 255, 71, 198, 253, 255, 71, 198, 253, 255, 71, 198, 253, 255, 110, 220, 254, 255, 217, 249, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 210, 249, 255, 255, 46, 220, 254, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 46, 220, 254, 255, 210, 249, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 217, 249, 255, 255, 110, 220, 254, 255, 19, 214, 254, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 19, 214, 254, 255, 110, 220, 254, 255, 217, 249, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 210, 249, 255, 255, 46, 220, 254, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 46, 220, 254, 255, 210, 249, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 110, 220, 254, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 110, 220, 254, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 105, 235, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 105, 235, 255, 255, 255, 255, 255, 255, 217, 249, 255, 255, 19, 214, 254, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 16, 214, 254, 255, 16, 214, 254, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 19, 214, 254, 255, 217, 249, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 210, 249, 255, 255, 46, 220, 254, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 46, 220, 254, 255, 105, 235, 255, 255, 105, 235, 255, 255, 46, 220, 254, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 46, 220, 254, 255, 210, 249, 255, 255, 110, 220, 254, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 73, 220, 254, 255, 217, 249, 255, 255, 217, 249, 255, 255, 73, 220, 254, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 110, 220, 254, 255, 255, 255, 255, 255, 255, 255, 255, 255, 105, 235, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 46, 220, 254, 255, 210, 249, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 210, 249, 255, 255, 46, 220, 254, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 105, 235, 255, 255, 71, 198, 253, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 73, 220, 254, 255, 217, 249, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 217, 249, 255, 255, 73, 220, 254, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 71, 198, 253, 255, 255, 255, 255, 255, 255, 255, 255, 255, 105, 235, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 105, 235, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 105, 235, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 105, 235, 255, 255, 71, 198, 253, 255, 0, 221, 255, 255, 0, 221, 255, 255, 16, 214, 254, 255, 217, 249, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 217, 249, 255, 255, 16, 214, 254, 255, 0, 221, 255, 255, 0, 221, 255, 255, 71, 198, 253, 255, 255, 255, 255, 255, 255, 255, 255, 255, 105, 235, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 105, 235, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 105, 235, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 105, 235, 255, 255, 71, 198, 253, 255, 0, 221, 255, 255, 0, 221, 255, 255, 16, 214, 254, 255, 217, 249, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 217, 249, 255, 255, 16, 214, 254, 255, 0, 221, 255, 255, 0, 221, 255, 255, 71, 198, 253, 255, 255, 255, 255, 255, 255, 255, 255, 255, 105, 235, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 46, 220, 254, 255, 210, 249, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 210, 249, 255, 255, 46, 220, 254, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 105, 235, 255, 255, 71, 198, 253, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 73, 220, 254, 255, 217, 249, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 217, 249, 255, 255, 73, 220, 254, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 71, 198, 253, 255, 255, 255, 255, 255, 255, 255, 255, 255, 210, 249, 255, 255, 46, 220, 254, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 46, 220, 254, 255, 105, 235, 255, 255, 105, 235, 255, 255, 46, 220, 254, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 46, 220, 254, 255, 210, 249, 255, 255, 110, 220, 254, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 73, 220, 254, 255, 217, 249, 255, 255, 217, 249, 255, 255, 73, 220, 254, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 110, 220, 254, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 105, 235, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 105, 235, 255, 255, 255, 255, 255, 255, 217, 249, 255, 255, 19, 214, 254, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 16, 214, 254, 255, 16, 214, 254, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 20, 214, 254, 255, 217, 249, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 210, 249, 255, 255, 46, 220, 254, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 46, 220, 254, 255, 210, 249, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 110, 220, 254, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 110, 220, 254, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 210, 249, 255, 255, 46, 220, 254, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 46, 220, 254, 255, 210, 249, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 217, 249, 255, 255, 110, 220, 254, 255, 19, 214, 254, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 20, 214, 254, 255, 110, 220, 254, 255, 217, 249, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 210, 249, 255, 255, 105, 235, 255, 255, 46, 220, 254, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 0, 221, 255, 255, 46, 220, 254, 255, 105, 235, 255, 255, 210, 249, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 217, 249, 255, 255, 110, 220, 254, 255, 71, 198, 253, 255, 71, 198, 253, 255, 71, 198, 253, 255, 71, 198, 253, 255, 110, 220, 254, 255, 217, 249, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 210, 249, 255, 255, 105, 235, 255, 255, 105, 235, 255, 255, 105, 235, 255, 255, 105, 235, 255, 255, 210, 249, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255]
+                }
+
+                const textured_entity = new TexturedEntity(vertices, indices, tex_coords, texture_data, texture_width, texture_height, location);
+                const trigger_boxes = [
+                    new TriggerBox([0, 0, 0], [1, 1, 0])
+                ]
+
+                super(health, textured_entity, trigger_boxes, true);
+                this.randomize_velocity();
+            }
+
+            randomize_velocity() {
+                // [50% to 100% of -speed, or 50% to 100% of +speed] for x and z
+                const speed = .02;
+                var rand2 = Math.random() * 2 - 1;
+                if (rand2 < 0) {
+                    this.position_velocities[0] = -speed * (Math.random() * .5 + .5)
+                }
+                else {
+                    this.position_velocities[0] = speed * (Math.random() * .5 + .5)
+                }
+                rand2 = Math.random() * 2 - 1;
+                if (rand2 < 0) {
+                    this.position_velocities[2] = -speed * (Math.random() * .5 + .5)
+                }
+                else {
+                    this.position_velocities[2] = speed * (Math.random() * .5 + .5)
+                }
+            }
+
+            on_collision(other_actor) {
+                if (other_actor instanceof Wall) {
+                    this.randomize_velocity();
+                }
+            }
+        }
+    </script>
+    <script>
+        class Torch extends Actor {
+            constructor(location) {
+                const vertices = [
+                    -0.05, -.45,  0.05,
+                    0.05, -.45,  0.05,
+                    0.05,  .45,  0.05,
+                    -0.05,  .45,  0.05,
+                    -0.05, -.45, -0.05,
+                    0.05, -.45, -0.05,
+                    0.05,  .45, -0.05,
+                    -0.05,  .45, -0.05
+                ]
+
+                const indices = [
+                    0, 1, 2, 0, 2, 3,
+                    4, 5, 6, 4, 6, 7,
+                    0, 1, 5, 0, 5, 4,
+                    2, 3, 7, 2, 7, 6,
+                    0, 3, 7, 0, 7, 4,
+                    1, 2, 6, 1, 6, 5
+                ]
+
+                const colors = [
+                    // Yellow
+                    1, 1, 0,
+                    1, 1, 0,
+                    1, 1, 0,
+                    1, 1, 0,
+                    1, 1, 0,
+                    1, 1, 0,
+                    1, 1, 0,
+                    1, 1, 0,
+                ]
+
+                const entity = new Entity(
+                    vertices,
+                    indices,
+                    colors,
+                    [location[0], location[1]-.5, location[2]], // Torch location
+                )
+
+                const trigger_boxes = [
+                    new TriggerBox([0, 0, 0], [.05*2, .45*2, .05*2])
+                ]
+                
+                super(entity, trigger_boxes);
+
+                const point_light = new PointLight([location[0], location[1] + 1, location[2]]); // Position the light just above the actor
+                this.attach_light(point_light);
+                gl_setup.add_point_light(point_light);
+            }
+        }
+    </script>
+    <script>
+        class Moon extends Actor{
+            constructor() {
+                // Cube vertices
+                const sphere_data = create_sphere(100, 10, 10, [.8, .8, .8]);
+                const vertices = sphere_data.vertices;
+                const indices = sphere_data.indices;
+                const colors = sphere_data.colors;
+                const location = [300, 200, 300];
+                const entity = new Entity(
+                    vertices,
+                    indices,
+                    colors,
+                    location
+                )
+                const trigger_boxes = [
+                    new TriggerBox([0, 0, 0], [1, 1, 1])
+                ]
+                super(entity, trigger_boxes);
+
+                const moon_light = new DirectionalLight();
+                this.attach_light(moon_light);
+                gl_setup.add_directional_light(moon_light);
+            }
+        }
+    </script>
+    <script>
+        class Wall extends Actor {
+            constructor(location, size) {
+                const vertices = [
+                    // Front face
+                    -1, -1,  1,
+                    1, -1,  1,
+                    1,  1,  1,
+                    -1,  1,  1,
+                
+                    // Back face
+                    1, -1, -1,
+                    -1, -1, -1,
+                    -1,  1, -1,
+                    1,  1, -1,
+                
+                    // Right face
+                    1, -1,  1,
+                    1, -1, -1,
+                    1,  1, -1,
+                    1,  1,  1,
+                
+                    // Left face
+                    -1, -1, -1,
+                    -1, -1,  1,
+                    -1,  1,  1,
+                    -1,  1, -1,
+                
+                    // Top face
+                    -1,  1,  1,
+                    1,  1,  1,
+                    1,  1, -1,
+                    -1,  1, -1,
+                
+                    // Bottom face
+                    -1, -1, -1,
+                    1, -1, -1,
+                    1, -1,  1,
+                    -1, -1,  1,
+                ];
+                for (let i = 0; i < vertices.length; i++) {
+                    vertices[i] *= 2;
+                }
+
+                const indices = [
+                    0, 1, 2,   0, 2, 3,      // Front
+                    4, 5, 6,   4, 6, 7,      // Back
+                    8, 9,10,   8,10,11,      // Right
+                12,13,14,  12,14,15,      // Left
+                16,17,18,  16,18,19,      // Top
+                20,21,22,  20,22,23       // Bottom
+                ];
+
+                const tex_coords = [
+                    // Each face gets the same texture coordinates
+                    0, 0,  1, 0,  1, 1,  0, 1,  // Front
+                    0, 0,  1, 0,  1, 1,  0, 1,  // Back
+                    0, 0,  1, 0,  1, 1,  0, 1,  // Right
+                    0, 0,  1, 0,  1, 1,  0, 1,  // Left
+                    0, 0,  1, 0,  1, 1,  0, 1,  // Top
+                    0, 0,  1, 0,  1, 1,  0, 1,  // Bottom
+                ];
+
+                // Copy from local file HW11/Split/textures/json/wall1.json after running img_converter.py
+                var wall_data;
+                var texture_width;
+                var texture_height;
+                if (Math.random() < 0.5) {
+                    wall_data = 
+                    [210, 200, 185, 255, 209, 201, 185, 255, 209, 201, 185, 255, 209, 201, 185, 255, 209, 201, 185, 255, 209, 201, 185, 255, 208, 201, 186, 255, 209, 201, 185, 255, 210, 200, 185, 255, 209, 201, 185, 255, 209, 201, 185, 255, 209, 201, 185, 255, 208, 197, 182, 255, 208, 198, 182, 255, 210, 201, 185, 255, 206, 197, 182, 255, 201, 175, 162, 255, 199, 173, 159, 255, 199, 173, 159, 255, 199, 173, 159, 255, 199, 173, 159, 255, 199, 173, 159, 255, 199, 173, 159, 255, 199, 173, 159, 255, 199, 173, 159, 255, 199, 173, 159, 255, 199, 172, 160, 255, 199, 175, 162, 255, 207, 197, 182, 255, 206, 195, 180, 255, 201, 176, 163, 255, 195, 169, 157, 255, 174, 88, 84, 255, 169, 64, 62, 255, 170, 68, 66, 255, 170, 68, 66, 255, 170, 68, 66, 255, 170, 68, 66, 255, 170, 68, 66, 255, 170, 68, 66, 255, 170, 68, 66, 255, 170, 68, 66, 255, 169, 64, 62, 255, 173, 88, 83, 255, 207, 193, 179, 255, 204, 186, 173, 255, 176, 95, 92, 255, 165, 56, 59, 255, 171, 78, 77, 255, 167, 47, 47, 255, 168, 53, 52, 255, 168, 53, 52, 255, 168, 53, 52, 255, 168, 53, 52, 255, 168, 53, 52, 255, 168, 53, 52, 255, 168, 53, 52, 255, 168, 53, 52, 255, 167, 48, 46, 255, 171, 78, 74, 255, 207, 192, 179, 255, 203, 186, 173, 255, 174, 88, 85, 255, 163, 37, 42, 255, 172, 83, 80, 255, 168, 55, 54, 255, 169, 60, 58, 255, 169, 60, 58, 255, 169, 60, 58, 255, 169, 60, 58, 255, 169, 60, 58, 255, 169, 60, 58, 255, 169, 60, 58, 255, 169, 60, 58, 255, 168, 55, 53, 255, 172, 82, 78, 255, 207, 192, 179, 255, 203, 186, 172, 255, 175, 92, 87, 255, 164, 46, 50, 255, 173, 83, 80, 255, 169, 55, 54, 255, 169, 61, 59, 255, 169, 61, 58, 255, 169, 61, 58, 255, 169, 61, 58, 255, 169, 61, 58, 255, 169, 61, 58, 255, 169, 61, 58, 255, 169, 61, 58, 255, 168, 56, 52, 255, 172, 82, 79, 255, 207, 192, 179, 255, 203, 186, 172, 255, 176, 92, 87, 255, 164, 47, 50, 255, 171, 75, 73, 255, 167, 41, 41, 255, 167, 48, 47, 255, 167, 48, 47, 255, 167, 48, 47, 255, 167, 48, 47, 255, 167, 48, 47, 255, 167, 48, 47, 255, 167, 48, 47, 255, 167, 48, 48, 255, 166, 41, 41, 255, 170, 74, 73, 255, 207, 193, 179, 255, 203, 186, 173, 255, 174, 85, 81, 255, 162, 28, 34, 255, 182, 122, 115, 255, 179, 109, 105, 255, 180, 111, 106, 255, 179, 111, 106, 255, 179, 111, 106, 255, 180, 111, 106, 255, 180, 111, 106, 255, 179, 111, 106, 255, 179, 111, 106, 255, 179, 112, 106, 255, 179, 109, 105, 255, 181, 122, 114, 255, 206, 195, 179, 255, 205, 189, 176, 255, 183, 126, 118, 255, 174, 107, 101, 255, 211, 200, 186, 255, 211, 200, 186, 255, 211, 200, 185, 255, 211, 200, 185, 255, 210, 197, 183, 255, 210, 197, 183, 255, 211, 199, 185, 255, 211, 200, 186, 255, 211, 200, 186, 255, 210, 200, 185, 255, 211, 200, 185, 255, 211, 200, 185, 255, 208, 201, 186, 255, 209, 201, 186, 255, 211, 201, 186, 255, 207, 197, 182, 255, 198, 172, 160, 255, 198, 172, 160, 255, 198, 172, 159, 255, 199, 174, 161, 255, 207, 196, 181, 255, 206, 195, 180, 255, 200, 176, 163, 255, 198, 171, 159, 255, 198, 172, 159, 255, 198, 172, 159, 255, 198, 172, 159, 255, 198, 172, 159, 255, 198, 171, 159, 255, 198, 171, 159, 255, 199, 172, 160, 255, 196, 169, 157, 255, 170, 67, 65, 255, 169, 67, 65, 255, 169, 63, 62, 255, 173, 83, 82, 255, 206, 191, 177, 255, 203, 187, 173, 255, 176, 96, 91, 255, 168, 55, 55, 255, 170, 66, 65, 255, 170, 66, 65, 255, 170, 66, 65, 255, 170, 66, 64, 255, 170, 66, 65, 255, 170, 66, 64, 255, 171, 66, 64, 255, 166, 66, 65, 255, 168, 54, 52, 255, 168, 54, 52, 255, 167, 48, 48, 255, 170, 75, 73, 255, 207, 191, 176, 255, 203, 187, 172, 255, 174, 89, 83, 255, 166, 38, 39, 255, 168, 54, 53, 255, 168, 54, 52, 255, 168, 54, 52, 255, 168, 54, 52, 255, 168, 54, 52, 255, 168, 54, 52, 255, 169, 53, 52, 255, 164, 53, 53, 255, 169, 60, 58, 255, 169, 60, 58, 255, 168, 56, 54, 255, 172, 80, 77, 255, 207, 191, 177, 255, 203, 187, 173, 255, 175, 93, 86, 255, 167, 47, 47, 255, 169, 61, 58, 255, 169, 60, 58, 255, 169, 60, 58, 255, 169, 60, 58, 255, 169, 60, 58, 255, 169, 60, 58, 255, 170, 60, 58, 255, 165, 60, 60, 255, 169, 60, 58, 255, 169, 60, 58, 255, 168, 56, 54, 255, 171, 79, 77, 255, 207, 191, 177, 255, 203, 187, 173, 255, 175, 92, 86, 255, 167, 47, 47, 255, 169, 60, 58, 255, 169, 60, 58, 255, 169, 60, 58, 255, 169, 60, 58, 255, 169, 60, 58, 255, 169, 60, 58, 255, 169, 60, 58, 255, 165, 60, 59, 255, 171, 59, 59, 255, 172, 59, 60, 255, 171, 54, 55, 255, 174, 80, 78, 255, 210, 193, 180, 255, 207, 190, 176, 255, 178, 93, 87, 255, 169, 46, 46, 255, 171, 60, 58, 255, 171, 60, 58, 255, 171, 60, 58, 255, 171, 60, 58, 255, 171, 60, 58, 255, 171, 59, 58, 255, 172, 59, 58, 255, 166, 60, 59, 255, 150, 60, 59, 255, 150, 60, 59, 255, 150, 56, 57, 255, 152, 76, 75, 255, 183, 171, 160, 255, 182, 166, 156, 255, 154, 86, 81, 255, 146, 50, 51, 255, 148, 60, 60, 255, 148, 60, 59, 255, 148, 60, 60, 255, 148, 60, 59, 255, 148, 60, 59, 255, 148, 60, 60, 255, 150, 60, 59, 255, 146, 61, 62, 255]
+                    texture_width = 16;
+                    texture_height = 16;
+                }
+                else {
+                    wall_data =
+                    [141, 141, 140, 255, 144, 144, 144, 255, 144, 144, 144, 255, 137, 137, 137, 255, 144, 144, 143, 255, 133, 133, 132, 255, 139, 139, 138, 255, 142, 141, 141, 255, 141, 140, 140, 255, 144, 143, 143, 255, 138, 137, 137, 255, 144, 144, 143, 255, 135, 134, 134, 255, 134, 134, 133, 255, 145, 144, 144, 255, 129, 128, 127, 255, 127, 126, 127, 255, 102, 101, 102, 255, 125, 124, 124, 255, 144, 144, 143, 255, 141, 140, 140, 255, 139, 138, 137, 255, 139, 138, 138, 255, 134, 133, 133, 255, 136, 135, 134, 255, 139, 139, 138, 255, 137, 137, 136, 255, 138, 137, 137, 255, 138, 139, 138, 255, 120, 119, 118, 255, 128, 127, 127, 255, 136, 139, 139, 255, 139, 139, 139, 255, 139, 138, 138, 255, 140, 140, 140, 255, 142, 142, 142, 255, 139, 139, 139, 255, 137, 137, 136, 255, 140, 139, 139, 255, 144, 143, 142, 255, 139, 139, 138, 255, 137, 137, 137, 255, 142, 141, 141, 255, 142, 142, 141, 255, 137, 136, 136, 255, 137, 137, 136, 255, 141, 140, 139, 255, 132, 131, 131, 255, 134, 133, 134, 255, 101, 100, 101, 255, 127, 127, 126, 255, 146, 145, 144, 255, 135, 134, 132, 255, 136, 136, 135, 255, 134, 134, 133, 255, 139, 139, 137, 255, 132, 131, 130, 255, 136, 136, 135, 255, 132, 131, 131, 255, 129, 128, 127, 255, 132, 131, 130, 255, 134, 133, 133, 255, 130, 129, 127, 255, 139, 140, 140, 255, 144, 145, 145, 255, 143, 143, 142, 255, 138, 139, 138, 255, 135, 134, 134, 255, 135, 135, 135, 255, 142, 141, 141, 255, 133, 133, 133, 255, 133, 133, 132, 255, 142, 142, 142, 255, 140, 139, 139, 255, 139, 139, 138, 255, 141, 140, 140, 255, 145, 144, 144, 255, 142, 141, 140, 255, 142, 141, 140, 255, 147, 146, 146, 255, 130, 130, 130, 255, 100, 98, 98, 255, 117, 117, 116, 255, 141, 140, 140, 255, 135, 134, 133, 255, 133, 133, 132, 255, 138, 138, 137, 255, 145, 144, 143, 255, 144, 143, 141, 255, 140, 139, 137, 255, 142, 140, 139, 255, 131, 130, 128, 255, 132, 131, 130, 255, 133, 131, 130, 255, 136, 135, 133, 255, 141, 141, 141, 255, 141, 141, 141, 255, 139, 138, 138, 255, 135, 135, 135, 255, 140, 140, 140, 255, 144, 143, 143, 255, 139, 138, 138, 255, 137, 137, 137, 255, 136, 135, 135, 255, 144, 143, 142, 255, 139, 139, 138, 255, 138, 137, 137, 255, 139, 138, 138, 255, 145, 144, 144, 255, 136, 135, 135, 255, 145, 144, 144, 255, 137, 136, 135, 255, 132, 132, 133, 255, 102, 101, 101, 255, 122, 122, 122, 255, 146, 145, 145, 255, 134, 132, 131, 255, 134, 133, 132, 255, 136, 135, 134, 255, 142, 141, 140, 255, 142, 140, 139, 255, 139, 138, 137, 255, 140, 139, 138, 255, 133, 132, 131, 255, 136, 134, 134, 255, 137, 136, 135, 255, 137, 135, 134, 255, 132, 132, 132, 255, 141, 142, 141, 255, 145, 145, 145, 255, 139, 139, 138, 255, 146, 146, 146, 255, 150, 150, 149, 255, 142, 142, 142, 255, 144, 143, 143, 255, 139, 138, 137, 255, 137, 137, 136, 255, 144, 144, 144, 255, 146, 145, 145, 255, 148, 147, 147, 255, 138, 137, 137, 255, 145, 144, 144, 255, 144, 144, 143, 255, 129, 128, 127, 255, 143, 143, 143, 255, 100, 98, 98, 255, 120, 119, 119, 255, 150, 149, 148, 255, 135, 133, 132, 255, 138, 137, 135, 255, 136, 135, 134, 255, 139, 138, 137, 255, 139, 137, 136, 255, 131, 129, 128, 255, 138, 137, 135, 255, 139, 138, 137, 255, 140, 138, 137, 255, 134, 134, 132, 255, 137, 136, 135, 255, 146, 145, 145, 255, 138, 137, 137, 255, 141, 140, 139, 255, 137, 136, 136, 255, 138, 137, 137, 255, 143, 143, 143, 255, 140, 140, 139, 255, 138, 138, 137, 255, 142, 142, 141, 255, 141, 140, 140, 255, 140, 140, 140, 255, 147, 146, 146, 255, 149, 148, 148, 255, 141, 140, 140, 255, 142, 142, 142, 255, 148, 148, 147, 255, 139, 139, 139, 255, 164, 163, 162, 255, 99, 98, 99, 255, 124, 123, 123, 255, 139, 138, 138, 255, 132, 131, 130, 255, 135, 134, 132, 255, 137, 137, 135, 255, 141, 139, 138, 255, 138, 136, 136, 255, 134, 133, 131, 255, 138, 137, 136, 255, 132, 130, 128, 255, 131, 130, 129, 255, 133, 133, 131, 255, 142, 141, 140, 255, 138, 135, 136, 255, 146, 146, 146, 255, 171, 170, 169, 255, 172, 171, 171, 255, 166, 165, 165, 255, 164, 163, 163, 255, 172, 171, 171, 255, 160, 159, 159, 255, 162, 161, 161, 255, 153, 152, 152, 255, 152, 152, 152, 255, 149, 149, 149, 255, 158, 158, 158, 255, 155, 155, 156, 255, 149, 148, 149, 255, 155, 155, 155, 255, 152, 152, 152, 255, 142, 142, 142, 255, 95, 94, 93, 255, 121, 120, 119, 255, 149, 147, 147, 255, 147, 146, 144, 255, 143, 142, 141, 255, 146, 146, 145, 255, 153, 152, 151, 255, 150, 148, 147, 255, 142, 141, 141, 255, 148, 146, 146, 255, 146, 144, 144, 255, 139, 136, 135, 255, 144, 144, 143, 255, 145, 145, 145, 255, 153, 153, 154, 255, 143, 143, 142, 255, 149, 149, 149, 255, 117, 117, 117, 255, 131, 131, 130, 255, 141, 141, 140, 255, 153, 153, 152, 255, 147, 148, 149, 255, 153, 154, 154, 255, 147, 148, 148, 255, 151, 152, 152, 255, 153, 153, 153, 255, 145, 145, 146, 255, 142, 142, 143, 255, 139, 140, 139, 255, 137, 137, 137, 255, 138, 139, 138, 255, 119, 119, 119, 255, 82, 81, 81, 255, 127, 127, 126, 255, 149, 148, 146, 255, 151, 150, 149, 255, 146, 145, 144, 255, 152, 151, 151, 255, 146, 146, 145, 255, 140, 139, 138, 255, 144, 144, 143, 255, 142, 141, 141, 255, 171, 170, 168, 255, 159, 158, 158, 255, 150, 150, 150, 255, 132, 131, 132, 255, 134, 135, 136, 255, 106, 103, 100, 255, 101, 98, 96, 255, 96, 93, 90, 255, 99, 96, 94, 255, 95, 91, 88, 255, 107, 104, 100, 255, 96, 95, 94, 255, 86, 83, 80, 255, 93, 88, 84, 255, 104, 100, 97, 255, 90, 86, 82, 255, 96, 93, 89, 255, 99, 95, 91, 255, 95, 90, 87, 255, 96, 92, 89, 255, 102, 98, 96, 255, 106, 102, 99, 255, 92, 87, 84, 255, 101, 97, 94, 255, 99, 96, 93, 255, 80, 76, 72, 255, 88, 84, 80, 255, 95, 91, 88, 255, 92, 88, 83, 255, 99, 95, 91, 255, 109, 105, 102, 255, 105, 102, 98, 255, 107, 104, 100, 255, 114, 114, 112, 255, 96, 97, 97, 255, 84, 82, 81, 255, 98, 93, 91, 255, 124, 124, 124, 255, 127, 126, 126, 255, 135, 135, 134, 255, 148, 148, 148, 255, 137, 137, 137, 255, 166, 166, 166, 255, 128, 127, 127, 255, 101, 99, 98, 255, 137, 136, 136, 255, 147, 147, 146, 255, 127, 126, 126, 255, 137, 137, 136, 255, 138, 138, 138, 255, 128, 128, 127, 255, 132, 131, 131, 255, 130, 129, 129, 255, 141, 140, 139, 255, 147, 146, 145, 255, 138, 137, 136, 255, 139, 138, 138, 255, 133, 132, 131, 255, 127, 126, 126, 255, 129, 128, 128, 255, 129, 128, 127, 255, 136, 135, 135, 255, 141, 141, 141, 255, 139, 138, 137, 255, 136, 135, 135, 255, 125, 124, 123, 255, 92, 90, 90, 255, 97, 93, 93, 255, 128, 128, 128, 255, 136, 136, 136, 255, 140, 140, 140, 255, 139, 139, 139, 255, 142, 142, 141, 255, 144, 144, 145, 255, 155, 155, 155, 255, 134, 134, 134, 255, 110, 110, 110, 255, 149, 148, 149, 255, 132, 132, 131, 255, 139, 139, 139, 255, 136, 136, 136, 255, 137, 137, 137, 255, 143, 142, 142, 255, 138, 138, 137, 255, 132, 131, 131, 255, 129, 128, 128, 255, 140, 140, 139, 255, 141, 141, 140, 255, 129, 128, 128, 255, 133, 133, 132, 255, 132, 133, 132, 255, 131, 131, 130, 255, 137, 137, 136, 255, 130, 129, 129, 255, 129, 129, 128, 255, 140, 140, 139, 255, 148, 148, 147, 255, 130, 130, 130, 255, 89, 87, 87, 255, 104, 102, 102, 255, 136, 135, 135, 255, 145, 145, 145, 255, 145, 144, 144, 255, 139, 139, 139, 255, 146, 146, 146, 255, 144, 144, 144, 255, 160, 160, 160, 255, 139, 139, 140, 255, 116, 116, 117, 255, 146, 146, 146, 255, 140, 140, 140, 255, 144, 143, 143, 255, 140, 140, 140, 255, 144, 144, 143, 255, 139, 138, 138, 255, 138, 138, 137, 255, 145, 144, 143, 255, 142, 141, 141, 255, 140, 139, 139, 255, 138, 137, 137, 255, 136, 136, 136, 255, 140, 140, 139, 255, 145, 146, 145, 255, 142, 143, 142, 255, 135, 135, 135, 255, 144, 145, 144, 255, 144, 145, 144, 255, 139, 138, 137, 255, 141, 140, 139, 255, 139, 139, 139, 255, 90, 88, 87, 255, 112, 110, 110, 255, 137, 137, 136, 255, 143, 144, 143, 255, 137, 136, 136, 255, 139, 139, 138, 255, 141, 141, 140, 255, 136, 135, 134, 255, 150, 150, 150, 255, 138, 138, 139, 255, 114, 113, 114, 255, 157, 157, 157, 255, 146, 146, 145, 255, 142, 142, 141, 255, 136, 136, 135, 255, 145, 145, 145, 255, 140, 139, 139, 255, 145, 145, 144, 255, 140, 140, 139, 255, 140, 139, 139, 255, 145, 145, 144, 255, 149, 149, 148, 255, 141, 141, 141, 255, 140, 140, 140, 255, 138, 137, 137, 255, 144, 145, 144, 255, 131, 131, 130, 255, 137, 137, 137, 255, 137, 136, 136, 255, 136, 135, 134, 255, 137, 135, 134, 255, 131, 130, 131, 255, 99, 98, 97, 255, 130, 128, 128, 255, 135, 136, 136, 255, 147, 146, 146, 255, 154, 154, 154, 255, 144, 144, 143, 255, 137, 136, 136, 255, 142, 142, 142, 255, 146, 146, 146, 255, 127, 128, 129, 255, 110, 110, 110, 255, 146, 147, 146, 255, 138, 138, 137, 255, 145, 145, 144, 255, 144, 144, 144, 255, 139, 139, 139, 255, 132, 131, 131, 255, 146, 146, 146, 255, 141, 141, 140, 255, 138, 137, 136, 255, 142, 142, 141, 255, 139, 139, 139, 255, 137, 136, 136, 255, 131, 131, 130, 255, 135, 135, 135, 255, 141, 141, 141, 255, 137, 137, 137, 255, 139, 139, 138, 255, 138, 138, 137, 255, 134, 133, 132, 255, 127, 127, 127, 255, 143, 143, 143, 255, 100, 98, 97, 255, 135, 134, 134, 255, 144, 144, 144, 255, 141, 141, 140, 255, 145, 145, 145, 255, 138, 139, 138, 255, 139, 139, 139, 255, 151, 151, 151, 255, 151, 151, 151, 255, 130, 131, 131, 255, 106, 106, 106, 255, 134, 135, 134, 255, 138, 138, 138, 255, 143, 143, 143, 255, 145, 145, 144, 255, 134, 133, 133, 255, 143, 143, 143, 255, 143, 143, 143, 255, 135, 135, 134, 255, 132, 131, 130, 255, 134, 134, 133, 255, 147, 147, 146, 255, 127, 126, 125, 255, 130, 130, 129, 255, 139, 138, 138, 255, 132, 132, 131, 255, 136, 135, 135, 255, 131, 130, 129, 255, 135, 134, 134, 255, 137, 135, 135, 255, 148, 148, 148, 255, 148, 147, 147, 255, 104, 102, 101, 255, 140, 140, 140, 255, 135, 135, 134, 255, 137, 137, 136, 255, 148, 148, 147, 255, 145, 144, 144, 255, 145, 144, 143, 255, 145, 145, 144, 255, 156, 156, 156, 255, 153, 153, 153, 255, 106, 106, 106, 255, 147, 147, 147, 255, 136, 136, 136, 255, 147, 147, 147, 255, 148, 148, 147, 255, 144, 144, 143, 255, 144, 144, 144, 255, 145, 146, 145, 255, 144, 145, 144, 255, 138, 138, 138, 255, 136, 135, 134, 255, 130, 129, 128, 255, 135, 134, 133, 255, 132, 130, 128, 255, 142, 141, 140, 255, 131, 129, 129, 255, 136, 135, 134, 255, 140, 140, 139, 255, 142, 142, 141, 255, 142, 141, 141, 255, 143, 144, 144, 255, 161, 161, 161, 255, 111, 110, 109, 255, 130, 130, 130, 255, 134, 133, 133, 255, 141, 141, 141, 255, 154, 153, 153, 255, 149, 148, 147, 255, 147, 146, 145, 255, 154, 154, 153, 255, 147, 147, 147, 255, 168, 168, 168, 255, 111, 111, 111, 255, 145, 145, 145, 255, 137, 136, 135, 255, 141, 141, 140, 255, 149, 150, 149, 255, 149, 149, 149, 255, 146, 146, 145, 255, 142, 142, 142, 255, 149, 149, 149, 255, 142, 141, 141, 255, 144, 143, 143, 255, 142, 141, 141, 255, 147, 146, 145, 255, 139, 138, 137, 255, 142, 142, 141, 255, 144, 144, 143, 255, 152, 151, 151, 255, 137, 136, 136, 255, 148, 148, 147, 255, 171, 170, 169, 255, 155, 156, 156, 255, 152, 151, 151, 255, 100, 99, 99, 255, 131, 131, 131, 255, 150, 149, 149, 255, 152, 152, 152, 255, 151, 151, 150, 255, 151, 151, 151, 255, 143, 143, 143, 255, 144, 143, 143, 255, 151, 151, 151, 255, 122, 123, 124, 255, 112, 112, 114, 255, 149, 149, 148, 255, 151, 151, 151, 255, 155, 156, 156, 255, 156, 156, 156, 255, 161, 161, 161, 255, 156, 156, 156, 255, 155, 155, 155, 255, 164, 164, 164, 255, 161, 161, 161, 255, 164, 164, 164, 255, 154, 155, 155, 255, 148, 149, 150, 255, 152, 152, 152, 255, 157, 157, 156, 255, 145, 144, 144, 255, 143, 142, 142, 255, 139, 139, 139, 255, 144, 143, 143, 255, 140, 138, 138, 255, 136, 136, 137, 255, 118, 117, 118, 255, 88, 88, 89, 255, 127, 127, 128, 255, 143, 146, 146, 255, 102, 100, 97, 255, 97, 94, 91, 255, 88, 85, 81, 255, 86, 83, 79, 255, 92, 89, 85, 255, 91, 89, 86, 255, 83, 80, 77, 255, 87, 84, 81, 255, 106, 103, 100, 255, 112, 109, 107, 255, 104, 101, 98, 255, 107, 104, 101, 255, 107, 105, 102, 255, 103, 100, 97, 255, 96, 93, 89, 255, 97, 92, 87, 255, 113, 111, 108, 255, 112, 112, 113, 255, 104, 104, 104, 255, 93, 92, 90, 255, 85, 81, 79, 255, 90, 86, 83, 255, 92, 88, 84, 255, 91, 86, 82, 255, 90, 85, 81, 255, 88, 83, 79, 255, 87, 82, 79, 255, 82, 78, 75, 255, 77, 73, 70, 255, 79, 76, 73, 255, 79, 76, 74, 255, 83, 80, 78, 255, 142, 142, 141, 255, 131, 131, 130, 255, 126, 125, 124, 255, 135, 135, 135, 255, 131, 131, 130, 255, 137, 136, 135, 255, 126, 125, 123, 255, 134, 133, 132, 255, 141, 140, 140, 255, 136, 136, 135, 255, 132, 130, 130, 255, 138, 137, 137, 255, 138, 137, 137, 255, 131, 131, 130, 255, 129, 128, 126, 255, 120, 118, 116, 255, 141, 140, 140, 255, 115, 115, 114, 255, 97, 95, 92, 255, 101, 98, 95, 255, 124, 123, 122, 255, 134, 133, 132, 255, 129, 128, 128, 255, 131, 129, 128, 255, 131, 130, 130, 255, 130, 128, 128, 255, 136, 136, 136, 255, 136, 136, 136, 255, 125, 124, 124, 255, 127, 127, 127, 255, 129, 129, 128, 255, 147, 147, 147, 255, 148, 147, 147, 255, 137, 136, 136, 255, 144, 143, 143, 255, 146, 146, 146, 255, 146, 146, 145, 255, 149, 148, 147, 255, 146, 145, 144, 255, 146, 146, 145, 255, 149, 150, 149, 255, 149, 149, 149, 255, 146, 146, 146, 255, 145, 145, 145, 255, 144, 144, 144, 255, 142, 142, 142, 255, 137, 136, 136, 255, 134, 134, 133, 255, 151, 151, 151, 255, 119, 119, 120, 255, 109, 108, 106, 255, 130, 128, 127, 255, 141, 141, 140, 255, 140, 140, 139, 255, 143, 143, 143, 255, 143, 143, 143, 255, 141, 141, 142, 255, 141, 141, 142, 255, 143, 144, 145, 255, 144, 144, 145, 255, 146, 147, 147, 255, 140, 140, 140, 255, 134, 133, 134, 255, 144, 144, 145, 255, 141, 140, 140, 255, 135, 134, 134, 255, 138, 138, 137, 255, 139, 139, 138, 255, 138, 137, 137, 255, 141, 140, 140, 255, 136, 136, 135, 255, 135, 134, 133, 255, 136, 135, 135, 255, 141, 140, 140, 255, 149, 149, 148, 255, 146, 146, 146, 255, 142, 142, 141, 255, 140, 139, 139, 255, 133, 133, 132, 255, 139, 139, 139, 255, 154, 154, 154, 255, 117, 116, 117, 255, 115, 115, 114, 255, 147, 146, 146, 255, 142, 142, 141, 255, 140, 140, 139, 255, 143, 143, 142, 255, 141, 141, 141, 255, 137, 137, 137, 255, 139, 139, 139, 255, 140, 140, 140, 255, 135, 134, 135, 255, 134, 134, 134, 255, 139, 140, 140, 255, 139, 138, 138, 255, 140, 140, 139, 255, 140, 140, 139, 255, 135, 134, 134, 255, 138, 138, 138, 255, 141, 141, 140, 255, 137, 137, 136, 255, 130, 129, 128, 255, 138, 138, 137, 255, 138, 138, 137, 255, 136, 135, 135, 255, 141, 141, 141, 255, 145, 145, 145, 255, 138, 137, 137, 255, 140, 140, 140, 255, 143, 143, 142, 255, 143, 143, 143, 255, 142, 142, 142, 255, 152, 152, 152, 255, 116, 116, 116, 255, 121, 121, 120, 255, 143, 142, 141, 255, 134, 135, 134, 255, 135, 135, 135, 255, 134, 134, 134, 255, 142, 143, 143, 255, 145, 145, 145, 255, 142, 141, 141, 255, 139, 140, 140, 255, 139, 138, 138, 255, 129, 128, 129, 255, 131, 130, 130, 255, 142, 143, 143, 255, 142, 141, 141, 255, 131, 131, 131, 255, 139, 138, 137, 255, 137, 135, 135, 255, 141, 140, 140, 255, 139, 139, 138, 255, 138, 137, 136, 255, 144, 144, 143, 255, 145, 145, 145, 255, 139, 139, 138, 255, 138, 137, 137, 255, 139, 138, 138, 255, 137, 138, 137, 255, 140, 140, 140, 255, 144, 143, 143, 255, 137, 137, 137, 255, 140, 141, 141, 255, 164, 165, 164, 255, 122, 122, 122, 255, 121, 121, 120, 255, 140, 139, 138, 255, 139, 138, 137, 255, 138, 138, 137, 255, 136, 136, 136, 255, 146, 146, 145, 255, 145, 144, 144, 255, 146, 147, 147, 255, 140, 139, 140, 255, 139, 138, 138, 255, 141, 141, 141, 255, 135, 136, 136, 255, 142, 142, 142, 255, 137, 137, 137, 255, 138, 138, 138, 255, 139, 138, 138, 255, 134, 133, 132, 255, 143, 143, 142, 255, 134, 132, 131, 255, 130, 129, 128, 255, 141, 140, 140, 255, 143, 142, 141, 255, 141, 140, 139, 255, 136, 136, 135, 255, 135, 135, 135, 255, 145, 145, 144, 255, 138, 138, 137, 255, 137, 138, 137, 255, 137, 137, 137, 255, 139, 139, 139, 255, 167, 167, 166, 255, 126, 127, 127, 255, 128, 128, 128, 255, 154, 154, 153, 255, 140, 138, 137, 255, 137, 135, 134, 255, 136, 133, 133, 255, 139, 137, 136, 255, 142, 141, 141, 255, 139, 138, 138, 255, 142, 142, 141, 255, 135, 133, 132, 255, 132, 129, 129, 255, 139, 139, 139, 255, 143, 142, 141, 255, 144, 143, 143, 255, 143, 143, 142, 255, 145, 144, 144, 255, 132, 131, 130, 255, 141, 140, 139, 255, 138, 138, 137, 255, 139, 138, 137, 255, 137, 136, 136, 255, 139, 139, 137, 255, 139, 139, 138, 255, 139, 139, 139, 255, 147, 147, 147, 255, 143, 143, 142, 255, 139, 138, 138, 255, 144, 144, 144, 255, 147, 148, 148, 255, 142, 143, 143, 255, 171, 172, 171, 255, 152, 151, 150, 255, 124, 125, 124, 255, 148, 148, 147, 255, 137, 135, 134, 255, 137, 136, 135, 255, 139, 137, 136, 255, 137, 137, 136, 255, 133, 132, 132, 255, 137, 135, 135, 255, 140, 139, 139, 255, 144, 143, 142, 255, 130, 129, 129, 255, 134, 134, 134, 255, 131, 131, 130, 255, 136, 134, 134, 255, 143, 143, 143, 255, 143, 143, 142, 255, 143, 142, 141, 255, 146, 146, 145, 255, 145, 145, 145, 255, 139, 139, 138, 255, 141, 141, 139, 255, 139, 139, 138, 255, 139, 138, 137, 255, 139, 139, 138, 255, 148, 149, 148, 255, 149, 149, 149, 255, 139, 139, 139, 255, 138, 139, 139, 255, 138, 138, 138, 255, 137, 138, 138, 255, 172, 172, 171, 255, 146, 145, 144, 255, 109, 109, 109, 255, 135, 135, 135, 255, 141, 139, 137, 255, 143, 141, 140, 255, 143, 143, 142, 255, 147, 148, 147, 255, 140, 139, 138, 255, 141, 139, 139, 255, 149, 150, 150, 255, 146, 145, 145, 255, 133, 131, 131, 255, 134, 134, 134, 255, 145, 145, 145, 255, 143, 144, 144, 255, 140, 139, 138, 255, 147, 146, 146, 255, 138, 137, 136, 255, 138, 138, 138, 255, 151, 150, 150, 255, 158, 158, 158, 255, 159, 160, 159, 255, 152, 153, 153, 255, 152, 153, 153, 255, 151, 151, 151, 255, 149, 150, 150, 255, 153, 154, 154, 255, 145, 146, 146, 255, 146, 146, 147, 255, 154, 154, 154, 255, 157, 156, 156, 255, 150, 150, 150, 255, 106, 105, 106, 255, 113, 114, 115, 255, 154, 155, 155, 255, 161, 161, 161, 255, 167, 166, 166, 255, 170, 170, 170, 255, 155, 155, 155, 255, 151, 151, 151, 255, 158, 157, 158, 255, 167, 168, 167, 255, 159, 160, 160, 255, 164, 165, 165, 255, 156, 155, 155, 255, 149, 148, 148, 255, 168, 169, 169, 255, 116, 112, 109, 255, 126, 122, 119, 255, 124, 120, 116, 255, 121, 119, 116, 255, 118, 116, 113, 255, 134, 132, 129, 255, 131, 131, 130, 255, 129, 129, 129, 255, 135, 134, 131, 255, 127, 125, 124, 255, 124, 122, 120, 255, 122, 120, 117, 255, 127, 126, 124, 255, 126, 125, 123, 255, 134, 131, 130, 255, 129, 126, 124, 255, 112, 110, 108, 255, 90, 88, 85, 255, 96, 94, 93, 255, 108, 105, 103, 255, 112, 109, 107, 255, 108, 104, 102, 255, 107, 104, 102, 255, 112, 110, 108, 255, 112, 110, 108, 255, 114, 112, 110, 255, 117, 114, 111, 255, 110, 109, 108, 255, 103, 103, 104, 255, 99, 98, 97, 255, 135, 133, 133, 255, 115, 114, 113, 255, 137, 136, 136, 255, 133, 133, 132, 255, 139, 138, 137, 255, 138, 138, 137, 255, 124, 123, 121, 255, 121, 118, 116, 255, 133, 133, 133, 255, 103, 103, 104, 255, 116, 115, 114, 255, 103, 101, 99, 255, 109, 108, 107, 255, 135, 134, 133, 255, 133, 133, 132, 255, 124, 124, 122, 255, 119, 119, 118, 255, 112, 111, 109, 255, 115, 115, 114, 255, 129, 129, 129, 255, 131, 130, 130, 255, 113, 112, 112, 255, 123, 122, 122, 255, 122, 123, 122, 255, 125, 126, 124, 255, 119, 116, 114, 255, 129, 128, 128, 255, 123, 121, 120, 255, 120, 120, 119, 255, 137, 137, 137, 255, 102, 103, 103, 255, 118, 116, 114, 255, 124, 121, 119, 255, 128, 130, 129, 255, 138, 138, 138, 255, 140, 140, 140, 255, 142, 142, 141, 255, 142, 141, 140, 255, 126, 126, 125, 255, 137, 137, 138, 255, 147, 147, 148, 255, 104, 104, 104, 255, 119, 120, 120, 255, 134, 136, 136, 255, 133, 134, 134, 255, 137, 138, 138, 255, 134, 134, 134, 255, 127, 128, 128, 255, 134, 133, 134, 255, 139, 140, 139, 255, 137, 137, 136, 255, 136, 136, 136, 255, 133, 134, 134, 255, 135, 135, 135, 255, 129, 129, 130, 255, 135, 136, 137, 255, 140, 141, 140, 255, 131, 130, 130, 255, 130, 128, 127, 255, 126, 127, 127, 255, 130, 132, 132, 255, 144, 143, 144, 255, 101, 101, 102, 255, 129, 129, 130, 255, 138, 137, 137, 255, 146, 148, 148, 255, 128, 128, 128, 255, 135, 134, 133, 255, 135, 133, 132, 255, 139, 139, 138, 255, 124, 123, 122, 255, 155, 155, 154, 255, 148, 148, 148, 255, 107, 106, 105, 255, 143, 142, 142, 255, 161, 162, 162, 255, 141, 141, 141, 255, 136, 136, 136, 255, 141, 141, 141, 255, 141, 142, 143, 255, 125, 124, 124, 255, 128, 127, 127, 255, 131, 131, 130, 255, 134, 135, 134, 255, 139, 138, 138, 255, 136, 137, 137, 255, 135, 135, 135, 255, 139, 139, 139, 255, 136, 135, 135, 255, 144, 144, 144, 255, 133, 133, 133, 255, 127, 125, 125, 255, 127, 129, 129, 255, 137, 134, 135, 255, 101, 101, 101, 255, 134, 135, 135, 255, 134, 132, 132, 255, 133, 132, 132, 255]
+                    texture_width = 32;
+                    texture_height = 32;
+                }
+
+                const textured_entity = new TexturedEntity(vertices, indices, tex_coords, wall_data, texture_width, texture_height, location);
+                const trigger_boxes = [new TriggerBox([0, 0, 0], [size, size, size])];
+
+                super(textured_entity, trigger_boxes);
+            }
+        }
+    </script>
+    <script>
+        class Hero extends CameraActor {
+            constructor(...args) {
+                const health = 5;
+                super(...args); // Call the parent constructor
+                this.health = health; // Initial health of the character
+            }
+
+            // this received a hit of damage damage
+            hit_received(damage) {
+                this.health -= damage; 
+                if (this.health <= 0) {
+                    this.should_destroy = true; // die
+                }
+                else {
+                    console.log("Remaining health: " + this.health); // Log remaining health
+                }
+            }
+
+            on_destroy() {
+                console.log("You lose!");
+                console_section.innerHTML = "You lose!";
+                // Kill canvas
+                canvas.remove();
+                should_continue = false; // Stop the game loop
+            }
+
+            on_collision(other_actor) {
+                if (other_actor instanceof Guard) {
+                    this.should_destroy = true; // die
+                }
+                else if (other_actor instanceof TargetDestination) {
+                    console.log("You win!");
+                    console_section.innerHTML = "You win!";
+                }
+            }
+        }
+    </script>
+    <script>
+        class HeroBullet extends Bullet {
+            constructor(...args) {
+                super(...args);
+            }
+
+            on_collision(other_actor) {
+                if (other_actor instanceof Guard) {
+                    console.log("HeroBullet collided with " + other_actor.constructor.name + "!");
+                    other_actor.hit_received(this.damage); // Deal damage to the guard
+                    this.should_destroy = true; // Destroy the bullet
+                }
+            }
+        }
+    </script>
+    <script>
+        class Enemy extends Character {
+            constructor() {
+                // 2d square
+                const vertices = [
+                    0, -0.5, -0.5,
+                    0, 0.5, -0.5,
+                    0, 0.5, 0.5,
+                    0, -0.5, 0.5,
+                ];
+                const scalar = 2;
+                for (let i = 0; i < vertices.length; i++) {
+                    vertices[i] *= scalar;
+                }
+                const indices = [
+                    0, 1, 2,
+                    0, 2, 3,
+                ];
+                const colors = [
+                    1, 0, 0,
+                    1, 0, 0,
+                    0, 0, 1,
+                    0, 0, 1,
+                ]
+                const location = [0, 5, 0];
+
+                const textured_entity = new Entity(vertices, indices, colors, location);
+                const trigger_boxes = [new TriggerBox([0, 0, 0], [2, 2, 2])];
+
+                super(1, textured_entity, trigger_boxes);
+            }
+
+            face_camera(camera_location) {
+                // Calculate the yaw angle based on the camera location
+                const dx = camera_location[0] - this.entity.location[0];
+                const dz = camera_location[2] - this.entity.location[2];
+                const yaw = Math.atan2(dx, dz);
+                
+                // Update vertices based on the yaw angle
+                this.entity.vertices = Transform.rotate_positions(this.entity.local_vertices, [0, yaw, 0]);
+                this.entity.globalize_vertices();
+            }
+        }
+    </script>
+    <script>
+        class EnemyBullet extends Bullet {
+            constructor(...args) {
+                super(...args);
+            }
+
+            on_collision(other_actor) {
+                if (other_actor instanceof Hero) {
+                    console.log("EnemyBullet collided with " + other_actor.constructor.name + "!");
+                    other_actor.hit_received(this.damage); // Deal damage to the guard
+                    this.should_destroy = true; // Destroy the bullet
+                }
+            }
+        }
+    </script>
+    <script>
+        class TargetDestination extends Actor {
+            constructor(location) {
+                //2d square
+                const vertices = [
+                    -0.5, 0, -0.5,
+                    0.5, 0, -0.5,
+                    0.5, 0, 0.5,
+                    -0.5, 0, 0.5,
+                ];
+                const scalar = 2;
+                for (let i = 0; i < vertices.length; i++) {
+                    vertices[i] *= scalar;
+                }
+                const indices = [
+                    0, 1, 2,
+                    0, 2, 3,
+                ];
+                const colors = [
+                    //red
+                    1, 0, 0,
+                    1, 0, 0,
+                    1, 0, 0,
+                    1, 0, 0,
+                ];
+                const entity = new Entity(vertices, indices, colors, [location[0], location[1]-.99, location[2]]);
+                const trigger_boxes = [new TriggerBox([0, 0, 0], [2, 1, 2])];
+                super(entity, trigger_boxes);
+            }
+        }
+    </script>
+    
+    <script>
+        // Initialize Web GL context, program, and lighting engine
+        const gl_setup = new GLSetup("glcanvas");
+        const [gl, program, canvas] = gl_setup.init()
+        gl.clearColor(0, 0, 0, 1);
+        gl.enable(gl.DEPTH_TEST);
+
+        // Change depending on your Frames per Second (FPS) as the game speed is tied to fps
+        const tick_rate_scale = .5;
+
+        const console_section = document.getElementById("console");
+
+        // Maze
+        const maze_tile_width_height = 4; // Size of each tile in the maze
+        const maze_width_height = 30;
+        const starting_indices = [1, 0];
+        const ending_indices = [maze_width_height - 1 - 1, 0];
+
+        function maze_index_to_location(index) {
+            return index * maze_tile_width_height - (maze_width_height / 2) * maze_tile_width_height;
+        }
+
+        const maze = [ // 0=open space, 1=wall
+            [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1],
+            [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 0, 1],
+            [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+            [1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1],
+            [1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 1],
+            [1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1],
+            [1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+            [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1],
+            [1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+            [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1],
+            [1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
+            [1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1],
+            [1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1],
+            [1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+            [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
+            [1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1],
+            [1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1],
+            [1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1],
+            [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1],
+            [1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 0, 0, 1, 1],
+            [1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1],
+            [1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1],
+            [1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1],
+            [1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1],
+            [1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1],
+            [1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1],
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+        ]
+
+        function get_random_empty_maze_location() {
+            let x, y;
+            do {
+                x = Math.floor(Math.random() * maze_width_height);
+                y = Math.floor(Math.random() * maze_width_height);
+            } while (maze[x][y] !== 0); // Ensure it's an empty space
+            return [y, x]; // invert x and y because i said so
+        }
+
+        // Camera
+        const camera_init_location = [maze_index_to_location(starting_indices[0]), 0, maze_index_to_location(starting_indices[1])];
+        const camera = new CameraObject(camera_init_location);
+        camera.angle = Math.PI; // Initial camera angle
+        const camera_actor = new Hero(camera, [new TriggerBox([0, 0, 0], [1, 1, 1])], true)
+
+        // Camera movement
+        var keys_down = {};
+        const valid_keys = ["w", "s", "a", "d", "z", "x", "c"];
+
+        // Handle key presses for camera movement
+        document.addEventListener("keydown", (event) => {
+            if (valid_keys.includes(event.key)) {
+                keys_down[event.key] = true;
+            }
+        });
+        document.addEventListener("keyup", (event) => {
+            if (valid_keys.includes(event.key)) {
+                keys_down[event.key] = false;
+            }
+        });
+
+        // Game engine
+        const game_engine = new GameEngine(camera_actor);
+
+        // Add walls to game engine based on their location in the maze
+        for (let i = 0; i < maze_width_height; i++) {
+            for (let j = 0; j < maze_width_height; j++) {
+                //console.log(maze[i][j]);
+                if (maze[i][j] === 1) {
+                    const x = maze_index_to_location(j);
+                    const y = 0; // Ground level
+                    const z = maze_index_to_location(i);
+                    game_engine.add_actor(new Wall([x, y, z], maze_tile_width_height));
+                }
+            }
+        }
+
+        function create_object_in_maze(class_ref, location_indices="random") {
+            if (location_indices === "random") {
+                location_indices = get_random_empty_maze_location();
+            }
+
+            var y = 0;
+            //if (class_ref === Guard) {y = 6;} //debug
+            const location = [maze_index_to_location(location_indices[0]), y, maze_index_to_location(location_indices[1])];
+            const obj = new class_ref(location);
+            game_engine.add_actor(obj);
+        }
+
+        // Create enemies
+        for (let i = 0; i < 10; i++) {
+            create_object_in_maze(Guard);
+        }
+        for (let i = 0; i < 5; i++ ) {
+            create_object_in_maze(Torch);
+        }
+        create_object_in_maze(TargetDestination, ending_indices);
+
+        // List all game objects to be created
+        const object_creation_map = [
+            // <class_ref>, <instance_count>
+            [Ground, 1],
+            [Moon, 1],
+        ];
+
+        // Create objects based on the map
+        for (const [class_ref, count] of object_creation_map) {
+            for (let i = 0; i < count; i++) {
+                const instance = new class_ref(); // Add parameters here if needed
+                game_engine.add_actor(instance);
+            }
+        }
+
+        // Bullet shooting
+        document.addEventListener("keypress", (event) => {
+            if (event.code === "Space") {
+                // At camera, facing same direction
+                game_engine.add_actor(new HeroBullet(camera.vertices, [0, -camera.angle, 0]));
+            }
+        });
+
+        test_enemy1 = new Enemy();
+        game_engine.add_actor(test_enemy1);
+
+        // TODO:
+        // 4. Setup billboarding such that enemies always look at the camera
+
+        // Main loop
+        var current_tick = 0;
+        var should_continue = true;
+        function tick() {
+            if (!should_continue) return; // Stop the loop if should_continue is false
+
+            gl_setup.tick();
+            game_engine.tick();
+
+            // Update enemy's direction to face the camera
+            test_enemy1.face_camera(camera_actor.entity.location);
+
+            current_tick += 1;
+
+            if (Math.floor(current_tick) % 500 === 0) {
+                console.log("Shooting bullet!");
+                game_engine.add_actor(new EnemyBullet([camera.vertices[0], camera.vertices[1], camera.vertices[2]+10], [0, -camera.angle+Math.PI, 0]));
+            }
+
+            requestAnimationFrame(tick); // Start loop
+        }
+
+        // Start the main loop
+        tick();
+    </script>
+</body>
+</html>
