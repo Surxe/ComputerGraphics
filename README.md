@@ -1,6 +1,9 @@
 # ComputerGraphics
 Course work and related projects for Computer Graphics
 
+## Info
+For each assignment, the version that was ready for to be submitted was duplicated from `HW#/Split` into `HW#/Combined`, where the `.html` and `.js` files were combined into just one `index.html` file. This allows them to be embedded in other software more easily for grading purposes.
+
 ## HW1
 **Lucky Number**
 
@@ -59,3 +62,11 @@ Create a 3D asteroid field where the camera gets blocked by asteroids and can sh
 **Spooky Forest**
 
 Create a 3D spooky forest with trees and rocks that block movement along with ambient, spot, point, and directional lighting
+
+
+## HW11
+**Escape the Maze**
+
+Create an array based maze with textured assets and multiple enemies with differing behaviors.
+
+Run `HW11/Split/img_converter.py` first to convert source images from `HW11/Split/textures/src/<file>.png` to an array in `HW11/Split/textures/json/<file>.json`
